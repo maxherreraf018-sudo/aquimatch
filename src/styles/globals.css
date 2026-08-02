@@ -1,0 +1,728 @@
+:root {
+  --bg: #0D0D14;
+  --bg-card: rgba(18, 0, 34, 0.72);
+  --bg-card-hover: rgba(26, 4, 46, 0.85);
+  --border: #2a1b3d;
+  --text: #f5f3f7;
+  --text-dim: #b3a6bf;
+  --text-faint: #7a6d87;
+  --magenta: #FF2D8E;
+  --purple: #B12DFF;
+  --violet: #6A00FF;
+  --gradient: linear-gradient(135deg, #FF2D8E 0%, #B12DFF 50%, #6A00FF 100%);
+  --glow-magenta: rgba(255, 45, 142, 0.28);
+  --glow-violet: rgba(106, 0, 255, 0.26);
+  --success: #22c55e;
+  --danger: #f87171;
+  --warning: #fb923c;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-card: 0 12px 32px -14px rgba(0, 0, 0, 0.6);
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Poppins', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(640px circle at 12% -8%, var(--glow-magenta), transparent 60%),
+    radial-gradient(640px circle at 92% 108%, var(--glow-violet), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px 32px;
+  position: relative;
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+p {
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* Botones */
+.btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 15px 20px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--gradient);
+  color: white;
+  box-shadow: 0 8px 24px -8px rgba(255, 45, 142, 0.5);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 10px 28px -6px rgba(255, 45, 142, 0.65);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+/* Botones de acceso social (Google / Apple) */
+.btn-social {
+  background: #ffffff;
+  color: #1c1c1e;
+  border: none;
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.35);
+}
+
+.btn-social:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.btn-social:disabled {
+  opacity: 0.55;
+}
+
+.btn-social .icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Inputs */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  width: 100%;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.input:focus {
+  border-color: var(--purple);
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Divider con texto */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-faint);
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Progreso de onboarding */
+.progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+
+.progress-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.3s ease;
+}
+
+.progress-dot.active {
+  background: var(--gradient);
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: -6px;
+}
+
+.link {
+  color: var(--magenta);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.avatar-upload {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px auto 4px;
+  cursor: pointer;
+  background: var(--bg-card);
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.avatar-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chip-group {
+  display: flex;
+  gap: 10px;
+}
+
+.chip {
+  flex: 1;
+  padding: 14px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  text-align: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: all 0.15s ease;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-card);
+}
+
+.chip.selected {
+  border-color: var(--magenta);
+  background: rgba(255, 45, 142, 0.14);
+  color: var(--text);
+}
+
+/* Tarjeta que agrupa varios ítems relacionados en Perfil (en vez de una
+   caja "chip" suelta por cada ítem, ver DEC de rediseño de Perfil). */
+.grupo-perfil {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.separador-grupo {
+  height: 1px;
+  background: var(--border);
+}
+
+.fila-cuenta {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legal-note {
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Barra de navegación inferior */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(13, 13, 20, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  z-index: 50;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-faint);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  flex: 1;
+  padding: 4px 0;
+  transition: color 0.15s ease;
+}
+
+.bottom-nav-item.active {
+  color: var(--magenta);
+}
+
+.bottom-nav-item.active svg {
+  filter: drop-shadow(0 0 8px rgba(255, 45, 142, 0.5));
+}
+
+.screen-with-nav {
+  padding-bottom: 92px;
+}
+
+/* Píldoras */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+/* Botones circulares de acción (Descubrir) */
+.btn-circle {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-circle:active {
+  transform: scale(0.92);
+}
+
+.btn-circle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-circle-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.btn-circle-primary {
+  background: var(--gradient);
+  color: white;
+  box-shadow: 0 10px 28px -8px rgba(255, 45, 142, 0.6);
+}
+
+/* Efecto de "pila" de tarjetas */
+.card-stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.card-stack::before,
+.card-stack::after {
+  content: '';
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 0;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  z-index: 0;
+}
+
+.card-stack::before {
+  transform: translateY(-10px) scale(0.97);
+  opacity: 0.7;
+}
+
+.card-stack::after {
+  transform: translateY(-18px) scale(0.94);
+  opacity: 0.4;
+  z-index: -1;
+}
+
+/* Radar de presencia — la firma visual de AquíMatch. */
+.radar {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.radar::before,
+.radar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--magenta);
+  opacity: 0;
+  animation: radar-ping 2.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
+.radar::after {
+  animation-delay: 1.3s;
+}
+
+.radar-core {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  box-shadow: 0 0 40px -6px rgba(255, 45, 142, 0.65);
+}
+
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar::before,
+  .radar::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Animaciones de la pantalla de Interés mutuo */
+@keyframes anillo-expande-una-vez {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes avatar-entrada {
+  0% {
+    transform: scale(0.7) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes subir-desvanecer {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.match-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--magenta);
+  animation: anillo-expande-una-vez 1.8s ease-out infinite;
+}
+
+.match-ring.delay {
+  animation-delay: 0.6s;
+  border-color: var(--purple);
+}
+
+.match-avatares {
+  animation: avatar-entrada 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+.match-linea {
+  animation: subir-desvanecer 0.5s ease-out backwards;
+}
+
+/* Pop del botón "Me interesa" al tocarlo */
+@keyframes pop-corazon {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.85);
+  }
+  65% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes anillo-corazon-una-vez {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.btn-circle-primary.animando {
+  animation: pop-corazon 0.5s ease-out;
+}
+
+.btn-circle-primary.animando::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--magenta);
+  animation: anillo-corazon-una-vez 0.5s ease-out;
+}
+
+/* Entrada de mensajes de chat */
+@keyframes mensaje-entra-izq {
+  0% {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mensaje-entra-der {
+  0% {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.mensaje-burbuja-izq {
+  animation: mensaje-entra-izq 0.35s ease-out;
+}
+
+.mensaje-burbuja-der {
+  animation: mensaje-entra-der 0.35s ease-out;
+}
+
+/* Confetti de "Es un match" — cada partícula recibe su propio destino
+   (--tx/--ty/--rot) desde el inline style, generado al azar en JS. */
+.confetti-particula {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 2px;
+  animation: confetti-vuelo 1.15s cubic-bezier(0.15, 0.6, 0.35, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes confetti-vuelo {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-ring,
+  .match-avatares,
+  .match-linea,
+  .btn-circle-primary.animando,
+  .btn-circle-primary.animando::after,
+  .mensaje-burbuja-izq,
+  .mensaje-burbuja-der,
+  .confetti-particula {
+    animation: none !important;
+    opacity: 0;
+  }
+}

@@ -1,0 +1,179 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getAuth } from 'firebase/auth'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { actualizarUsuario } from '../firebase/auth'
+import { subirSelfieAlStorage } from '../services/verificacion'
+import { registrarEvento } from '../firebase/analytics'
+import { IconAlerta, IconPendiente } from '../components/Icons'
+
+// Bloquea el paso a Activación/Descubrir mientras la selfie de verificación
+// está "pendiente" (esperando a la Cloud Function) o llegó "rechazado" /
+// "error_verificacion". Usuarios sin este campo (cuentas previas a esta
+// función) o con "aprobado" pasan directo. Escucha en tiempo real, así que
+// apenas la Cloud Function resuelve el estado, esta pantalla avanza sola.
+export default function RequireVerificacion({ children }) {
+  const uid = getAuth().currentUser?.uid
+  const [usuario, setUsuario] = useState(undefined) // undefined = cargando
+  const [demasiadoLento, setDemasiadoLento] = useState(false)
+
+  useEffect(() => {
+    if (!uid) return
+    const ref = doc(db, 'usuarios', uid)
+    const desuscribir = onSnapshot(ref, (snap) => {
+      setUsuario(snap.exists() ? snap.data() : null)
+    })
+    return () => desuscribir()
+  }, [uid])
+
+  const estado = usuario?.estadoVerificacion
+
+  // Registra el evento justo en el instante en que pasa a "aprobado" — no
+  // en cada carga de alguien que ya estaba aprobado de antes (por eso
+  // exige haber visto un estado previo distinto dentro de este mismo
+  // listener, no solo que el valor actual sea "aprobado").
+  const estadoAnteriorRef = useRef(undefined)
+  useEffect(() => {
+    if (estado === 'aprobado' && estadoAnteriorRef.current && estadoAnteriorRef.current !== 'aprobado') {
+      registrarEvento('verificacion_aprobada')
+    }
+    estadoAnteriorRef.current = estado
+  }, [estado])
+
+  // La Cloud Function a veces se queda sin tiempo con fotos muy pesadas y
+  // el perfil queda trabado en "pendiente" para siempre. Si pasa más de un
+  // minuto, dejamos de asumir que ya casi termina y le damos a la persona
+  // una salida real en vez de un spinner infinito. Se reinicia si sube una
+  // selfie nueva (nuevo intento).
+  useEffect(() => {
+    setDemasiadoLento(false)
+    if (estado !== 'pendiente') return
+    const temporizador = setTimeout(() => setDemasiadoLento(true), 60000)
+    return () => clearTimeout(temporizador)
+  }, [estado, usuario?.selfieVerificacion])
+
+  if (usuario === undefined) {
+    return (
+      <div className="screen" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <p>Cargando...</p>
+      </div>
+    )
+  }
+
+  if (estado === 'pendiente' && !demasiadoLento) {
+    return (
+      <div className="screen" style={{ justifyContent: 'center', textAlign: 'center' }}>
+        <div className="radar" style={{ marginBottom: 20 }}>
+          <div className="radar-core">🛡️</div>
+        </div>
+        <h1 style={{ marginBottom: 10 }}>Estamos revisando tu selfie</h1>
+        <p>Esto no debería tardar más de un minuto. No hace falta que hagas nada.</p>
+      </div>
+    )
+  }
+
+  if (estado === 'rechazado' || estado === 'error_verificacion') {
+    return <VerificacionRechazada uid={uid} />
+  }
+
+  if (estado === 'pendiente' && demasiadoLento) {
+    return <VerificacionRechazada uid={uid} tardando />
+  }
+
+  return children
+}
+
+function VerificacionRechazada({ uid, tardando }) {
+  const navigate = useNavigate()
+  const [subiendo, setSubiendo] = useState(false)
+  const [error, setError] = useState('')
+
+  async function manejarSelfie(e) {
+    const archivo = e.target.files[0]
+    if (!archivo) return
+    setError('')
+    setSubiendo(true)
+    try {
+      const selfieURL = await subirSelfieAlStorage(uid, archivo)
+      await actualizarUsuario(uid, {
+        selfieVerificacion: selfieURL,
+        estadoVerificacion: 'pendiente',
+      })
+      // El onSnapshot de RequireVerificacion recibe el cambio solo y pasa a
+      // la pantalla de espera.
+    } catch (err) {
+      setError(`No pudimos subir tu selfie. (${err?.code || err?.message || 'error desconocido'})`)
+      setSubiendo(false)
+    }
+  }
+
+  return (
+    <div className="screen" style={{ justifyContent: 'center', textAlign: 'center' }}>
+      <div
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: '50%',
+          border: '2px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-dim)',
+          margin: '0 auto 20px',
+        }}
+      >
+        {tardando ? <IconPendiente size={26} /> : <IconAlerta size={26} />}
+      </div>
+      <h1 style={{ marginBottom: 10 }}>
+        {tardando ? 'Esto está tardando más de lo normal' : 'No pudimos verificar tu selfie'}
+      </h1>
+      <p style={{ marginBottom: 20 }}>
+        {tardando
+          ? 'Puede haber sido un problema de conexión. Volvé a tomarte la selfie para intentarlo de nuevo.'
+          : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
+      </p>
+      <label className="avatar-upload" style={{ margin: '0 auto 10px' }}>
+        {subiendo ? (
+          <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>Subiendo...</span>
+        ) : (
+          <span style={{ fontSize: 24, color: 'var(--text-faint)' }}>📷</span>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          capture="user"
+          onChange={manejarSelfie}
+          disabled={subiendo}
+          style={{ display: 'none' }}
+        />
+      </label>
+      <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginBottom: 20 }}>
+        Toca el círculo para tomar tu selfie de nuevo
+      </p>
+      {error && (
+        <p className="error-text" style={{ marginBottom: 8 }}>
+          {error}
+        </p>
+      )}
+      {!tardando && (
+        <>
+          <div className="divider" style={{ width: '100%' }}>
+            o
+          </div>
+          <p style={{ fontSize: 12.5, marginBottom: 12 }}>
+            ¿Tu foto de perfil no se ve clara? Puede ser la causa.
+          </p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate('/perfil')}
+            disabled={subiendo}
+          >
+            Cambiar mi foto de perfil
+          </button>
+        </>
+      )}
+      <p className="legal-note">Tu información siempre estará protegida.</p>
+    </div>
+  )
+}

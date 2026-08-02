@@ -1,0 +1,27 @@
+{
+  "hosting": {
+    "public": "hosting-public",
+    "ignore": ["firebase.json", "**/.*"]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "bucket": "mi-app-conexion.firebasestorage.app",
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

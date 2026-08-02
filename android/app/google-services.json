@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "39224828573",
+    "project_id": "mi-app-conexion",
+    "storage_bucket": "mi-app-conexion.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39224828573:android:ed6cf74931683198672a74",
+        "android_client_info": {
+          "package_name": "com.aquimatch.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "39224828573-ennnrthjrci6fl04d1ai1nclsti6iqjm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aquimatch.app",
+            "certificate_hash": "6a95b570cb6026f736e27f88b512cd2b046a3cc8"
+          }
+        },
+        {
+          "client_id": "39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM3-F1qXHoq5qQ-8NR_FKq375gSUZHVIk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "39224828573-7k97i938pgvsgags8ftsiee7loq3i9nh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.miappconexion"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39224828573:android:9136c63cbcbcfed2672a74",
+        "android_client_info": {
+          "package_name": "com.miappconexion"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "39224828573-086nap6mv3h7rctn7bvu1b305r6ehct4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.miappconexion",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM3-F1qXHoq5qQ-8NR_FKq375gSUZHVIk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "39224828573-7k97i938pgvsgags8ftsiee7loq3i9nh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.miappconexion"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

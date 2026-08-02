@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AquíMatch</title>
+<style>
+  :root {
+    --bg: #0D0D14;
+    --text: #F5F3F7;
+    --text-dim: #B3A6BF;
+    --purple: #B12DFF;
+    --gradient: linear-gradient(135deg, #FF2D8E 0%, #B12DFF 32%, #6A00FF 100%);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    text-align: center;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  h1 .match { color: var(--purple); }
+  p { font-size: 15px; color: var(--text-dim); margin: 0; max-width: 420px; }
+  .links { display: flex; gap: 20px; margin-top: 8px; }
+  a { font-size: 13.5px; color: var(--text-dim); text-decoration: none; }
+  a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>Aquí<span class="match">Match</span></h1>
+  <p>Muy pronto en Chile.</p>
+  <div class="links">
+    <a href="/terminos.html">Términos y Condiciones</a>
+    <a href="/privacidad.html">Política de Privacidad</a>
+  </div>
+</body>
+</html>

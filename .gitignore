@@ -1,0 +1,29 @@
+node_modules
+.env
+dist
+.DS_Store
+
+# Compilados / generados — se regeneran con npm run build, npx cap sync, etc.
+android/build
+android/app/build
+android/.gradle
+android/local.properties
+ios/App/Pods
+ios/App/build
+ios/DerivedData
+
+# Firma de la app — CRÍTICO: nunca debe subirse a ningún control de versiones,
+# ni siquiera privado. Sin esto no se puede volver a firmar la app.
+android/app/*.keystore
+android/keystore.properties
+
+# Cache local de Firebase CLI
+.firebase
+
+# Builds finales (se guardan aparte, no dentro del proyecto)
+*.aab
+*.apk
+
+# Logs
+firebase-debug.log
+npm-debug.log
