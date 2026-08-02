@@ -76,7 +76,9 @@
       "Bash(grep -r AD_ID 'C:\\\\Users\\\\max_1\\\\OneDrive\\\\Escritorio\\\\AQUIMATCH\\\\CLAUDE\\\\aquimatch\\\\android\\\\app\\\\build\\\\intermediates\\\\merged_manifest\\\\release\" 2>/dev/null *)",
       "Bash(echo \"exit code: $?\")",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)"
     ]
   }
 }
