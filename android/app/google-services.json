@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "39224828573-2deieedb6fpku31ihofr8a14qsg3ovhf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aquimatch.app",
+            "certificate_hash": "080b6328a1c8add2ec2068a59da2a4b3b5567a1a"
+          }
+        },
+        {
           "client_id": "39224828573-ennnrthjrci6fl04d1ai1nclsti6iqjm.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
