@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "39224828573-nfdtkc40g1t2paqtivqfvjjtggv87ao1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aquimatch.app",
+            "certificate_hash": "1d4d16e2c3aca478713626ff341c1a4bbef99c04"
+          }
+        },
+        {
           "client_id": "39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -39,10 +47,10 @@
               "client_type": 3
             },
             {
-              "client_id": "39224828573-7k97i938pgvsgags8ftsiee7loq3i9nh.apps.googleusercontent.com",
+              "client_id": "39224828573-1f98utljsje3oe8abobd0qdtup0q45fb.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.miappconexion"
+                "bundle_id": "com.aquimatch.app"
               }
             }
           ]
@@ -83,10 +91,10 @@
               "client_type": 3
             },
             {
-              "client_id": "39224828573-7k97i938pgvsgags8ftsiee7loq3i9nh.apps.googleusercontent.com",
+              "client_id": "39224828573-1f98utljsje3oe8abobd0qdtup0q45fb.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.miappconexion"
+                "bundle_id": "com.aquimatch.app"
               }
             }
           ]
