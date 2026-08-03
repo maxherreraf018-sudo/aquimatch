@@ -88,7 +88,11 @@
       "Bash(cp \"C:/Users/max_1/Downloads/google-services \\(4\\).json\" \"C:/Users/max_1/OneDrive/Escritorio/AQUIMATCH/CLAUDE/aquimatch/android/app/google-services.json\" && echo \"copiado ok\")",
       "Bash(xargs grep -l \"estadoVerificacion\\\\|verificacion\")",
       "WebFetch(domain:capgo.app)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" kill-server *)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" start-server *)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -c)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -d)"
     ]
   }
 }
