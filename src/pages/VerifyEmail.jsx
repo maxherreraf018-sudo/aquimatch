@@ -69,6 +69,9 @@ export default function VerifyEmail() {
         <span style={{ marginRight: 8 }}>💡</span>
         Haz clic en el enlace del correo y vuelve aquí — se actualizará automáticamente.
       </div>
+      <p style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 20 }}>
+        ¿No lo ves? Revisa tu carpeta de spam o no deseado.
+      </p>
       {error && (
         <p className="error-text" style={{ marginBottom: 12 }}>
           {error}

@@ -13,6 +13,7 @@ import {
   cerrarSesion,
 } from '../firebase/auth'
 import { registrarEvento } from '../firebase/analytics'
+import { IconOjo, IconOjoTachado } from '../components/Icons'
 
 // Web Client ID (tipo "Aplicación web" en Google Cloud Console). Es el
 // mismo que ya usábamos antes, y el mismo que está en Firebase
@@ -66,6 +67,11 @@ export default function Auth() {
   const [mensaje, setMensaje] = useState('')
   const [cargando, setCargando] = useState(false)
   const [recuperando, setRecuperando] = useState(false)
+  const [verContrasena, setVerContrasena] = useState(false)
+  // Toca "Continuar con Google" una vez sin haber aceptado los Términos
+  // todavía: en vez de lanzar el selector de Google de inmediato, primero
+  // se revela la casilla de aceptación (ver más abajo).
+  const [intentoGoogle, setIntentoGoogle] = useState(false)
   // Cuenta de Google recién autenticada, primera vez (sin perfil todavía):
   // se le pide aceptar los Términos acá antes de crear su perfil.
   const [usuarioGooglePendiente, setUsuarioGooglePendiente] = useState(null)
@@ -103,6 +109,18 @@ export default function Auth() {
     } finally {
       setCargando(false)
     }
+  }
+
+  // Botón "Continuar con Google": si todavía no aceptó los Términos, el
+  // primer toque solo revela la casilla (ver `casillaVisible` más abajo) en
+  // vez de abrir el selector de cuentas de Google. Recién con la casilla
+  // marcada, un segundo toque continúa de verdad.
+  function manejarClickGoogle() {
+    if (!aceptaTerminos) {
+      setIntentoGoogle(true)
+      return
+    }
+    manejarGoogle()
   }
 
   async function manejarGoogle() {
@@ -293,7 +311,7 @@ export default function Auth() {
       </p>
       <h1 style={{ marginBottom: 24, textAlign: 'center' }}>Bienvenido 👋</h1>
       <div className="stack">
-        <button className="btn btn-social" onClick={manejarGoogle} disabled={cargando}>
+        <button className="btn btn-social" onClick={manejarClickGoogle} disabled={cargando}>
           <IconoGoogle />
           Continuar con Google
         </button>
@@ -316,15 +334,33 @@ export default function Auth() {
           </div>
           <div className="field">
             <label>Contraseña</label>
-            <input
-              className="input"
-              type="password"
-              required
-              minLength={6}
-              value={contrasena}
-              onChange={(e) => setContrasena(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                className="input"
+                type={verContrasena ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                style={{ paddingRight: 40 }}
+              />
+              <span
+                onClick={() => setVerContrasena((v) => !v)}
+                aria-label={verContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-faint)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                }}
+              >
+                {verContrasena ? <IconOjoTachado size={18} /> : <IconOjo size={18} />}
+              </span>
+            </div>
             {!modoRegistro && (
               <p style={{ textAlign: 'right', marginTop: 8 }}>
                 <span className="link" onClick={manejarRecuperarContrasena} style={{ fontSize: 12.5 }}>
@@ -334,35 +370,37 @@ export default function Auth() {
             )}
           </div>
 
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
-              fontSize: 12.5,
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              lineHeight: 1.4,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={aceptaTerminos}
-              onChange={(e) => setAceptaTerminos(e.target.checked)}
-              style={{ marginTop: 2, flexShrink: 0, width: 16, height: 16 }}
-            />
-            <span>
-              He leído y acepto los{' '}
-              <a href="/terminos" target="_blank" rel="noopener noreferrer" className="link">
-                Términos y Condiciones
-              </a>{' '}
-              y la{' '}
-              <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="link">
-                Política de Privacidad
-              </a>
-              .
-            </span>
-          </label>
+          {(Boolean(correo && contrasena) || intentoGoogle) && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                fontSize: 12.5,
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+                lineHeight: 1.4,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={aceptaTerminos}
+                onChange={(e) => setAceptaTerminos(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0, width: 16, height: 16 }}
+              />
+              <span>
+                He leído y acepto los{' '}
+                <a href="/terminos" target="_blank" rel="noopener noreferrer" className="link">
+                  Términos y Condiciones
+                </a>{' '}
+                y la{' '}
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="link">
+                  Política de Privacidad
+                </a>
+                .
+              </span>
+            </label>
+          )}
 
           {error && <p className="error-text">{error}</p>}
           {mensaje && (

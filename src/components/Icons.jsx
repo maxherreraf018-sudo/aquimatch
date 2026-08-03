@@ -159,3 +159,31 @@ export function IconContacto(props) {
     </Base>
   )
 }
+
+export function IconOjo(props) {
+  return (
+    <Base {...props}>
+      <path
+        d="M2.25 12S5.5 5.25 12 5.25 21.75 12 21.75 12 18.5 18.75 12 18.75 2.25 12 2.25 12z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+    </Base>
+  )
+}
+
+export function IconOjoTachado(props) {
+  return (
+    <Base {...props}>
+      <path
+        d="M2.25 12S5.5 5.25 12 5.25c2.02 0 3.68.63 5 1.5M21.75 12S18.5 18.75 12 18.75c-2.02 0-3.68-.63-5-1.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M9.5 9.7a3 3 0 0 0 4.3 4.1M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </Base>
+  )
+}
