@@ -4,6 +4,7 @@ import { getAuth } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../firebase/config'
 import { actualizarUsuario } from '../firebase/auth'
+import { elegirFoto } from '../services/fotos'
 import { IconAgregar } from '../components/Icons'
 
 const OPCIONES_GENERO = [
@@ -43,12 +44,11 @@ export default function CreateProfile() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  function manejarFoto(e) {
-    const archivo = e.target.files[0]
-    if (archivo) {
-      setFoto(archivo)
-      setFotoPreview(URL.createObjectURL(archivo))
-    }
+  async function manejarFoto() {
+    const blob = await elegirFoto()
+    if (!blob) return
+    setFoto(blob)
+    setFotoPreview(URL.createObjectURL(blob))
   }
 
   function calcularEdad(fecha) {
@@ -104,13 +104,12 @@ export default function CreateProfile() {
       </div>
       <h1 style={{ marginBottom: 6 }}>Cuéntanos de ti</h1>
       <p style={{ marginBottom: 20 }}>Solo te tomará 2 minutos.</p>
-      <label className="avatar-upload">
+      <label className="avatar-upload" onClick={manejarFoto}>
         {fotoPreview ? (
           <img src={fotoPreview} alt="Foto principal" />
         ) : (
           <IconAgregar size={28} style={{ color: 'var(--text-faint)' }} />
         )}
-        <input type="file" accept="image/*" onChange={manejarFoto} style={{ display: 'none' }} />
       </label>
       <p style={{ textAlign: 'center', fontSize: 13, marginBottom: 20 }}>Foto principal</p>
       <form onSubmit={manejarContinuar} className="stack">

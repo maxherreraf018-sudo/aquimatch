@@ -224,7 +224,7 @@ export default function Chat() {
             />
           )}
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setMostrarPerfil(true)}>
           <div style={{ fontWeight: 600 }}>{otroPerfil?.nombre || 'Alguien'}</div>
           {otroActivo && (
             <div style={{ fontSize: 12, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 5 }}>

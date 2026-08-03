@@ -78,7 +78,10 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(adb devices *)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" devices *)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" install *)"
     ]
   }
 }

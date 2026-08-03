@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { actualizarUsuario } from '../firebase/auth'
 import { conLimiteDeTiempo, subirSelfieAlStorage } from '../services/verificacion'
+import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
 import { IconCamara } from '../components/Icons'
 const OPCIONES_INTERES_GENERO = [
@@ -19,12 +20,11 @@ export default function CompleteProfile() {
   const [selfiePreview, setSelfiePreview] = useState(null)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
-  function manejarSelfie(e) {
-    const archivo = e.target.files[0]
-    if (archivo) {
-      setSelfie(archivo)
-      setSelfiePreview(URL.createObjectURL(archivo))
-    }
+  async function manejarSelfie() {
+    const blob = await elegirFoto({ source: CameraSource.Camera, direction: CameraDirection.Front })
+    if (!blob) return
+    setSelfie(blob)
+    setSelfiePreview(URL.createObjectURL(blob))
   }
   function manejarToggleInteres(valor) {
     setIntereses((prev) => {
@@ -107,19 +107,12 @@ export default function CompleteProfile() {
           Tómate un selfie para verificar que eres tú.
         </p>
       </div>
-      <label className="avatar-upload">
+      <label className="avatar-upload" onClick={manejarSelfie}>
         {selfiePreview ? (
           <img src={selfiePreview} alt="Selfie" />
         ) : (
           <IconCamara size={24} style={{ color: 'var(--text-faint)' }} />
         )}
-        <input
-          type="file"
-          accept="image/*"
-          capture="user"
-          onChange={manejarSelfie}
-          style={{ display: 'none' }}
-        />
       </label>
       {error && (
         <p className="error-text" style={{ textAlign: 'center', marginTop: 12 }}>

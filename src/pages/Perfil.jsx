@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../firebase/config'
 import { obtenerUsuario, actualizarUsuario } from '../firebase/auth'
+import { elegirFoto } from '../services/fotos'
 import { obtenerActivacionPropia, actualizarPlan, actualizarPreferenciaGeneroActivacion } from '../services/activation'
 import { eliminarCuenta } from '../services/cuenta'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
@@ -77,14 +78,13 @@ export default function Perfil() {
   }, [uid])
 
   function manejarSeleccionarFoto(slot) {
-    return (e) => {
-      const archivo = e.target.files[0]
-      if (!archivo) return
+    return async () => {
+      const blob = await elegirFoto()
+      if (!blob) return
       setErrorFoto('')
       setSlotFotoPendiente(slot)
-      setFotoPendiente(archivo)
-      setFotoPendientePreview(URL.createObjectURL(archivo))
-      e.target.value = ''
+      setFotoPendiente(blob)
+      setFotoPendientePreview(URL.createObjectURL(blob))
     }
   }
 
@@ -660,15 +660,10 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
               gap: 10,
               cursor: 'pointer',
             }}
+            onClick={manejarSeleccionarFoto(slotKeys[indice])}
           >
             <IconAgregar size={32} style={{ color: 'rgba(255,255,255,0.6)' }} />
             <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Agregar foto</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={manejarSeleccionarFoto(slotKeys[indice])}
-              style={{ display: 'none' }}
-            />
           </label>
         )}
 
@@ -734,18 +729,12 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
             background: 'rgba(255,255,255,0.1)',
             color: 'white',
             fontSize: 13,
-            cursor: 'pointer',
+            cursor: subiendoFoto ? 'default' : 'pointer',
           }}
+          onClick={subiendoFoto ? undefined : manejarSeleccionarFoto(slotKeys[indice])}
         >
           <IconLapiz size={14} />
           {subiendoFoto ? 'Subiendo...' : fotoActual ? 'Cambiar esta foto' : 'Agregar esta foto'}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={manejarSeleccionarFoto(slotKeys[indice])}
-            disabled={subiendoFoto}
-            style={{ display: 'none' }}
-          />
         </label>
       </div>
     </div>

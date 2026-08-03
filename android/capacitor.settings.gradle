@@ -8,5 +8,8 @@ project(':capacitor-firebase-analytics').projectDir = new File('../node_modules/
 include ':capacitor-firebase-app'
 project(':capacitor-firebase-app').projectDir = new File('../node_modules/@capacitor-firebase/app/android')
 
+include ':capacitor-camera'
+project(':capacitor-camera').projectDir = new File('../node_modules/@capacitor/camera/android')
+
 include ':capgo-capacitor-social-login'
 project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/@capgo/capacitor-social-login/android')

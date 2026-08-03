@@ -5,6 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { actualizarUsuario } from '../firebase/auth'
 import { subirSelfieAlStorage } from '../services/verificacion'
+import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
 import { registrarEvento } from '../firebase/analytics'
 import { IconAlerta, IconPendiente } from '../components/Icons'
 
@@ -89,13 +90,13 @@ function VerificacionRechazada({ uid, tardando }) {
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState('')
 
-  async function manejarSelfie(e) {
-    const archivo = e.target.files[0]
-    if (!archivo) return
+  async function manejarSelfie() {
+    const blob = await elegirFoto({ source: CameraSource.Camera, direction: CameraDirection.Front })
+    if (!blob) return
     setError('')
     setSubiendo(true)
     try {
-      const selfieURL = await subirSelfieAlStorage(uid, archivo)
+      const selfieURL = await subirSelfieAlStorage(uid, blob)
       await actualizarUsuario(uid, {
         selfieVerificacion: selfieURL,
         estadoVerificacion: 'pendiente',
@@ -133,20 +134,16 @@ function VerificacionRechazada({ uid, tardando }) {
           ? 'Puede haber sido un problema de conexión. Volvé a tomarte la selfie para intentarlo de nuevo.'
           : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
       </p>
-      <label className="avatar-upload" style={{ margin: '0 auto 10px' }}>
+      <label
+        className="avatar-upload"
+        style={{ margin: '0 auto 10px' }}
+        onClick={subiendo ? undefined : manejarSelfie}
+      >
         {subiendo ? (
           <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>Subiendo...</span>
         ) : (
           <span style={{ fontSize: 24, color: 'var(--text-faint)' }}>📷</span>
         )}
-        <input
-          type="file"
-          accept="image/*"
-          capture="user"
-          onChange={manejarSelfie}
-          disabled={subiendo}
-          style={{ display: 'none' }}
-        />
       </label>
       <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginBottom: 20 }}>
         Toca el círculo para tomar tu selfie de nuevo
