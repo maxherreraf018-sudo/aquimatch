@@ -14,6 +14,10 @@ export async function elegirFoto({ source = CameraSource.Prompt, direction } = {
       resultType: CameraResultType.DataUrl,
       source,
       ...(direction ? { direction } : {}),
+      promptLabelHeader: 'Foto',
+      promptLabelPhoto: 'Desde galería',
+      promptLabelPicture: 'Tomar foto',
+      promptLabelCancel: 'Cancelar',
     })
     const respuesta = await fetch(foto.dataUrl)
     return await respuesta.blob()
