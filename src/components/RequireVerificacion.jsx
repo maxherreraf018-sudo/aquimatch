@@ -153,23 +153,19 @@ function VerificacionRechazada({ uid, tardando }) {
           {error}
         </p>
       )}
-      {!tardando && (
-        <>
-          <div className="divider" style={{ width: '100%' }}>
-            o
-          </div>
-          <p style={{ fontSize: 12.5, marginBottom: 12 }}>
-            ¿Tu foto de perfil no se ve clara? Puede ser la causa.
-          </p>
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate('/perfil')}
-            disabled={subiendo}
-          >
-            Cambiar mi foto de perfil
-          </button>
-        </>
-      )}
+      <div className="divider" style={{ width: '100%' }}>
+        o
+      </div>
+      <p style={{ fontSize: 12.5, marginBottom: 12 }}>
+        ¿Tu foto de perfil no se ve clara? Puede ser la causa.
+      </p>
+      <button
+        className="btn btn-secondary"
+        onClick={() => navigate('/perfil')}
+        disabled={subiendo}
+      >
+        Cambiar mi foto de perfil
+      </button>
       <p className="legal-note">Tu información siempre estará protegida.</p>
     </div>
   )

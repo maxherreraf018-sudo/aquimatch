@@ -13,6 +13,11 @@ export async function elegirFoto({ source = CameraSource.Prompt, direction } = {
       quality: 85,
       resultType: CameraResultType.DataUrl,
       source,
+      // Sin este límite, la cámara nativa entrega fotos a resolución
+      // completa (varios MB) — eso fue lo que hizo que la verificación de
+      // selfie se quedara pegada: la función en la nube tiene 120s para
+      // bajar y comparar las dos fotos, y con fotos pesadas no alcanza.
+      width: 1080,
       ...(direction ? { direction } : {}),
       promptLabelHeader: 'Foto',
       promptLabelPhoto: 'Desde galería',
