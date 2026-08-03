@@ -18,7 +18,8 @@ const SECCIONES = [
       'aceptar la Política de Privacidad;',
       'proporcionar información verdadera;',
       'utilizar una fotografía real y reciente;',
-      'completar el proceso de verificación cuando sea requerido.',
+      'completar el proceso de verificación cuando sea requerido;',
+      'otorgar el consentimiento expreso para el tratamiento de datos sensibles (verificación biométrica y preferencias de búsqueda), conforme a la Política de Privacidad.',
     ],
     final: ['No se permite el uso de cuentas falsas ni la suplantación de identidad.'],
   },
@@ -115,7 +116,7 @@ const SECCIONES = [
   {
     titulo: '14. Privacidad',
     parrafos: [
-      'El tratamiento de datos personales se regula conforme a la Política de Privacidad de AquíMatch, la cual forma parte integrante de estos Términos.',
+      'El tratamiento de datos personales se regula conforme a la Ley N°21.719 sobre Protección de Datos Personales y a la Política de Privacidad de AquíMatch, la cual forma parte integrante de estos Términos. Ante la Agencia de Protección de Datos Personales, el usuario podrá ejercer los derechos y reclamos que la ley le reconoce.',
     ],
   },
   {
@@ -131,7 +132,7 @@ const SECCIONES = [
   {
     titulo: '17. Contacto',
     parrafos: [
-      'Para consultas relacionadas con estos Términos, los usuarios podrán comunicarse con AQUIMATCH SpA a través del correo maxherreraf018@gmail.com o de los canales oficiales de soporte que se publiquen en la Aplicación.',
+      'Para consultas relacionadas con estos Términos, los usuarios podrán comunicarse con AQUIMATCH SpA a través del correo contacto@aquimatch.cl o de los canales oficiales de soporte que se publiquen en la Aplicación.',
     ],
   },
 ]
@@ -149,7 +150,7 @@ export default function Terminos() {
       </button>
       <h1 style={{ marginBottom: 4 }}>Términos y Condiciones</h1>
       <p style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 20 }}>
-        AquíMatch · Última actualización: 27 de julio de 2026
+        AquíMatch · Última actualización: 3 de agosto de 2026
       </p>
 
       <p style={{ marginBottom: 16 }}>

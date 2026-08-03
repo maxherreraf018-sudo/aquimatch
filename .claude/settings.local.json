@@ -81,7 +81,10 @@
       "Bash(git config *)",
       "Bash(adb devices *)",
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" devices *)",
-      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" install *)"
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" install *)",
+      "Bash(awk '{ print length, NR }' privacidad.html)",
+      "Bash(sed '74d;105d' privacidad.html)",
+      "Bash(awk '{ print length, NR }' terminos.html)"
     ]
   }
 }
