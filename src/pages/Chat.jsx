@@ -187,7 +187,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="screen" style={{ padding: '20px 0 16px' }}>
+    <div className="screen" style={{ padding: '20px 0 16px', height: '100dvh', overflow: 'hidden' }}>
       {/* Encabezado */}
       <div
         style={{

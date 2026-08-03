@@ -80,10 +80,19 @@ function categoriaOrden(uid, misPases, misLikes) {
 
 // Arma el link de WhatsApp con el mensaje ya escrito para el contacto de
 // confianza: dónde está, a qué hora, y un link a la ubicación en el mapa.
-function armarLinkAvisoWhatsApp(contacto, placeName, lat, lng) {
+// Usamos query_place_id (no solo lat/lng en bruto) porque Google Maps, con
+// coordenadas solas, a veces "engancha" el pin al negocio más cercano en
+// vez del lugar correcto — en una calle con locales pegados eso puede
+// mandar a la persona equivocada de dirección.
+function armarLinkAvisoWhatsApp(contacto, placeName, lat, lng, placeId) {
   const soloDigitos = (contacto.telefono || '').replace(/[^\d]/g, '')
   const hora = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-  const linkMapa = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : ''
+  let linkMapa = ''
+  if (placeId && lat && lng) {
+    linkMapa = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${placeId}`
+  } else if (lat && lng) {
+    linkMapa = `https://www.google.com/maps?q=${lat},${lng}`
+  }
   const mensaje = `Hola ${contacto.nombre}! Te aviso que estoy en ${placeName || 'un lugar'} (${hora}) usando AquíMatch.${
     linkMapa ? ` Ubicación: ${linkMapa}` : ''
   }`
@@ -305,7 +314,13 @@ export default function Discover() {
 
   function manejarAvisarContacto() {
     if (!contactoConfianza) return
-    const url = armarLinkAvisoWhatsApp(contactoConfianza, miActivacion?.placeName, miActivacion?.lat, miActivacion?.lng)
+    const url = armarLinkAvisoWhatsApp(
+      contactoConfianza,
+      miActivacion?.placeName,
+      miActivacion?.lat,
+      miActivacion?.lng,
+      miActivacion?.placeId
+    )
     window.open(url, '_blank', 'noopener,noreferrer')
     setMostrarContacto(false)
   }
