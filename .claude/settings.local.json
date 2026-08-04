@@ -93,7 +93,16 @@
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" start-server *)",
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -c)",
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -d)",
-      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" uninstall *)"
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" uninstall *)",
+      "Bash(python3 build_costos_20k.py)",
+      "Bash(python build_costos_20k.py)",
+      "Bash(where python *)",
+      "Bash(where python3 *)",
+      "Bash(where py *)",
+      "Bash(npm --version)",
+      "Bash(where soffice *)",
+      "Bash(node build_costos_20k.js)",
+      "Bash(node verify.js)"
     ]
   }
 }
