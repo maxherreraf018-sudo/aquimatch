@@ -75,5 +75,12 @@ service cloud.firestore {
       allow read, update: if esAdmin();
       allow delete: if false;
     }
+    // Caché compartido de resultados de Google Places por zona geográfica
+    // (ver buscarLugaresCercanos en services/places.js) — información
+    // pública de lugares (nombre, dirección, tipo), no datos personales de
+    // nadie, así que cualquier usuario logueado puede leerla y escribirla.
+    match /cachePlaces/{zonaId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
