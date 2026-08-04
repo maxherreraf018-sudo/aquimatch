@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import RequireAuth from './components/RequireAuth'
 import RequireAdmin from './components/RequireAdmin'
 import RequireVerificacion from './components/RequireVerificacion'
+import useLatidoConexion from './hooks/useLatidoConexion'
 
 // Cada pantalla se carga sola (su propio archivo .js), no todas juntas en un
 // solo bundle gigante — así la primera pantalla que ve alguien pesa mucho
@@ -31,6 +32,7 @@ function CargandoPantalla() {
 }
 
 export default function App() {
+  useLatidoConexion()
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<CargandoPantalla />}>

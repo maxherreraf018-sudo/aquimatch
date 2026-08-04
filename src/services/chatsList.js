@@ -1,6 +1,12 @@
 import { collection, doc, getDoc, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { esRecienteYActiva } from './activation'
+
+// Ventana de "en línea": si tuvo la app abierta (en cualquier pantalla,
+// gracias al latido de useLatidoConexion) dentro de este tiempo, se
+// considera conectada ahora. Deliberadamente corta y separada del umbral
+// de Descubrir (3 horas) — acá representa "tiene la app abierta", no
+// "sigue presente en el lugar", que es una pregunta distinta.
+const UMBRAL_EN_LINEA_MS = 10 * 60 * 1000
 
 // Última actividad real de un chat: el último mensaje si ya hay alguno,
 // si no, cuándo se creó el match — mismo criterio que usa ChatsList.jsx
@@ -50,19 +56,21 @@ export function estaSinLeer(conexion, uid) {
 }
 
 /**
- * ¿Esa persona está activa en un lugar ahora mismo? Se usa para el punto
- * verde de "en línea" en la lista de chats. Además de que el campo
- * "activa" esté en true, exige que se haya renovado hace poco (mismo
- * criterio que usa Descubrir) — si alguien cerró la app de golpe sin pasar
- * por la salida normal, "activa" se puede quedar pegado en true para
- * siempre, y sin este chequeo aparecería como conectado por días.
+ * ¿Esa persona tuvo la app abierta hace poco (en cualquier pantalla, no
+ * solo en un lugar)? Se usa para el punto verde de "en línea" en la lista
+ * de chats y dentro del chat. Se basa en usuarios/{uid}.ultimaConexion,
+ * que renueva useLatidoConexion cada par de minutos mientras hay sesión —
+ * independiente de si esa persona está activa en algún lugar o no.
  */
 export async function estaActivaAhora(uid) {
   try {
-    const ref = doc(db, 'activaciones', uid)
+    const ref = doc(db, 'usuarios', uid)
     const snap = await getDoc(ref)
     if (!snap.exists()) return false
-    return esRecienteYActiva(snap.data(), Date.now())
+    const ultimaConexion = snap.data()?.ultimaConexion
+    if (!ultimaConexion) return false
+    const ms = ultimaConexion.toMillis ? ultimaConexion.toMillis() : ultimaConexion
+    return Date.now() - ms < UMBRAL_EN_LINEA_MS
   } catch (err) {
     return false
   }
