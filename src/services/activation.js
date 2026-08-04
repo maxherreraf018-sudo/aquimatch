@@ -178,7 +178,7 @@ export async function obtenerActivacionPropia(uid) {
 
 // ¿Esta activación se "renovó" hace poco, o ya se puede considerar
 // abandonada/fantasma aunque diga activa: true?
-function esRecienteYActiva(persona, ahoraMs) {
+export function esRecienteYActiva(persona, ahoraMs) {
   if (!persona.activa) return false
   const referencia = persona.actualizadaEn || persona.iniciadaEn
   if (!referencia) return false

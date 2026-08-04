@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { esRecienteYActiva } from './activation'
 
 // Última actividad real de un chat: el último mensaje si ya hay alguno,
 // si no, cuándo se creó el match — mismo criterio que usa ChatsList.jsx
@@ -50,14 +51,18 @@ export function estaSinLeer(conexion, uid) {
 
 /**
  * ¿Esa persona está activa en un lugar ahora mismo? Se usa para el punto
- * verde de "en línea" en la lista de chats. Devuelve false si no tiene
- * activación, si no está activa, o si ocurre cualquier error de lectura.
+ * verde de "en línea" en la lista de chats. Además de que el campo
+ * "activa" esté en true, exige que se haya renovado hace poco (mismo
+ * criterio que usa Descubrir) — si alguien cerró la app de golpe sin pasar
+ * por la salida normal, "activa" se puede quedar pegado en true para
+ * siempre, y sin este chequeo aparecería como conectado por días.
  */
 export async function estaActivaAhora(uid) {
   try {
     const ref = doc(db, 'activaciones', uid)
     const snap = await getDoc(ref)
-    return snap.exists() && snap.data()?.activa === true
+    if (!snap.exists()) return false
+    return esRecienteYActiva(snap.data(), Date.now())
   } catch (err) {
     return false
   }
