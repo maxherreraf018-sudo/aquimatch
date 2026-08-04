@@ -1,7 +1,37 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/logo.png'
+import { escucharEstadoAuth, obtenerUsuario } from '../firebase/auth'
+
 export default function Welcome() {
   const navigate = useNavigate()
+  const [revisandoSesion, setRevisandoSesion] = useState(true)
+
+  // Sin esto, cada vez que alguien cierra y reabre la app cae de nuevo acá
+  // y el botón "Comenzar" lo manda al formulario de login — aunque su
+  // sesión siga válida por dentro (la persistencia en sí ya funciona
+  // bien). Se siente como si se hubiera cerrado la sesión sin haberlo
+  // hecho de verdad.
+  useEffect(() => {
+    const desuscribir = escucharEstadoAuth(async (usuario) => {
+      if (!usuario) {
+        setRevisandoSesion(false)
+        return
+      }
+      const datosUsuario = await obtenerUsuario(usuario.uid)
+      navigate(datosUsuario?.perfilCompleto ? '/activacion' : '/crear-perfil', { replace: true })
+    })
+    return () => desuscribir()
+  }, [navigate])
+
+  if (revisandoSesion) {
+    return (
+      <div className="screen" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <p>Cargando...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="screen">
       <div className="spacer" />
