@@ -18,7 +18,8 @@ import {
   calcularEdad,
   obtenerUidsYaConectados,
   obtenerUidsConMiInteres,
-  obtenerUidsConMiPase,
+  obtenerPasesConFecha,
+  COOLDOWN_MAS_TARDE_MS,
 } from '../services/discover'
 import { OPCIONES_INTERES } from '../data/intereses'
 import useVigilanciaSalida from '../hooks/useVigilanciaSalida'
@@ -113,7 +114,7 @@ export default function Discover() {
   const [perfilesCompletos, setPerfilesCompletos] = useState({})
   const [ocultos, setOcultos] = useState(() => new Set())
   const [misLikes, setMisLikes] = useState(() => new Set())
-  const [misPases, setMisPases] = useState(() => new Set())
+  const [misPases, setMisPases] = useState(() => new Map())
   const [indice, setIndice] = useState(0)
   const [procesando, setProcesando] = useState(false)
   const [animarCorazon, setAnimarCorazon] = useState(false)
@@ -154,10 +155,10 @@ export default function Discover() {
       setMiPlan(activacion.plan || null)
       setMiActivacion(activacion)
 
-      const [yaConectados, misLikesLista, misPasesLista] = await Promise.all([
+      const [yaConectados, misLikesLista, misPasesMapa] = await Promise.all([
         obtenerUidsYaConectados(uid),
         obtenerUidsConMiInteres(uid, activacion.placeId),
-        obtenerUidsConMiPase(uid, activacion.placeId),
+        obtenerPasesConFecha(uid, activacion.placeId),
       ])
       const miUsuario = await obtenerUsuario(uid)
       const bloqueados = miUsuario?.bloqueados || []
@@ -172,7 +173,7 @@ export default function Discover() {
       if (cancelado) return
       setContactoConfianza(miUsuario?.contactoConfianza || null)
       setMisLikes(new Set(misLikesLista))
-      setMisPases(new Set(misPasesLista))
+      setMisPases(misPasesMapa)
 
       detener = escucharPersonasEnElLugar(activacion.placeId, uid, (lista) => {
         setPersonas(lista)
@@ -224,6 +225,8 @@ export default function Discover() {
     const filtradas = personasVisibles(personas).filter((p) => {
       if (ocultos.has(p.uid)) return false
       if (estaPausado(p.pausadoHasta, ahora)) return false
+      const pasadoEn = misPases.get(p.uid)
+      if (pasadoEn && ahora - pasadoEn < COOLDOWN_MAS_TARDE_MS) return false
       return sonCompatiblesPorGenero(miGenero, miPreferencia, p.genero, p.preferenciaGenero)
     })
     return ordenarPorPrioridad(filtradas, miPlan)
@@ -269,7 +272,7 @@ export default function Discover() {
     setError('')
     try {
       await marcarMasTarde(uid, actual.uid, placeId)
-      setMisPases((prev) => new Set(prev).add(actual.uid))
+      setMisPases((prev) => new Map(prev).set(actual.uid, Date.now()))
       avanzarQuitando(actual.uid)
     } catch (err) {
       setError('No pudimos registrar tu elección. Intenta de nuevo.')

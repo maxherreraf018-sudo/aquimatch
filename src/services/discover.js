@@ -155,16 +155,32 @@ export async function obtenerUidsConMiInteres(uid, placeId) {
 }
 
 /**
- * Devuelve el conjunto de uids a quienes el usuario YA le tocó "Más tarde"
- * en este lugar. Se usan para mostrarlos en el medio del orden en
- * Descubrir (después de las personas nuevas, antes de las que ya le dio
- * like), no para ocultarlos.
+ * Tiempo que se oculta por completo a alguien después de tocarle "Más
+ * tarde", antes de que pueda volver a aparecer en Descubrir (confirmado
+ * con Max: 10 minutos — sin esto, en lugares con pocas personas activas
+ * la misma persona volvía a aparecer de inmediato al no haber nadie más
+ * para mostrar).
  */
-export async function obtenerUidsConMiPase(uid, placeId) {
+export const COOLDOWN_MAS_TARDE_MS = 10 * 60 * 1000
+
+/**
+ * Devuelve un mapa uid -> milisegundos del último "Más tarde" que el
+ * usuario le dio a cada persona en este lugar. Se usa tanto para el orden
+ * en Descubrir (después de las personas nuevas, antes de las que ya le
+ * dio like) como para ocultarlas mientras dure el cooldown de arriba.
+ */
+export async function obtenerPasesConFecha(uid, placeId) {
   const ref = collection(db, 'pases')
   const q = query(ref, where('desde', '==', uid), where('placeId', '==', placeId))
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((d) => d.data().hacia).filter(Boolean)
+  const mapa = new Map()
+  snapshot.docs.forEach((d) => {
+    const datos = d.data()
+    if (!datos.hacia) return
+    const ms = datos.creadoEn?.toMillis ? datos.creadoEn.toMillis() : 0
+    if (ms > (mapa.get(datos.hacia) || 0)) mapa.set(datos.hacia, ms)
+  })
+  return mapa
 }
 
 /**
