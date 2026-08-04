@@ -21,9 +21,13 @@ export default function useLatidoConexion() {
       if (uidActual) actualizarUsuario(uidActual, { ultimaConexion: serverTimestamp() })
     }
 
+    // A propósito NO se llama a latir() apenas se detecta la sesión: justo
+    // al abrir la app es cuando otras pantallas (Welcome, Auth) están
+    // leyendo este mismo documento para decidir a dónde mandar a la
+    // persona — escribir en ese instante podía cruzarse con esa lectura.
+    // El primer latido espera al primer intervalo.
     const desuscribir = escucharEstadoAuth((usuario) => {
       uidActual = usuario?.uid || null
-      if (uidActual) latir()
     })
 
     const intervalo = setInterval(latir, INTERVALO_LATIDO_CONEXION_MS)

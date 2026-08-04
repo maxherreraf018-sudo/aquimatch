@@ -9,7 +9,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, getDocFromServer, serverTimestamp } from 'firebase/firestore'
 import { auth, db, googleProvider } from './config'
 
 // Versión de los Términos/Política vigente. Cámbiala cada vez que el texto
@@ -88,9 +88,16 @@ export async function crearDocumentoUsuario(uid, datosIniciales) {
     })
   }
 }
+// A propósito lee siempre del servidor (no del caché local): esta función
+// decide a qué pantalla mandar a alguien justo después de iniciar sesión
+// (perfil completo, verificado, etc.), un momento en el que puede haber
+// otra escritura al mismo documento cruzándose (por ejemplo, el latido de
+// useLatidoConexion) — con el caché local, esa carrera podía devolver una
+// versión parcial del documento y mandar a alguien con perfil completo de
+// vuelta a "Cuéntanos de ti" como si fuera nuevo.
 export async function obtenerUsuario(uid) {
   const ref = doc(db, 'usuarios', uid)
-  const snap = await getDoc(ref)
+  const snap = await getDocFromServer(ref)
   return snap.exists() ? snap.data() : null
 }
 export async function actualizarUsuario(uid, datos) {
