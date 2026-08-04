@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
-import { escucharMisChats, estaSinLeer, estaActivaAhora } from '../services/chatsList'
+import { escucharMisChats, estaSinLeer, obtenerEstadoConexion } from '../services/chatsList'
 import { obtenerPerfilBasico } from '../services/discover'
 import BottomNav from '../components/BottomNav'
 
@@ -23,7 +23,7 @@ export default function ChatsList() {
   const uid = getAuth().currentUser?.uid
   const [chats, setChats] = useState([])
   const [perfiles, setPerfiles] = useState({})
-  const [activos, setActivos] = useState({})
+  const [estadosConexion, setEstadosConexion] = useState({})
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
@@ -34,12 +34,12 @@ export default function ChatsList() {
         .map((c) => c.usuarios.find((u) => u !== uid))
         .filter((otroUid) => otroUid && !perfiles[otroUid])
       for (const otroUid of faltantes) {
-        const [perfil, activo] = await Promise.all([
+        const [perfil, estadoConexion] = await Promise.all([
           obtenerPerfilBasico(otroUid),
-          estaActivaAhora(otroUid),
+          obtenerEstadoConexion(otroUid),
         ])
         setPerfiles((prev) => ({ ...prev, [otroUid]: perfil }))
-        setActivos((prev) => ({ ...prev, [otroUid]: activo }))
+        setEstadosConexion((prev) => ({ ...prev, [otroUid]: estadoConexion }))
       }
     })
     return () => detener()
@@ -67,7 +67,7 @@ export default function ChatsList() {
           {chats.map((chat) => {
             const otroUid = chat.usuarios.find((u) => u !== uid)
             const perfil = perfiles[otroUid]
-            const activo = activos[otroUid]
+            const estadoConexion = estadosConexion[otroUid] || { activo: false, texto: null }
             const sinLeer = estaSinLeer(chat, uid)
             const hayMensajes = !!chat.ultimoMensajeTexto
             const esMio = chat.ultimoMensajeAutor === uid
@@ -86,37 +86,44 @@ export default function ChatsList() {
                 }}
                 onClick={() => navigate(`/chat/${chat.id}`)}
               >
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div
-                    style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      background: 'var(--gradient)',
-                    }}
-                  >
-                    {perfil?.fotoPrincipal && (
-                      <img
-                        src={perfil.fotoPrincipal}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                  <div style={{ position: 'relative' }}>
+                    <div
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        background: 'var(--gradient)',
+                      }}
+                    >
+                      {perfil?.fotoPrincipal && (
+                        <img
+                          src={perfil.fotoPrincipal}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      )}
+                    </div>
+                    {estadoConexion.activo && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 1,
+                          right: 1,
+                          width: 13,
+                          height: 13,
+                          borderRadius: '50%',
+                          background: 'var(--success)',
+                          border: '2px solid var(--bg)',
+                        }}
                       />
                     )}
                   </div>
-                  {activo && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 1,
-                        right: 1,
-                        width: 13,
-                        height: 13,
-                        borderRadius: '50%',
-                        background: 'var(--success)',
-                        border: '2px solid var(--bg)',
-                      }}
-                    />
+                  {!estadoConexion.activo && estadoConexion.texto && (
+                    <span style={{ fontSize: 9, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+                      {estadoConexion.texto.replace('Activo ', '')}
+                    </span>
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -156,8 +163,10 @@ export default function ChatsList() {
                         {esMio ? 'Tú: ' : '↩ '}
                         {chat.ultimoMensajeTexto}
                       </>
-                    ) : activo ? (
-                      'Activo/a ahora en este lugar'
+                    ) : estadoConexion.activo ? (
+                      'Activo/a ahora'
+                    ) : estadoConexion.texto ? (
+                      estadoConexion.texto.replace('Activo', 'Activo/a')
                     ) : (
                       'Toca para saludar'
                     )}

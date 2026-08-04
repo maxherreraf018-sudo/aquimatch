@@ -1,12 +1,28 @@
 import { collection, doc, getDoc, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
-// Ventana de "en línea": si tuvo la app abierta (en cualquier pantalla,
-// gracias al latido de useLatidoConexion) dentro de este tiempo, se
-// considera conectada ahora. Deliberadamente corta y separada del umbral
-// de Descubrir (3 horas) — acá representa "tiene la app abierta", no
-// "sigue presente en el lugar", que es una pregunta distinta.
-const UMBRAL_EN_LINEA_MS = 10 * 60 * 1000
+// Ventana de "en línea ahora": un poco más ancha que el intervalo del
+// latido (2 min, ver useLatidoConexion) para no marcar a alguien como
+// "desconectado" justo antes de que llegue su próximo latido. Separado a
+// propósito del umbral de Descubrir (3 horas) — acá representa "tiene la
+// app abierta", no "sigue presente en el lugar", que es una pregunta
+// distinta.
+const UMBRAL_ACTIVO_AHORA_MS = 3 * 60 * 1000
+
+// A partir de cuántos días sin conexión dejamos de mostrar el texto (se
+// vuelve poco útil / medio raro decir "activo hace 19 días").
+const DIAS_MAX_TEXTO = 6
+
+function formatearHaceCuanto(ms) {
+  const diffMin = Math.floor((Date.now() - ms) / 60000)
+  if (diffMin < 60) return `Activo hace ${diffMin} min`
+  const diffHoras = Math.floor(diffMin / 60)
+  if (diffHoras < 24) return `Activo hace ${diffHoras} h`
+  const diffDias = Math.floor(diffHoras / 24)
+  if (diffDias === 1) return 'Activo ayer'
+  if (diffDias <= DIAS_MAX_TEXTO) return `Activo hace ${diffDias} días`
+  return null
+}
 
 // Última actividad real de un chat: el último mensaje si ya hay alguno,
 // si no, cuándo se creó el match — mismo criterio que usa ChatsList.jsx
@@ -56,22 +72,28 @@ export function estaSinLeer(conexion, uid) {
 }
 
 /**
- * ¿Esa persona tuvo la app abierta hace poco (en cualquier pantalla, no
- * solo en un lugar)? Se usa para el punto verde de "en línea" en la lista
- * de chats y dentro del chat. Se basa en usuarios/{uid}.ultimaConexion,
- * que renueva useLatidoConexion cada par de minutos mientras hay sesión —
- * independiente de si esa persona está activa en algún lugar o no.
+ * Estado de conexión de esa persona, para el punto verde y el texto de
+ * "Activo hace X" en la lista de chats y dentro del chat — basado en
+ * usuarios/{uid}.ultimaConexion, que renueva useLatidoConexion cada par de
+ * minutos mientras hay sesión, en cualquier pantalla (independiente de si
+ * esa persona está activa en algún lugar o no).
+ * Devuelve { activo, texto }:
+ *  - activo=true: tiene la app abierta ahora mismo (punto verde, "Activo ahora").
+ *  - activo=false, texto="Activo hace 5 min" / "Activo ayer" / etc: no está
+ *    ahora mismo, pero sabemos cuándo fue la última vez (sin punto, con texto).
+ *  - activo=false, texto=null: no hay dato, o es muy antiguo — no se muestra nada.
  */
-export async function estaActivaAhora(uid) {
+export async function obtenerEstadoConexion(uid) {
   try {
     const ref = doc(db, 'usuarios', uid)
     const snap = await getDoc(ref)
-    if (!snap.exists()) return false
+    if (!snap.exists()) return { activo: false, texto: null }
     const ultimaConexion = snap.data()?.ultimaConexion
-    if (!ultimaConexion) return false
+    if (!ultimaConexion) return { activo: false, texto: null }
     const ms = ultimaConexion.toMillis ? ultimaConexion.toMillis() : ultimaConexion
-    return Date.now() - ms < UMBRAL_EN_LINEA_MS
+    if (Date.now() - ms < UMBRAL_ACTIVO_AHORA_MS) return { activo: true, texto: 'Activo ahora' }
+    return { activo: false, texto: formatearHaceCuanto(ms) }
   } catch (err) {
-    return false
+    return { activo: false, texto: null }
   }
 }

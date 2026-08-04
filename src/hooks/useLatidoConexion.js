@@ -11,7 +11,7 @@ const INTERVALO_LATIDO_CONEXION_MS = 2 * 60 * 1000
  * (si sigue vigente la presencia física ahí). Este actualiza
  * usuarios/{uid}.ultimaConexion cada par de minutos mientras haya sesión
  * iniciada. Se usa junto con una ventana de 10 minutos para el punto verde
- * de "en línea" en Chats — ver estaActivaAhora en services/chatsList.js.
+ * de "en línea" en Chats — ver obtenerEstadoConexion en services/chatsList.js.
  */
 export default function useLatidoConexion() {
   useEffect(() => {

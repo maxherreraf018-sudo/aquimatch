@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { obtenerConexion, obtenerPerfilBasico, calcularEdad } from '../services/discover'
-import { estaActivaAhora } from '../services/chatsList'
+import { obtenerEstadoConexion } from '../services/chatsList'
 import {
   enviarMensaje,
   escucharMensajes,
@@ -63,7 +63,7 @@ export default function Chat() {
   const [errorCarga, setErrorCarga] = useState('')
   const [conexion, setConexion] = useState(null)
   const [otroPerfil, setOtroPerfil] = useState(null)
-  const [otroActivo, setOtroActivo] = useState(false)
+  const [otroEstadoConexion, setOtroEstadoConexion] = useState({ activo: false, texto: null })
   const [mensajes, setMensajes] = useState([])
   const [texto, setTexto] = useState('')
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -90,14 +90,14 @@ export default function Chat() {
           return
         }
         const otroUid = conexionData.usuarios.find((u) => u !== uid)
-        const [perfilOtro, otroEstaActivo] = await Promise.all([
+        const [perfilOtro, estadoConexion] = await Promise.all([
           obtenerPerfilBasico(otroUid),
-          estaActivaAhora(otroUid),
+          obtenerEstadoConexion(otroUid),
         ])
         if (!activo) return
         setConexion({ ...conexionData, otroUid })
         setOtroPerfil(perfilOtro)
-        setOtroActivo(otroEstaActivo)
+        setOtroEstadoConexion(estadoConexion)
         setCargando(false)
 
         detener = escucharMensajes(id, setMensajes)
@@ -226,11 +226,17 @@ export default function Chat() {
         </div>
         <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setMostrarPerfil(true)}>
           <div style={{ fontWeight: 600 }}>{otroPerfil?.nombre || 'Alguien'}</div>
-          {otroActivo && (
+          {otroEstadoConexion.activo ? (
             <div style={{ fontSize: 12, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
               Activo/a ahora
             </div>
+          ) : (
+            otroEstadoConexion.texto && (
+              <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                {otroEstadoConexion.texto.replace('Activo', 'Activo/a')}
+              </div>
+            )
           )}
         </div>
         <div style={{ position: 'relative' }}>
