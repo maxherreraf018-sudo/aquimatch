@@ -92,7 +92,8 @@
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" kill-server *)",
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" start-server *)",
       "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -c)",
-      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -d)"
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s RF8N917A9ZE logcat -d)",
+      "Bash(\"/c/Users/max_1/AppData/Local/Android/Sdk/platform-tools/adb.exe\" uninstall *)"
     ]
   }
 }
