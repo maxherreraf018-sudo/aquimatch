@@ -1,4 +1,4 @@
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -124,6 +124,98 @@ exports.verificarSelfie = onDocumentUpdated(
         estadoVerificacion: "error_verificacion",
       });
     }
+  }
+);
+
+/**
+ * Notifica push cuando llega un mensaje nuevo, a la otra persona de la
+ * conversación (nunca a quien lo escribió). Si esa persona no tiene un
+ * token guardado (nunca aceptó las notificaciones, o las desactivó desde
+ * el sistema), simplemente no se envía nada — no es un error.
+ */
+exports.notificarMensajeNuevo = onDocumentCreated(
+  "conexiones/{conexionId}/mensajes/{mensajeId}",
+  async (event) => {
+    const mensaje = event.data.data();
+    const { conexionId } = event.params;
+
+    const conexionSnap = await admin.firestore().doc(`conexiones/${conexionId}`).get();
+    if (!conexionSnap.exists) return;
+    const destinatarioUid = (conexionSnap.data().usuarios || []).find(
+      (u) => u !== mensaje.autorUid
+    );
+    if (!destinatarioUid) return;
+
+    const [destinatarioSnap, autorSnap] = await Promise.all([
+      admin.firestore().doc(`usuarios/${destinatarioUid}`).get(),
+      admin.firestore().doc(`usuarios/${mensaje.autorUid}`).get(),
+    ]);
+    const token = destinatarioSnap.data()?.fcmToken;
+    if (!token) return;
+
+    try {
+      await admin.messaging().send({
+        token,
+        notification: {
+          title: autorSnap.data()?.nombre || "Alguien",
+          body: mensaje.texto,
+        },
+        data: { tipo: "mensaje", conexionId },
+      });
+    } catch (error) {
+      // Un token puede quedar inválido (se desinstaló la app, cambió de
+      // dispositivo, etc.) — no es un error real del sistema.
+      console.error("No se pudo enviar la notificación de mensaje:", error);
+    }
+  }
+);
+
+/**
+ * Notifica push a ambas personas cuando se crea (o se reactiva después de
+ * un "deshacer match") un match nuevo. onDocumentWritten cubre los dos
+ * casos: la creación real, y la reactivación que hace crearConexion() en
+ * el cliente (que solo actualiza deshecho a false sobre el documento
+ * existente en vez de crear uno nuevo) — sin esto, un reencuentro después
+ * de deshacer un match no avisaría a nadie.
+ */
+exports.notificarMatchNuevo = onDocumentWritten(
+  "conexiones/{conexionId}",
+  async (event) => {
+    const antes = event.data.before.exists ? event.data.before.data() : null;
+    const despues = event.data.after.exists ? event.data.after.data() : null;
+    if (!despues || despues.deshecho) return;
+
+    const esNuevo = !antes;
+    const esReactivado = antes && antes.deshecho === true;
+    if (!esNuevo && !esReactivado) return;
+
+    const usuarios = despues.usuarios || [];
+    if (usuarios.length !== 2) return;
+
+    const snaps = await Promise.all(
+      usuarios.map((uid) => admin.firestore().doc(`usuarios/${uid}`).get())
+    );
+    const datos = snaps.map((s) => s.data() || {});
+
+    await Promise.all(
+      usuarios.map(async (uid, i) => {
+        const token = datos[i].fcmToken;
+        if (!token) return;
+        const otroNombre = datos[1 - i].nombre || "Alguien";
+        try {
+          await admin.messaging().send({
+            token,
+            notification: {
+              title: "¡Nuevo match! 🎉",
+              body: `Hiciste match con ${otroNombre}`,
+            },
+            data: { tipo: "match", conexionId: event.params.conexionId },
+          });
+        } catch (error) {
+          console.error("No se pudo enviar la notificación de match:", error);
+        }
+      })
+    );
   }
 );
 

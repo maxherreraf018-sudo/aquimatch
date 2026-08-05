@@ -15,6 +15,7 @@ import {
   INTERVALO_LATIDO_MS,
 } from '../services/activation'
 import useVigilanciaSalida from '../hooks/useVigilanciaSalida'
+import useNotificaciones from '../hooks/useNotificaciones'
 import BottomNav from '../components/BottomNav'
 
 // Estados posibles de esta pantalla dinámica
@@ -54,6 +55,7 @@ export default function Activation() {
 
   const uid = getAuth().currentUser?.uid
 
+  useNotificaciones()
   useVigilanciaSalida(lugarActivo, salirDelLugar)
 
   useEffect(() => {
