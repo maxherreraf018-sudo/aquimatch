@@ -108,7 +108,8 @@
       "Bash(gh --version)",
       "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
       "Bash(git branch *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(grep -i \"^\\\\.env$\")"
     ]
   }
 }
