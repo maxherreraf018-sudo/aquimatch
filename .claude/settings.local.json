@@ -103,7 +103,12 @@
       "Bash(where soffice *)",
       "Bash(node build_costos_20k.js)",
       "Bash(node verify.js)",
-      "Bash(timeout 20 firebase emulators:start --only firestore)"
+      "Bash(timeout 20 firebase emulators:start --only firestore)",
+      "Bash(gh auth *)",
+      "Bash(gh --version)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "Bash(git branch *)",
+      "Bash(git push *)"
     ]
   }
 }
