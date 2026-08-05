@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { actualizarUsuario } from '../firebase/auth'
+import { serverTimestamp } from 'firebase/firestore'
 import { conLimiteDeTiempo, subirSelfieAlStorage } from '../services/verificacion'
 import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
@@ -18,6 +19,7 @@ export default function CompleteProfile() {
   const [intereses, setIntereses] = useState([])
   const [selfie, setSelfie] = useState(null)
   const [selfiePreview, setSelfiePreview] = useState(null)
+  const [aceptaDatosSensibles, setAceptaDatosSensibles] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   async function manejarSelfie() {
@@ -36,6 +38,9 @@ export default function CompleteProfile() {
   async function manejarFinalizar() {
     setError('')
     if (!selfie) return setError('Toma tu selfie de verificación para continuar.')
+    if (!aceptaDatosSensibles) {
+      return setError('Debes aceptar el tratamiento de tu selfie y tu preferencia de búsqueda para continuar.')
+    }
     setCargando(true)
     try {
       const auth = getAuth()
@@ -48,6 +53,11 @@ export default function CompleteProfile() {
           selfieVerificacion: selfieURL,
           estadoVerificacion: 'pendiente', // se revisa en backend / moderación
           perfilCompleto: true,
+          // Registro del consentimiento expreso para datos sensibles (selfie
+          // biométrica + preferencia de género), separado de la aceptación
+          // general de los Términos — exigido por la Ley 21.719. Queda con
+          // fecha/hora exacta por si hace falta acreditarlo.
+          consentimientoDatosSensiblesEn: serverTimestamp(),
         }),
         25,
         'actualizarUsuario'
@@ -120,7 +130,36 @@ export default function CompleteProfile() {
         </p>
       )}
       <div className="spacer" />
-      <button className="btn btn-primary" onClick={manejarFinalizar} disabled={cargando}>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 9,
+          padding: 12,
+          borderRadius: 12,
+          background: 'rgba(255, 45, 142, 0.06)',
+          border: '1px solid rgba(255, 45, 142, 0.25)',
+          marginBottom: 16,
+          cursor: 'pointer',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={aceptaDatosSensibles}
+          onChange={(e) => setAceptaDatosSensibles(e.target.checked)}
+          style={{ marginTop: 2, flexShrink: 0, width: 15, height: 15 }}
+        />
+        <span style={{ fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.45 }}>
+          Acepto que mi <span style={{ color: 'var(--text)' }}>selfie de verificación</span> (dato biométrico) y mi{' '}
+          <span style={{ color: 'var(--text)' }}>preferencia de personas que quiero conocer</span> se traten según se
+          describe en la{' '}
+          <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="link">
+            Política de Privacidad
+          </a>
+          .
+        </span>
+      </label>
+      <button className="btn btn-primary" onClick={manejarFinalizar} disabled={cargando || !aceptaDatosSensibles}>
         {cargando ? 'Guardando...' : 'Listo'}
       </button>
       <p className="legal-note">Tu información siempre estará protegida.</p>
