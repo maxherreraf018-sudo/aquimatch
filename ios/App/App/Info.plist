@@ -51,5 +51,16 @@
 	<string>AquíMatch usa tu ubicación para confirmar que estás en el lugar donde querés activar tu participación.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>AquíMatch usa la cámara para tomar tu selfie de verificación y confirmar que sos vos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AquíMatch necesita acceder a tus fotos para que puedas elegir una foto de perfil desde tu galería.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.39224828573-1f98utljsje3oe8abobd0qdtup0q45fb</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
