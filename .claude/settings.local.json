@@ -109,7 +109,8 @@
       "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
       "Bash(git branch *)",
       "Bash(git push *)",
-      "Bash(grep -i \"^\\\\.env$\")"
+      "Bash(grep -i \"^\\\\.env$\")",
+      "WebFetch(domain:docs.codemagic.io)"
     ]
   }
 }

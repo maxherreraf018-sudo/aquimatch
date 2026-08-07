@@ -1,0 +1,27 @@
+workflows:
+  ios-test-build:
+    name: iOS - prueba de compilación (sin firma)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: 24
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcodeproj/project.xcworkspace"
+        XCODE_SCHEME: "App"
+    scripts:
+      - name: Instalar dependencias de npm
+        script: npm install
+      - name: Compilar la web (Vite build)
+        script: npm run build
+      - name: Sincronizar el proyecto nativo de iOS
+        script: npx cap sync ios
+      - name: Compilar para el simulador de iOS (sin firma, solo para validar que compila)
+        script: |
+          xcodebuild build \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - /tmp/xcodebuild_logs/*.log
