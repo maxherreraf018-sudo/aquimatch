@@ -64,12 +64,12 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>fb0000000000000000</string>
+				<string>fb999999999999999</string>
 			</array>
 		</dict>
 	</array>
 	<key>FacebookAppID</key>
-	<string>0000000000000000</string>
+	<string>999999999999999</string>
 	<key>FacebookClientToken</key>
 	<string>0000000000000000000000000000000</string>
 	<key>FacebookDisplayName</key>
