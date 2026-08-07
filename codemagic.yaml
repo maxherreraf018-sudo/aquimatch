@@ -25,3 +25,40 @@ workflows:
             CODE_SIGNING_ALLOWED=NO
     artifacts:
       - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    name: iOS - build firmado y subida a TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      node: 24
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.aquimatch.app
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcodeproj/project.xcworkspace"
+        XCODE_SCHEME: "App"
+    scripts:
+      - name: Instalar dependencias de npm
+        script: npm install
+      - name: Compilar la web (Vite build)
+        script: npm run build
+      - name: Sincronizar el proyecto nativo de iOS
+        script: npx cap sync ios
+      - name: Configurar la firma de código con los certificados de App Store Connect
+        script: xcode-project use-profiles
+      - name: Compilar y firmar el .ipa
+        script: |
+          cd $CM_BUILD_DIR/ios/App
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
