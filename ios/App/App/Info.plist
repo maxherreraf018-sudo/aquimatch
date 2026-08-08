@@ -53,6 +53,8 @@
 	<string>AquíMatch usa la cámara para tomar tu selfie de verificación y confirmar que sos vos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>AquíMatch necesita acceder a tus fotos para que puedas elegir una foto de perfil desde tu galería.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>AquíMatch necesita guardar la foto que tomes con la cámara para poder subirla como tu foto de perfil.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
