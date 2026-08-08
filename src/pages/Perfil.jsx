@@ -79,12 +79,16 @@ export default function Perfil() {
 
   function manejarSeleccionarFoto(slot) {
     return async () => {
-      const blob = await elegirFoto()
-      if (!blob) return
-      setErrorFoto('')
-      setSlotFotoPendiente(slot)
-      setFotoPendiente(blob)
-      setFotoPendientePreview(URL.createObjectURL(blob))
+      try {
+        const blob = await elegirFoto()
+        if (!blob) return
+        setErrorFoto('')
+        setSlotFotoPendiente(slot)
+        setFotoPendiente(blob)
+        setFotoPendientePreview(URL.createObjectURL(blob))
+      } catch (err) {
+        setErrorFoto('No pudimos abrir la cámara/galería. Intenta de nuevo.')
+      }
     }
   }
 
@@ -258,6 +262,7 @@ export default function Perfil() {
           onCerrar={() => setMostrarGestorFotos(false)}
           manejarSeleccionarFoto={manejarSeleccionarFoto}
           subiendoFoto={subiendoFoto}
+          errorFoto={errorFoto}
         />
       )}
 
@@ -637,7 +642,7 @@ const ETIQUETAS_SLOT = ['Foto de perfil', 'Foto 2', 'Foto 3']
 // Visor de las 3 fotos del perfil propio (a diferencia de FotoCarrusel, acá
 // SÍ se muestran los slots vacíos — con un botón para agregar — porque es
 // para gestionar tus propias fotos, no para ver las de otra persona.
-function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }) {
+function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto, errorFoto }) {
   const [indice, setIndice] = useState(0)
   const slots = [usuario?.fotoPrincipal || null, usuario?.fotosAdicionales?.[0] || null, usuario?.fotosAdicionales?.[1] || null]
   const slotKeys = ['principal', 0, 1]
@@ -667,7 +672,16 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
           </label>
         )}
 
-        <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', gap: 4 }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(14px + env(safe-area-inset-top))',
+            left: 14,
+            right: 14,
+            display: 'flex',
+            gap: 4,
+          }}
+        >
           {slots.map((_, i) => (
             <div
               key={i}
@@ -687,7 +701,7 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
           onClick={onCerrar}
           style={{
             position: 'absolute',
-            top: 12,
+            top: 'calc(12px + env(safe-area-inset-top))',
             right: 14,
             width: 30,
             height: 30,
@@ -717,7 +731,13 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
         )}
       </div>
 
-      <div style={{ padding: '16px 20px', textAlign: 'center', flexShrink: 0 }}>
+      <div
+        style={{
+          padding: '16px 20px calc(16px + env(safe-area-inset-bottom))',
+          textAlign: 'center',
+          flexShrink: 0,
+        }}
+      >
         <p style={{ color: 'white', fontSize: 13, marginBottom: 10 }}>{ETIQUETAS_SLOT[indice]}</p>
         <label
           style={{
@@ -736,6 +756,11 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto }
           <IconLapiz size={14} />
           {subiendoFoto ? 'Subiendo...' : fotoActual ? 'Cambiar esta foto' : 'Agregar esta foto'}
         </label>
+        {errorFoto && (
+          <p className="error-text" style={{ marginTop: 10 }}>
+            {errorFoto}
+          </p>
+        )}
       </div>
     </div>
   )

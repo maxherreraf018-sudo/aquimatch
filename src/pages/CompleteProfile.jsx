@@ -23,10 +23,15 @@ export default function CompleteProfile() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   async function manejarSelfie() {
-    const blob = await elegirFoto({ source: CameraSource.Camera, direction: CameraDirection.Front })
-    if (!blob) return
-    setSelfie(blob)
-    setSelfiePreview(URL.createObjectURL(blob))
+    try {
+      const blob = await elegirFoto({ source: CameraSource.Camera, direction: CameraDirection.Front })
+      if (!blob) return
+      setError('')
+      setSelfie(blob)
+      setSelfiePreview(URL.createObjectURL(blob))
+    } catch (err) {
+      setError('No pudimos abrir la cámara. Intenta de nuevo.')
+    }
   }
   function manejarToggleInteres(valor) {
     setIntereses((prev) => {

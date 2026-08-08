@@ -45,10 +45,15 @@ export default function CreateProfile() {
   const [cargando, setCargando] = useState(false)
 
   async function manejarFoto() {
-    const blob = await elegirFoto()
-    if (!blob) return
-    setFoto(blob)
-    setFotoPreview(URL.createObjectURL(blob))
+    try {
+      const blob = await elegirFoto()
+      if (!blob) return
+      setError('')
+      setFoto(blob)
+      setFotoPreview(URL.createObjectURL(blob))
+    } catch (err) {
+      setError('No pudimos abrir la cámara/galería. Intenta de nuevo.')
+    }
   }
 
   function calcularEdad(fecha) {
