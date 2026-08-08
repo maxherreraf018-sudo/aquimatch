@@ -50,6 +50,10 @@ body {
   display: flex;
   flex-direction: column;
   padding: 28px 24px 32px;
+  /* iOS: sin esto el contenido queda pegado al notch/Dynamic Island —
+     viewport-fit=cover (index.html) hace que la web dibuje de punta a
+     punta, así que cada pantalla tiene que dejar su propio margen. */
+  padding-top: calc(28px + env(safe-area-inset-top));
   position: relative;
   overflow-y: auto;
 }
