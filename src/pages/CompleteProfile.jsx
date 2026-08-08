@@ -30,7 +30,7 @@ export default function CompleteProfile() {
       setSelfie(blob)
       setSelfiePreview(URL.createObjectURL(blob))
     } catch (err) {
-      setError('No pudimos abrir la cámara. Intenta de nuevo.')
+      setError(`No pudimos abrir la cámara. (${err?.code || err?.message || 'error desconocido'})`)
     }
   }
   function manejarToggleInteres(valor) {

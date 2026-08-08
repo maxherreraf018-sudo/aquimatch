@@ -87,7 +87,7 @@ export default function Perfil() {
         setFotoPendiente(blob)
         setFotoPendientePreview(URL.createObjectURL(blob))
       } catch (err) {
-        setErrorFoto('No pudimos abrir la cámara/galería. Intenta de nuevo.')
+        setErrorFoto(`No pudimos abrir la cámara/galería. (${err?.code || err?.message || 'error desconocido'})`)
       }
     }
   }

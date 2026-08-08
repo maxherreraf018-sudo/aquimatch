@@ -457,7 +457,7 @@ export default function Chat() {
               onClick={() => setMostrarPerfil(false)}
               style={{
                 position: 'absolute',
-                top: 12,
+                top: 'calc(12px + env(safe-area-inset-top))',
                 right: 12,
                 width: 30,
                 height: 30,
@@ -479,7 +479,7 @@ export default function Chat() {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                padding: '28px 20px 24px',
+                padding: '28px 20px calc(24px + env(safe-area-inset-bottom))',
                 background: 'linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.2) 55%, transparent)',
                 zIndex: 1,
               }}

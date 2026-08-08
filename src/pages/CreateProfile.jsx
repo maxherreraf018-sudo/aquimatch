@@ -52,7 +52,7 @@ export default function CreateProfile() {
       setFoto(blob)
       setFotoPreview(URL.createObjectURL(blob))
     } catch (err) {
-      setError('No pudimos abrir la cámara/galería. Intenta de nuevo.')
+      setError(`No pudimos abrir la cámara/galería. (${err?.code || err?.message || 'error desconocido'})`)
     }
   }
 
