@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { FirebaseMessaging } from '@capacitor-firebase/messaging'
+import { FirebaseCrashlytics } from '@capacitor-firebase/crashlytics'
 import { getAuth } from 'firebase/auth'
 import { actualizarUsuario } from '../firebase/auth'
 
@@ -38,7 +39,14 @@ export default function useNotificaciones() {
           await actualizarUsuario(uid, { fcmToken: token })
         }
       } catch (err) {
-        // Sin notificaciones, pero la app sigue funcionando igual.
+        // Sin notificaciones, pero la app sigue funcionando igual. Se manda
+        // a Crashlytics (en vez de tragarlo en silencio) para poder ver la
+        // causa real desde la consola de Firebase sin necesitar Mac/Xcode.
+        try {
+          await FirebaseCrashlytics.recordException({
+            message: `useNotificaciones: ${String(err?.message || err).slice(0, 500)}`,
+          })
+        } catch (_) {}
       }
     }
     activar()
