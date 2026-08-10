@@ -121,6 +121,19 @@ export default function CompleteProfile() {
         <p style={{ fontSize: 13, marginBottom: 10 }}>
           Tómate un selfie para verificar que eres tú.
         </p>
+        <p
+          style={{
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+            borderLeft: '2px solid var(--magenta)',
+            borderRadius: 0,
+            padding: '4px 0 4px 12px',
+            margin: '10px 0 0',
+          }}
+        >
+          Mira de frente, con buena luz, y que se parezca a tu foto de perfil.
+        </p>
       </div>
       <label className="avatar-upload" onClick={manejarSelfie}>
         {selfiePreview ? (

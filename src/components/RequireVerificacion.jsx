@@ -129,11 +129,27 @@ function VerificacionRechazada({ uid, tardando }) {
       <h1 style={{ marginBottom: 10 }}>
         {tardando ? 'Esto está tardando más de lo normal' : 'No pudimos verificar tu selfie'}
       </h1>
-      <p style={{ marginBottom: 20 }}>
+      <p style={{ marginBottom: tardando ? 20 : 10 }}>
         {tardando
           ? 'Puede haber sido un problema de conexión. Volvé a tomarte la selfie para intentarlo de nuevo.'
           : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
       </p>
+      {!tardando && (
+        <p
+          style={{
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+            borderLeft: '2px solid var(--magenta)',
+            borderRadius: 0,
+            padding: '4px 0 4px 12px',
+            margin: '0 0 20px',
+            textAlign: 'left',
+          }}
+        >
+          Mira de frente, con buena luz, y que se parezca a tu foto de perfil.
+        </p>
+      )}
       <label
         className="avatar-upload"
         style={{ margin: '0 auto 10px' }}
