@@ -76,5 +76,7 @@
 	<string>0000000000000000000000000000000</string>
 	<key>FacebookDisplayName</key>
 	<string>AquiMatch</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
