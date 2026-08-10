@@ -190,7 +190,7 @@ export default function Chat() {
     <div
       className="screen"
       style={{
-        padding: 'calc(20px + env(safe-area-inset-top)) 0 16px',
+        padding: 'calc(20px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom))',
         height: '100dvh',
         overflow: 'hidden',
       }}

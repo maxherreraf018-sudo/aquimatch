@@ -406,7 +406,10 @@ p {
 }
 
 .screen-with-nav {
-  padding-bottom: 92px;
+  /* + env(safe-area-inset-bottom): mismo motivo que .screen arriba — sin
+     esto, en Android con barra de navegación de 3 botones el contenido
+     puede quedar tapado detrás de esa barra. */
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 /* Píldoras */
