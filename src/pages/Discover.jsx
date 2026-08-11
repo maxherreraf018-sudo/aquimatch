@@ -348,7 +348,12 @@ export default function Discover() {
   }
 
   return (
-    <div className="screen screen-with-nav" style={{ padding: 'calc(20px + env(safe-area-inset-top)) 20px 0' }}>
+    <div
+      className="screen screen-with-nav"
+      style={{
+        padding: 'calc(20px + env(safe-area-inset-top)) 20px calc(92px + env(safe-area-inset-bottom))',
+      }}
+    >
       {/* Contador de personas + ícono discreto de seguridad */}
       <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
         <span className="pill-badge" style={{ padding: '6px 12px', fontSize: 12.5 }}>
