@@ -5,8 +5,10 @@ import {
   updateDoc,
   onSnapshot,
   query,
+  where,
   orderBy,
   serverTimestamp,
+  deleteField,
   arrayUnion,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -56,10 +58,20 @@ export async function marcarChatLeido(conexionId, uid) {
 
 /**
  * Escucha los mensajes de una conexión en tiempo real, ordenados por fecha.
+ *
+ * `ocultarAntesDe` es la fecha del último "Eliminar conversación"
+ * (`deshechoEn`). Si se pasa, los mensajes anteriores a esa fecha ni
+ * siquiera se piden a Firestore: si dos personas se vuelven a encontrar y
+ * rehacen el match, la conversación arranca en blanco, como espera quien
+ * tocó "Eliminar conversación". Los mensajes viejos siguen guardados en la
+ * base por si hay que revisarlos ante una denuncia, pero ninguna de las dos
+ * personas vuelve a verlos nunca.
  */
-export function escucharMensajes(conexionId, callback) {
+export function escucharMensajes(conexionId, callback, ocultarAntesDe = null) {
   const ref = collection(db, 'conexiones', conexionId, 'mensajes')
-  const q = query(ref, orderBy('creadoEn', 'asc'))
+  const q = ocultarAntesDe
+    ? query(ref, where('creadoEn', '>', ocultarAntesDe), orderBy('creadoEn', 'asc'))
+    : query(ref, orderBy('creadoEn', 'asc'))
   return onSnapshot(q, (snapshot) => {
     const mensajes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
     callback(mensajes)
@@ -94,11 +106,22 @@ export async function reportarUsuario(uidReportadoPor, uidReportado, conexionId,
  * Deshace el match: desaparece de la lista de chats de las DOS personas y
  * deja de contar como "ya conectados" (pueden volver a aparecerse en
  * Descubrir y hacer match de nuevo si se reencuentran). Los mensajes no
- * se borran de la base de datos — quedan por si hace falta revisarlos
- * ante una denuncia — pero ninguna de las dos personas vuelve a verlos a
- * menos que rehagan el match.
+ * se borran de la base de datos — quedan por si hace falta revisarlos ante
+ * una denuncia — pero ninguna de las dos personas vuelve a verlos nunca
+ * más, ni siquiera si rehacen el match (ver escucharMensajes, que filtra
+ * por `deshechoEn`).
+ *
+ * Se borra además la vista previa del último mensaje: sin esto, al rehacer
+ * el match la lista de "Mis chats" seguiría mostrando el texto de una
+ * conversación que para ambos ya no existe.
  */
 export async function deshacerMatch(conexionId) {
   const ref = doc(db, 'conexiones', conexionId)
-  await updateDoc(ref, { deshecho: true, deshechoEn: serverTimestamp() })
+  await updateDoc(ref, {
+    deshecho: true,
+    deshechoEn: serverTimestamp(),
+    ultimoMensajeTexto: deleteField(),
+    ultimoMensajeAutor: deleteField(),
+    ultimoMensajeEn: deleteField(),
+  })
 }

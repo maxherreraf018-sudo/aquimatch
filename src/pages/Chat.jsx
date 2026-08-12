@@ -100,7 +100,9 @@ export default function Chat() {
         setOtroEstadoConexion(estadoConexion)
         setCargando(false)
 
-        detener = escucharMensajes(id, setMensajes)
+        // Si esta conexión ya se había eliminado antes y se rehizo el
+        // match, solo se muestran los mensajes posteriores a ese borrado.
+        detener = escucharMensajes(id, setMensajes, conexionData.deshechoEn || null)
       } catch (err) {
         if (!activo) return
         setErrorCarga('No pudimos cargar esta conversación. Revisa tu conexión e intenta de nuevo.')

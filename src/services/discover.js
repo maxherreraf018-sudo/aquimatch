@@ -101,7 +101,13 @@ async function crearConexion(uidA, uidB, placeId) {
       deshecho: false,
     })
   } else if (snap.data()?.deshecho) {
-    await setDoc(ref, { placeId, deshecho: false }, { merge: true })
+    // Se refresca `creadaEn` porque para las dos personas esto es un match
+    // nuevo: la conversación anterior ya no se ve (ver escucharMensajes, en
+    // services/chat.js). Sin esto el chat reaparecería hundido al fondo de
+    // "Mis chats", ordenado por la fecha del match viejo — el orden usa
+    // `ultimoMensajeEn || creadaEn`, y `ultimoMensajeEn` se borró al
+    // eliminar la conversación.
+    await setDoc(ref, { placeId, deshecho: false, creadaEn: serverTimestamp() }, { merge: true })
   }
   return idOrdenado
 }
