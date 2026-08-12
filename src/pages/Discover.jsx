@@ -459,10 +459,19 @@ export default function Discover() {
         </div>
       ) : (
         <>
-          <div className="card-stack" style={{ flex: '0 0 auto' }}>
+          {/* La tarjeta se ADAPTA al espacio que sobra, en vez de imponer una
+              altura fija. Antes usaba clamp(380px, 62vh, 620px) con
+              flex:'0 0 auto': reclamaba su altura primero y empujaba los
+              botones "Más tarde"/"Me interesa" fuera de la pantalla, obligando
+              a scrollear para ver sus nombres. Con flex:'1 1 auto' y minHeight:0
+              la foto cede el espacio que haga falta, así los botones y sus
+              nombres siempre quedan visibles sin bajar. */}
+          <div className="card-stack" style={{ flex: '1 1 auto', minHeight: 0 }}>
             <div
               style={{
                 width: '100%',
+                height: '100%',
+                minHeight: 260,
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
                 boxShadow: 'var(--shadow-card)',
@@ -471,7 +480,7 @@ export default function Discover() {
             <FotoCarrusel
               key={actual.uid}
               fotos={[actual.fotoPrincipal, ...(perfilesCompletos[actual.uid]?.fotosAdicionales || [])]}
-              alto="clamp(380px, 62vh, 620px)"
+              alto="100%"
             >
               <div
                 style={{
