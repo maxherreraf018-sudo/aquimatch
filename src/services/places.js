@@ -21,6 +21,14 @@ const TIPOS_RELEVANTES = [
 // que alguien en su casa, a varias cuadras, vea una universidad como
 // "disponible" sin estar ahí en realidad.
 const RADIO_BUSQUEDA_METROS = 120
+// Radio con el que se le pregunta a Google. Es más amplio que el radio real
+// exigido al usuario porque la consulta se centra en el CENTRO de la zona de
+// caché, no en las coordenadas exactas de quien pregunta (ver idZonaCache):
+// una celda mide ~110m, así que su punto más lejano está a ~72m del centro,
+// y hay que sumarle los 120m de la persona para no dejar afuera lugares que
+// para ella sí son válidos. El límite real de 120m se sigue aplicando
+// después, por persona, contra sus coordenadas exactas.
+const RADIO_CONSULTA_METROS = 200
 const MAX_LUGARES_MOSTRADOS = 2
 
 // Cuánto tiempo se reutiliza, para cualquier usuario que se active cerca del
@@ -40,6 +48,17 @@ function idZonaCache(lat, lng) {
   const lat3 = lat.toFixed(3)
   const lng3 = lng.toFixed(3)
   return `${lat3}_${lng3}`
+}
+
+/**
+ * Centro geográfico de la zona de caché a la que pertenece una coordenada.
+ * La consulta a Google se hace SIEMPRE desde este punto y no desde las
+ * coordenadas exactas de quien pregunta: así el resultado guardado sirve
+ * igual de bien para cualquier persona de la misma celda, en vez de quedar
+ * sesgado hacia la esquina donde estaba parada la primera que consultó.
+ */
+function centroZonaCache(lat, lng) {
+  return { lat: Number(lat.toFixed(3)), lng: Number(lng.toFixed(3)) }
 }
 
 /**
@@ -64,11 +83,18 @@ async function buscarEnGoogle(lat, lng) {
     },
     body: JSON.stringify({
       includedTypes: TIPOS_RELEVANTES,
-      maxResultCount: 5,
+      // Sin esto, Google ordena por POPULARIDAD (es su valor por defecto) y
+      // devuelve los locales más famosos del sector en vez de los que tenés
+      // al lado. En zonas densas como Bellavista eso hacía desaparecer los
+      // bares chicos aunque estuvieras parado en la puerta.
+      rankPreference: 'DISTANCE',
+      // 20 es el máximo que permite la API. No encarece nada: Google cobra
+      // por consulta, no por cantidad de resultados.
+      maxResultCount: 20,
       locationRestriction: {
         circle: {
           center: { latitude: lat, longitude: lng },
-          radius: RADIO_BUSQUEDA_METROS,
+          radius: RADIO_CONSULTA_METROS,
         },
       },
     }),
@@ -118,7 +144,8 @@ export async function buscarLugaresCercanos(lat, lng) {
   }
 
   if (!lugaresBase) {
-    lugaresBase = await buscarEnGoogle(lat, lng)
+    const centro = centroZonaCache(lat, lng)
+    lugaresBase = await buscarEnGoogle(centro.lat, centro.lng)
     // No bloqueamos la respuesta al usuario si falla el guardado del caché.
     setDoc(refCache, { lugares: lugaresBase, actualizadoEn: serverTimestamp() }).catch(() => {})
   }
@@ -128,6 +155,12 @@ export async function buscarLugaresCercanos(lat, lng) {
       ...lugar,
       distanciaMetros: calcularDistanciaMetros(lat, lng, lugar.lat, lugar.lng),
     }))
+    // El límite real de cercanía se aplica acá, contra las coordenadas
+    // exactas de quien pregunta. Antes lo hacía la propia consulta a Google;
+    // ahora que esa consulta se centra en el centro de la zona (y usa un
+    // radio más amplio), este filtro es el que impide que alguien se active
+    // en un lugar donde no está.
+    .filter((lugar) => lugar.distanciaMetros <= RADIO_BUSQUEDA_METROS)
     .sort((a, b) => a.distanciaMetros - b.distanciaMetros)
     .slice(0, MAX_LUGARES_MOSTRADOS)
 }
