@@ -466,12 +466,18 @@ export default function Discover() {
               a scrollear para ver sus nombres. Con flex:'1 1 auto' y minHeight:0
               la foto cede el espacio que haga falta, así los botones y sus
               nombres siempre quedan visibles sin bajar. */}
-          <div className="card-stack" style={{ flex: '1 1 auto', minHeight: 0 }}>
+          <div className="card-stack" style={{ flex: '1 1 auto', minHeight: 260 }}>
             <div
               style={{
                 width: '100%',
-                height: '100%',
-                minHeight: 260,
+                // Estirado por el flex del padre (.card-stack es display:flex),
+                // NO con height:'100%'. Un porcentaje no resuelve contra un
+                // padre cuya altura sale de min-height/flex: queda indefinida,
+                // la foto colapsa a 0 y el overflow:hidden se come el nombre.
+                // Medido en el navegador: con height:'100%' el carrusel daba
+                // 0px; estirándolo por flex da la altura completa.
+                flex: 1,
+                minHeight: 0,
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
                 boxShadow: 'var(--shadow-card)',
