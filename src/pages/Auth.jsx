@@ -406,7 +406,14 @@ export default function Auth() {
           {mensaje && (
             <p style={{ color: 'var(--text-dim)', fontSize: 13, textAlign: 'center' }}>{mensaje}</p>
           )}
-          <button className="btn btn-primary" type="submit" disabled={cargando || !aceptaTerminos}>
+          {/* El botón NO se deshabilita por tener los Términos sin aceptar: si
+              lo hiciera, quien no vea la casilla (que aparece recién al llenar
+              ambos campos) toca un botón muerto, sin ningún mensaje, y termina
+              creyendo que su contraseña está mala. Pasó de verdad: los
+              revisores de Apple y Google quedaron atrapados así y pidieron
+              recuperar la contraseña una y otra vez. Dejándolo habilitado, el
+              propio manejarEnvio explica qué falta. */}
+          <button className="btn btn-primary" type="submit" disabled={cargando}>
             {cargando ? 'Un momento...' : 'Continuar'}
           </button>
         </form>
