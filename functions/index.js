@@ -271,3 +271,159 @@ exports.eliminarCuenta = onCall(async (request) => {
 
   return { ok: true };
 });
+
+// ---------------------------------------------------------------------------
+// Activación verificada en el servidor
+//
+// Antes, activarse era escribir directo el documento `activaciones/{uid}` desde
+// la app, y las reglas solo comprobaban que fueras el dueño. La verificación
+// por GPS vivía ENTERA en el cliente, así que alguien con conocimientos
+// técnicos podía declarar que estaba en cualquier bar de Chile y ver a toda la
+// gente activa ahí sin moverse de su casa — justo lo contrario de lo que
+// promete AquíMatch.
+//
+// Ahora la app pide la activación acá y es el servidor el que decide: le
+// pregunta a Google Places por los lugares que hay alrededor de las
+// coordenadas recibidas y comprueba que el lugar elegido esté de verdad a
+// menos de 120 metros. Nada de lo que manda el cliente sobre sí mismo (nombre,
+// foto, género) se cree: eso se lee del perfil guardado.
+//
+// Sigue sin ser infalible — existen apps de GPS falso — pero pasa de "cualquiera
+// puede" a "hay que esforzarse bastante".
+// ---------------------------------------------------------------------------
+const GOOGLE_PLACES_API_KEY = defineSecret("GOOGLE_PLACES_API_KEY");
+
+// Tiene que coincidir con RADIO_BUSQUEDA_METROS de src/services/places.js.
+const RADIO_ACTIVACION_METROS = 120;
+// Radio con el que se le pregunta a Google: más amplio que el anterior para no
+// perder por unos metros un lugar que sí es válido (mismo criterio que usa el
+// cliente para buscar).
+const RADIO_CONSULTA_METROS = 200;
+
+function distanciaMetros(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const rad = (g) => (g * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLng = rad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+exports.activarEnLugar = onCall(
+  { secrets: [GOOGLE_PLACES_API_KEY], timeoutSeconds: 30 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+    const uid = request.auth.uid;
+    const { lat, lng, placeId } = request.data || {};
+
+    if (typeof lat !== "number" || typeof lng !== "number" || !placeId) {
+      throw new HttpsError("invalid-argument", "Faltan datos de ubicación.");
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
+    }
+
+    // 1. Preguntarle a Google qué hay realmente alrededor de esas coordenadas.
+    let lugares = [];
+    try {
+      const respuesta = await fetch(
+        "https://places.googleapis.com/v1/places:searchNearby",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY.value(),
+            "X-Goog-FieldMask":
+              "places.id,places.displayName,places.location,places.types",
+          },
+          body: JSON.stringify({
+            includedTypes: ["bar", "night_club", "restaurant", "cafe", "pub"],
+            rankPreference: "DISTANCE",
+            maxResultCount: 20,
+            locationRestriction: {
+              circle: {
+                center: { latitude: lat, longitude: lng },
+                radius: RADIO_CONSULTA_METROS,
+              },
+            },
+          }),
+        }
+      );
+      if (!respuesta.ok) throw new Error(`Places respondió ${respuesta.status}`);
+      lugares = (await respuesta.json()).places || [];
+    } catch (error) {
+      console.error("[activarEnLugar] error consultando Places:", error);
+      throw new HttpsError("unavailable", "No pudimos verificar tu ubicación. Intenta de nuevo.");
+    }
+
+    // 2. El lugar elegido tiene que estar entre los que Google ve desde ahí...
+    const lugar = lugares.find((p) => p.id === placeId);
+    if (!lugar) {
+      throw new HttpsError(
+        "permission-denied",
+        "No pudimos confirmar que estés en ese lugar. Acércate a la entrada e intenta de nuevo."
+      );
+    }
+
+    // 3. ...y a menos de 120 metros de verdad.
+    const distancia = distanciaMetros(
+      lat,
+      lng,
+      lugar.location?.latitude,
+      lugar.location?.longitude
+    );
+    if (!(distancia <= RADIO_ACTIVACION_METROS)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Estás demasiado lejos de ese lugar para activarte."
+      );
+    }
+
+    // 4. Los datos propios se leen del perfil guardado, nunca de lo que mande
+    //    el cliente: si no, cualquiera podría activarse con el nombre y la
+    //    foto de otra persona.
+    const perfilSnap = await admin.firestore().doc(`usuarios/${uid}`).get();
+    if (!perfilSnap.exists) {
+      throw new HttpsError("failed-precondition", "Todavía no tienes perfil.");
+    }
+    const perfil = perfilSnap.data();
+    if (perfil.estadoVerificacion === "pendiente" || perfil.estadoVerificacion === "rechazado") {
+      throw new HttpsError("failed-precondition", "Tu perfil todavía no está verificado.");
+    }
+
+    await admin.firestore().doc(`activaciones/${uid}`).set({
+      uid,
+      nombre: perfil.nombre || "",
+      fotoPrincipal: perfil.fotoPrincipal || "",
+      genero: perfil.genero || "",
+      preferenciaGenero: perfil.preferenciaGenero || "ambos",
+      placeId,
+      placeName: lugar.displayName?.text || "",
+      lat: lugar.location?.latitude,
+      lng: lugar.location?.longitude,
+      tipos: lugar.types || [],
+      activa: true,
+      modo: null,
+      pausadoHasta: null,
+      pausaUsada: false,
+      // Deja constancia de que esta activación pasó por la verificación del
+      // servidor. Cuando ya nadie use una versión vieja de la app, las reglas
+      // pueden exigir que exista.
+      verificadaEnServidor: true,
+      iniciadaEn: admin.firestore.FieldValue.serverTimestamp(),
+      actualizadaEn: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      placeId,
+      placeName: lugar.displayName?.text || "",
+      lat: lugar.location?.latitude,
+      lng: lugar.location?.longitude,
+      tipos: lugar.types || [],
+    };
+  }
+);

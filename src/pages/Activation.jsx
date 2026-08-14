@@ -47,6 +47,9 @@ export default function Activation() {
   const [estado, setEstado] = useState(ESTADOS.PIDIENDO_UBICACION)
   const [lugares, setLugares] = useState([])
   const [lugarActivo, setLugarActivo] = useState(null)
+  // Coordenadas reales del teléfono en el momento de buscar. El servidor las
+  // usa para confirmar que el lugar elegido está de verdad al lado.
+  const [misCoords, setMisCoords] = useState(null)
   const [personasActivas, setPersonasActivas] = useState([])
   const [modoSeleccionado, setModoSeleccionado] = useState('participar')
   const [guardandoModo, setGuardandoModo] = useState(false)
@@ -132,6 +135,10 @@ export default function Activation() {
       async (posicion) => {
         setEstado(ESTADOS.BUSCANDO_LUGAR)
         const { latitude, longitude } = posicion.coords
+        // Se guardan porque el servidor las necesita después, al confirmar el
+        // lugar: es él quien comprueba que el lugar elegido esté realmente
+        // cerca de donde está el teléfono.
+        setMisCoords({ lat: latitude, lng: longitude })
         try {
           const encontrados = await buscarLugaresCercanos(latitude, longitude)
           if (encontrados.length === 0) {
@@ -156,16 +163,32 @@ export default function Activation() {
   }
 
   async function confirmarLugar(lugar) {
+    if (!misCoords) {
+      setMensajeError('Perdimos tu ubicación. Vuelve a buscar el lugar.')
+      setEstado(ESTADOS.ERROR)
+      return
+    }
     setEstado(ESTADOS.ACTIVANDO)
     try {
-      const datosUsuario = await obtenerUsuario(uid)
-      await activarEnLugar(uid, datosUsuario || {}, lugar)
-      setLugarActivo(lugar)
-      escucharPersonasEnElLugar(lugar.placeId, uid, setPersonasActivas)
+      // El servidor verifica la ubicación y devuelve los datos del lugar ya
+      // confirmados — se usan esos, no los que traía la app.
+      const verificado = await activarEnLugar(uid, lugar, misCoords)
+      const lugarConfirmado = {
+        placeId: verificado.placeId,
+        nombre: verificado.placeName,
+        lat: verificado.lat,
+        lng: verificado.lng,
+        tipos: verificado.tipos,
+      }
+      setLugarActivo(lugarConfirmado)
+      escucharPersonasEnElLugar(lugarConfirmado.placeId, uid, setPersonasActivas)
       setModoSeleccionado('participar')
       setEstado(ESTADOS.ELEGIR_MODO)
     } catch (err) {
-      setMensajeError('No pudimos activar tu participación. Intenta nuevamente.')
+      // Cuando el servidor rechaza la activación manda un motivo entendible
+      // ("estás demasiado lejos", "no pudimos confirmar que estés ahí"); vale
+      // mucho más mostrarlo que un mensaje genérico.
+      setMensajeError(err?.message || 'No pudimos activar tu participación. Intenta nuevamente.')
       setEstado(ESTADOS.ERROR)
     }
   }

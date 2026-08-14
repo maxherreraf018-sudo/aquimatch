@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { httpsCallable } from 'firebase/functions'
+import { db, functions } from '../firebase/config'
 import { registrarEvento } from '../firebase/analytics'
 
 // Radio máximo antes de considerar que el usuario ya se fue del lugar.
@@ -49,27 +50,28 @@ export const INTERVALO_LATIDO_MS = 5 * 60 * 1000
  * modo empieza en null; se define justo después, en la pantalla de
  * "¿Cómo quieres entrar?" (Participar / Explorar).
  */
-export async function activarEnLugar(uid, datosUsuario, lugar) {
-  const ref = doc(db, 'activaciones', uid)
-  await setDoc(ref, {
-    uid,
-    nombre: datosUsuario.nombre || '',
-    fotoPrincipal: datosUsuario.fotoPrincipal || '',
-    genero: datosUsuario.genero || '',
-    preferenciaGenero: datosUsuario.preferenciaGenero || 'ambos',
+export async function activarEnLugar(uid, lugar, coords) {
+  // Ya no se escribe el documento desde acá. Lo hace una Cloud Function, que
+  // antes le pregunta a Google Places si el lugar elegido está realmente a
+  // menos de 120 metros de las coordenadas que manda el teléfono. Si la
+  // verificación se hiciera solo en la app, cualquiera con conocimientos
+  // técnicos podría declararse en cualquier bar de Chile y ver a toda la gente
+  // activa ahí sin estar presente — justo lo que la app promete que no pasa.
+  //
+  // El nombre, la foto y el género tampoco se mandan: el servidor los lee del
+  // perfil guardado, para que nadie pueda activarse haciéndose pasar por otra
+  // persona.
+  const llamar = httpsCallable(functions, 'activarEnLugar')
+  const { data } = await llamar({
+    lat: coords.lat,
+    lng: coords.lng,
     placeId: lugar.placeId,
-    placeName: lugar.nombre,
-    lat: lugar.lat,
-    lng: lugar.lng,
-    tipos: lugar.tipos || [],
-    activa: true,
-    modo: null,
-    pausadoHasta: null,
-    pausaUsada: false,
-    iniciadaEn: serverTimestamp(),
-    actualizadaEn: serverTimestamp(),
   })
-  registrarEvento('activacion_iniciada', { place_id: lugar.placeId, place_name: lugar.nombre })
+  registrarEvento('activacion_iniciada', {
+    place_id: data.placeId,
+    place_name: data.placeName,
+  })
+  return data
 }
 
 /**
