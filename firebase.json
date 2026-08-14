@@ -1,7 +1,40 @@
 {
   "hosting": {
     "public": "hosting-public",
-    "ignore": ["firebase.json", "**/.*"]
+    "ignore": ["firebase.json", "**/.*"],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "comment": "Impide que alguien meta estas páginas dentro de un iframe en un sitio falso para engañar a quien las visita (clickjacking). frame-ancestors es la forma moderna; X-Frame-Options queda por navegadores viejos.",
+            "key": "Content-Security-Policy",
+            "value": "frame-ancestors 'none'"
+          },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          {
+            "comment": "Obliga a que el navegador use siempre HTTPS con este dominio durante un año, incluso si alguien escribe http:// a mano.",
+            "key": "Strict-Transport-Security",
+            "value": "max-age=31536000; includeSubDomains"
+          },
+          {
+            "comment": "Impide que el navegador adivine el tipo de un archivo y lo trate como algo distinto de lo declarado.",
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "comment": "No revela a otros sitios la dirección completa desde la que se llegó.",
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "comment": "Estas páginas son texto: no necesitan cámara, micrófono ni ubicación. Se apagan por si acaso.",
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=()"
+          }
+        ]
+      }
+    ]
   },
   "firestore": {
     "rules": "firestore.rules"
