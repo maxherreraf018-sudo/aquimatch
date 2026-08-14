@@ -101,9 +101,22 @@ service cloud.firestore {
       match /mensajes/{mensajeId} {
         allow read: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/conexiones/$(conexionId)).data.usuarios;
+        // Sin estas validaciones, un mensaje podía traer los campos que
+        // fuera y un texto de casi un megabyte (el tope de Firestore).
+        // Consecuencias reales: cada persona que abriera el chat se lo
+        // descargaba, la pantalla se trababa, la notificación push fallaba
+        // (tiene un tope de 4 KB) y crecía la factura. Con un solo match
+        // alcanzaba para provocarlo.
+        //
+        // 2000 caracteres son de sobra para un mensaje de chat: unas 400
+        // palabras.
         allow create: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/conexiones/$(conexionId)).data.usuarios &&
-          request.resource.data.autorUid == request.auth.uid;
+          request.resource.data.autorUid == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['autorUid', 'texto', 'creadoEn']) &&
+          request.resource.data.texto is string &&
+          request.resource.data.texto.size() > 0 &&
+          request.resource.data.texto.size() <= 2000;
         allow update, delete: if false;
       }
     }

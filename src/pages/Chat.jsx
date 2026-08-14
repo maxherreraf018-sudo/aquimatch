@@ -381,6 +381,11 @@ export default function Chat() {
           className="input"
           placeholder="Escribe un mensaje..."
           value={texto}
+          // Mismo tope que exigen las reglas de Firestore para un mensaje.
+          // Acá está para que la persona no pueda pasarse y reciba un error
+          // después de haber escrito; quien de verdad lo hace cumplir es la
+          // regla del servidor.
+          maxLength={2000}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && manejarEnviar()}
           style={{ flex: 1 }}
