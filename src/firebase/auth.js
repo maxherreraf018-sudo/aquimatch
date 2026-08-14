@@ -184,8 +184,26 @@ async function migrarDatosPrivadosSiHaceFalta(uid, datosPublicos) {
 export async function obtenerUsuarioPropio(uid) {
   const publico = await obtenerUsuario(uid)
   if (!publico) return null
-  await migrarDatosPrivadosSiHaceFalta(uid, publico)
-  const privados = (await obtenerDatosPrivados(uid)) || {}
+
+  // Ni la migración ni la lectura de los datos privados pueden tumbar la
+  // carga del perfil. Antes esto era una sola lectura; ahora hay dos
+  // escrituras de por medio, y quien llama (por ejemplo el iniciar() de
+  // Descubrir) no siempre tiene try/catch: si esto lanzara, la pantalla se
+  // quedaría cargando para siempre. Prefiero mostrar el perfil sin el
+  // contacto de confianza y reintentar la próxima vez.
+  let privados = {}
+  try {
+    await migrarDatosPrivadosSiHaceFalta(uid, publico)
+    privados = (await obtenerDatosPrivados(uid)) || {}
+  } catch (err) {
+    // Si la migración no alcanzó a correr, los campos viejos pueden seguir en
+    // el documento público; se usan como respaldo para no dejar a la persona
+    // sin su propio contacto de confianza.
+    CAMPOS_PRIVADOS.forEach((campo) => {
+      if (publico[campo] !== undefined) privados[campo] = publico[campo]
+    })
+  }
+
   const soloPublico = { ...publico }
   CAMPOS_PRIVADOS.forEach((campo) => delete soloPublico[campo])
   return { ...soloPublico, ...privados }

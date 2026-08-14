@@ -266,6 +266,21 @@ exports.eliminarCuenta = onCall(async (request) => {
   ]);
 
   await db.doc(`activaciones/${uid}`).delete();
+
+  // En Firestore, borrar un documento NO borra sus subcolecciones: hay que
+  // hacerlo a mano y ANTES, porque después de borrar el padre ya no queda
+  // ninguna referencia por dónde llegar a ellas.
+  //
+  // Sin esto, al eliminar la cuenta quedaban guardados para siempre la selfie
+  // de verificación, el correo y el nombre y teléfono del contacto de
+  // confianza — un tercero que ni siquiera usa la app. Es justo lo que la Ley
+  // 21.719 llama derecho de supresión.
+  //
+  // Se recorre la subcolección entera en vez de borrar `privado/datos` por su
+  // nombre, para que siga funcionando si mañana se agrega otro documento ahí.
+  const privados = await db.collection(`usuarios/${uid}/privado`).get();
+  await Promise.all(privados.docs.map((documento) => documento.ref.delete()));
+
   await db.doc(`usuarios/${uid}`).delete();
   await admin.auth().deleteUser(uid);
 
