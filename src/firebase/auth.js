@@ -9,7 +9,14 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, getDocFromServer, serverTimestamp } from 'firebase/firestore'
+import {
+  doc,
+  setDoc,
+  getDoc,
+  getDocFromServer,
+  serverTimestamp,
+  deleteField,
+} from 'firebase/firestore'
 import { auth, db, googleProvider } from './config'
 
 // Versión de los Términos/Política vigente. Cámbiala cada vez que el texto
@@ -79,13 +86,24 @@ export async function crearDocumentoUsuario(uid, datosIniciales) {
   const ref = doc(db, 'usuarios', uid)
   const snap = await getDoc(ref)
   if (!snap.exists()) {
+    // Los campos privados (hoy solo el correo) se separan acá mismo, para que
+    // ningún camino de registro los deje por error en el documento público.
+    const publicos = { ...datosIniciales }
+    const privados = {}
+    CAMPOS_PRIVADOS.forEach((campo) => {
+      if (publicos[campo] !== undefined) {
+        privados[campo] = publicos[campo]
+        delete publicos[campo]
+      }
+    })
     await setDoc(ref, {
-      ...datosIniciales,
+      ...publicos,
       perfilCompleto: false,
       creadoEn: serverTimestamp(),
       aceptoTerminosEn: serverTimestamp(),
       versionTerminos: VERSION_TERMINOS,
     })
+    if (Object.keys(privados).length > 0) await guardarDatosPrivados(uid, privados)
   }
 }
 // A propósito lee siempre del servidor (no del caché local): esta función
@@ -103,4 +121,72 @@ export async function obtenerUsuario(uid) {
 export async function actualizarUsuario(uid, datos) {
   const ref = doc(db, 'usuarios', uid)
   await setDoc(ref, datos, { merge: true })
+}
+
+// ---------------------------------------------------------------------------
+// Datos privados del usuario
+//
+// El documento `usuarios/{uid}` lo puede LEER cualquiera que conozca ese uid
+// — y el uid queda a la vista de todos los que estén activados en el mismo
+// lugar que vos, porque viene dentro de cada activación. O sea: cualquiera
+// que alguna vez estuvo en el mismo bar podía leer tu selfie de verificación
+// y el nombre y teléfono de tu contacto de confianza (que ni siquiera es
+// usuario de la app y nunca consintió nada).
+//
+// Por eso esos campos viven en `usuarios/{uid}/privado/datos`, una
+// subcolección que las reglas restringen a su dueño y al panel de moderación.
+// El documento público solo conserva lo que los demás necesitan ver: nombre,
+// fotos, edad, intereses.
+// ---------------------------------------------------------------------------
+
+// Campos que NUNCA deben quedar en el documento público.
+export const CAMPOS_PRIVADOS = ['correo', 'selfieVerificacion', 'contactoConfianza']
+
+function refDatosPrivados(uid) {
+  return doc(db, 'usuarios', uid, 'privado', 'datos')
+}
+
+export async function obtenerDatosPrivados(uid) {
+  const snap = await getDoc(refDatosPrivados(uid))
+  return snap.exists() ? snap.data() : null
+}
+
+export async function guardarDatosPrivados(uid, datos) {
+  await setDoc(refDatosPrivados(uid), datos, { merge: true })
+}
+
+// Migración automática, una sola vez por usuario: las cuentas creadas antes
+// del 2026-08-14 tienen estos campos en el documento público. La primera vez
+// que la persona entra, se copian a la subcolección privada y se borran del
+// público. Se hace acá y no con un script aparte porque cada usuario solo
+// tiene permiso para escribir su propio documento.
+async function migrarDatosPrivadosSiHaceFalta(uid, datosPublicos) {
+  const presentes = CAMPOS_PRIVADOS.filter((campo) => datosPublicos?.[campo] !== undefined)
+  if (presentes.length === 0) return
+  const aGuardar = {}
+  const aBorrar = {}
+  presentes.forEach((campo) => {
+    aGuardar[campo] = datosPublicos[campo]
+    aBorrar[campo] = deleteField()
+  })
+  // Primero se copia y después se borra: si algo falla en el medio, el dato
+  // queda duplicado (recuperable) en vez de perdido.
+  await guardarDatosPrivados(uid, aGuardar)
+  await setDoc(doc(db, 'usuarios', uid), aBorrar, { merge: true })
+}
+
+/**
+ * Perfil PROPIO, ya combinado con sus datos privados. Usar esta función (y no
+ * obtenerUsuario) siempre que se necesite la selfie, el contacto de confianza
+ * o el correo — obtenerUsuario sirve para leer el perfil público de OTRA
+ * persona, que nunca incluye nada de eso.
+ */
+export async function obtenerUsuarioPropio(uid) {
+  const publico = await obtenerUsuario(uid)
+  if (!publico) return null
+  await migrarDatosPrivadosSiHaceFalta(uid, publico)
+  const privados = (await obtenerDatosPrivados(uid)) || {}
+  const soloPublico = { ...publico }
+  CAMPOS_PRIVADOS.forEach((campo) => delete soloPublico[campo])
+  return { ...soloPublico, ...privados }
 }

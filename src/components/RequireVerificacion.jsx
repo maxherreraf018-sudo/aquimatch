@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { actualizarUsuario } from '../firebase/auth'
+import { actualizarUsuario, guardarDatosPrivados } from '../firebase/auth'
 import { subirSelfieAlStorage } from '../services/verificacion'
 import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
 import { registrarEvento } from '../firebase/analytics'
@@ -52,7 +52,7 @@ export default function RequireVerificacion({ children }) {
     if (estado !== 'pendiente') return
     const temporizador = setTimeout(() => setDemasiadoLento(true), 60000)
     return () => clearTimeout(temporizador)
-  }, [estado, usuario?.selfieVerificacion])
+  }, [estado, usuario?.selfieActualizadaEn])
 
   if (usuario === undefined) {
     return (
@@ -97,8 +97,12 @@ function VerificacionRechazada({ uid, tardando }) {
     setSubiendo(true)
     try {
       const selfieURL = await subirSelfieAlStorage(uid, blob)
+      // La selfie va a la subcolección privada (dato biométrico); en el
+      // documento público solo queda el estado y la marca de tiempo del
+      // intento, que no dicen nada sensible.
+      await guardarDatosPrivados(uid, { selfieVerificacion: selfieURL })
       await actualizarUsuario(uid, {
-        selfieVerificacion: selfieURL,
+        selfieActualizadaEn: Date.now(),
         estadoVerificacion: 'pendiente',
       })
       // El onSnapshot de RequireVerificacion recibe el cambio solo y pasa a

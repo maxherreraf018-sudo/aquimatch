@@ -3,7 +3,7 @@ import { getAuth, signOut } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../firebase/config'
-import { obtenerUsuario, actualizarUsuario } from '../firebase/auth'
+import { obtenerUsuarioPropio, actualizarUsuario, guardarDatosPrivados } from '../firebase/auth'
 import { elegirFoto } from '../services/fotos'
 import { obtenerActivacionPropia, actualizarPlan, actualizarPreferenciaGeneroActivacion } from '../services/activation'
 import { eliminarCuenta } from '../services/cuenta'
@@ -60,7 +60,9 @@ export default function Perfil() {
     let activo = true
     async function cargar() {
       const [datosUsuario, datosActivacion] = await Promise.all([
-        obtenerUsuario(uid),
+        // Propio, no de otra persona: incluye los datos privados (contacto de
+        // confianza, correo) que no viven en el documento público.
+        obtenerUsuarioPropio(uid),
         obtenerActivacionPropia(uid),
       ])
       if (!activo) return
@@ -179,7 +181,9 @@ export default function Perfil() {
         nombre: contactoNombre.trim(),
         telefono: contactoTelefono.trim(),
       }
-      await actualizarUsuario(uid, { contactoConfianza })
+      // Va a la subcolección privada: es el nombre y el teléfono de un tercero
+      // que ni siquiera usa la app y nunca consintió aparecer acá.
+      await guardarDatosPrivados(uid, { contactoConfianza })
       setUsuario((prev) => ({ ...(prev || {}), contactoConfianza }))
       setEditandoContacto(false)
     } finally {

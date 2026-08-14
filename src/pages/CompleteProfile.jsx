@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
-import { actualizarUsuario } from '../firebase/auth'
+import { actualizarUsuario, guardarDatosPrivados } from '../firebase/auth'
 import { serverTimestamp } from 'firebase/firestore'
 import { conLimiteDeTiempo, subirSelfieAlStorage } from '../services/verificacion'
 import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
@@ -51,11 +51,22 @@ export default function CompleteProfile() {
       const auth = getAuth()
       const uid = auth.currentUser.uid
       const selfieURL = await subirSelfieAlStorage(uid, selfie)
+      // La selfie es un dato biométrico: va a la subcolección privada, que
+      // solo pueden leer su dueño y el panel de moderación. Nunca al
+      // documento público, que es legible por cualquiera con tu uid.
+      await conLimiteDeTiempo(
+        guardarDatosPrivados(uid, { selfieVerificacion: selfieURL }),
+        25,
+        'guardarDatosPrivados'
+      )
       await conLimiteDeTiempo(
         actualizarUsuario(uid, {
           preferenciaGenero: interes,
           intereses,
-          selfieVerificacion: selfieURL,
+          // Marca de tiempo del último intento, para que las pantallas que
+          // esperan la revisión sepan que hubo una selfie nueva sin
+          // necesidad de leer la selfie misma.
+          selfieActualizadaEn: Date.now(),
           estadoVerificacion: 'pendiente', // se revisa en backend / moderación
           perfilCompleto: true,
           // Registro del consentimiento expreso para datos sensibles (selfie

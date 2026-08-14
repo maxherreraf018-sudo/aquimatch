@@ -11,7 +11,7 @@ import {
   desactivarParticipacion,
   INTERVALO_LATIDO_MS,
 } from '../services/activation'
-import { obtenerUsuario } from '../firebase/auth'
+import { obtenerUsuario, obtenerUsuarioPropio } from '../firebase/auth'
 import {
   marcarMeInteresa,
   marcarMasTarde,
@@ -160,7 +160,7 @@ export default function Discover() {
         obtenerUidsConMiInteres(uid, activacion.placeId),
         obtenerPasesConFecha(uid, activacion.placeId),
       ])
-      const miUsuario = await obtenerUsuario(uid)
+      const miUsuario = await obtenerUsuarioPropio(uid)
       const bloqueados = miUsuario?.bloqueados || []
       const aExcluir = [...yaConectados, ...bloqueados]
       if (aExcluir.length > 0) {

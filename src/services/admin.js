@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   query,
   where,
   orderBy,
@@ -23,6 +24,31 @@ import { db } from '../firebase/config'
 export const ADMIN_UID = 'SM1r3pWsTYU2soVHMUmOT1xzIfi2'
 
 /**
+ * Las selfies de verificación ya no viven en el documento público del usuario
+ * (son un dato biométrico: ver los comentarios en firebase/auth.js), sino en
+ * `usuarios/{uid}/privado/datos`, que solo pueden leer su dueño y este panel.
+ * Por eso hay que ir a buscarlas de a una para poder mostrarlas acá.
+ *
+ * El `?? p.selfieVerificacion` cubre a las cuentas que todavía no migraron:
+ * hasta que su dueño entre a la app una vez, la selfie sigue en el documento
+ * público.
+ */
+async function conSelfies(perfiles) {
+  return Promise.all(
+    perfiles.map(async (p) => {
+      try {
+        const snap = await getDoc(doc(db, 'usuarios', p.uid, 'privado', 'datos'))
+        const selfie = snap.exists() ? snap.data().selfieVerificacion : undefined
+        return { ...p, selfieVerificacion: selfie ?? p.selfieVerificacion }
+      } catch (err) {
+        // Si falla la lectura de una, se muestra igual el resto de la lista.
+        return p
+      }
+    })
+  )
+}
+
+/**
  * Escucha en tiempo real todos los perfiles con selfie pendiente de revisión.
  */
 export function escucharSelfiesPendientes(callback) {
@@ -30,7 +56,7 @@ export function escucharSelfiesPendientes(callback) {
   const q = query(ref, where('estadoVerificacion', '==', 'pendiente'))
   return onSnapshot(q, (snapshot) => {
     const perfiles = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() }))
-    callback(perfiles)
+    conSelfies(perfiles).then(callback)
   })
 }
 
@@ -52,7 +78,7 @@ export function escucharSelfiesRechazadas(callback) {
   const q = query(ref, where('estadoVerificacion', 'in', ['rechazado', 'error_verificacion']))
   return onSnapshot(q, (snapshot) => {
     const perfiles = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() }))
-    callback(perfiles)
+    conSelfies(perfiles).then(callback)
   })
 }
 

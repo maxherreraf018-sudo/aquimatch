@@ -54,16 +54,30 @@ exports.verificarSelfie = onDocumentUpdated(
     // selfie nueva para procesar" es que la URL de la selfie cambió, no el
     // valor de estadoVerificacion por sí solo.
     const ahoraEstaPendiente = despues?.estadoVerificacion === "pendiente";
-    const seSubioSelfieNueva =
-      !!despues?.selfieVerificacion && despues.selfieVerificacion !== antes?.selfieVerificacion;
-    if (!ahoraEstaPendiente || !seSubioSelfieNueva) return;
 
-    const fotoPrincipal = despues.fotoPrincipal;
-    const selfieVerificacion = despues.selfieVerificacion;
-    if (!fotoPrincipal || !selfieVerificacion) return;
+    // Desde el 2026-08-14 la selfie es un dato biométrico que vive en
+    // usuarios/{uid}/privado/datos, no en este documento. Se aceptan las DOS
+    // formas de detectar "hay una selfie nueva" a propósito: las versiones de
+    // la app ya publicadas siguen escribiendo la URL acá, y si solo miráramos
+    // la marca nueva, a esas personas la verificación dejaría de dispararse.
+    const selfieNuevaEnPublico =
+      !!despues?.selfieVerificacion && despues.selfieVerificacion !== antes?.selfieVerificacion;
+    const selfieNuevaPorMarca =
+      !!despues?.selfieActualizadaEn && despues.selfieActualizadaEn !== antes?.selfieActualizadaEn;
+    if (!ahoraEstaPendiente || (!selfieNuevaEnPublico && !selfieNuevaPorMarca)) return;
 
     const uid = event.params.uid;
     const ref = admin.firestore().doc(`usuarios/${uid}`);
+
+    const fotoPrincipal = despues.fotoPrincipal;
+    // Primero la del documento público (app antigua); si no está, la de la
+    // subcolección privada (app nueva).
+    let selfieVerificacion = despues.selfieVerificacion;
+    if (!selfieVerificacion) {
+      const snapPrivado = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
+      selfieVerificacion = snapPrivado.exists ? snapPrivado.data().selfieVerificacion : null;
+    }
+    if (!fotoPrincipal || !selfieVerificacion) return;
 
     try {
       const [fotoBytes, selfieBytes] = await Promise.all([
