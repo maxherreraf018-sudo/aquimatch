@@ -122,6 +122,13 @@ service cloud.firestore {
     // o guardar documentos enormes para inflar la factura. Sigue siendo
     // escribible por cualquier usuario logueado (lo necesita el caché
     // compartido), pero solo con la forma exacta que escribe la app.
+    // Contador de uso por persona de la función activarEnLugar. Lo escribe y
+    // lo lee solo el servidor (Admin SDK, que no pasa por estas reglas): si el
+    // cliente pudiera tocarlo, borraría su propio contador y el freno no
+    // serviría de nada.
+    match /limites/{uid} {
+      allow read, write: if false;
+    }
     match /cachePlaces/{zonaId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null

@@ -310,6 +310,9 @@ const GOOGLE_PLACES_API_KEY = defineSecret("GOOGLE_PLACES_API_KEY");
 
 // Tiene que coincidir con RADIO_BUSQUEDA_METROS de src/services/places.js.
 const RADIO_ACTIVACION_METROS = 120;
+// Freno de uso por persona (ver el comentario dentro de la función).
+const VENTANA_LIMITE_MS = 60 * 60 * 1000;
+const MAX_ACTIVACIONES_POR_VENTANA = 10;
 // Radio con el que se le pregunta a Google: más amplio que el anterior para no
 // perder por unos metros un lugar que sí es válido (mismo criterio que usa el
 // cliente para buscar).
@@ -338,6 +341,32 @@ exports.activarEnLugar = onCall(
     if (typeof lat !== "number" || typeof lng !== "number" || !placeId) {
       throw new HttpsError("invalid-argument", "Faltan datos de ubicación.");
     }
+
+    // Límite de uso por persona. Cada llamada gasta una consulta a Google
+    // Places, y la cuota diaria del proyecto está en 1.000: sin este freno,
+    // cualquier usuario registrado podía llamar mil veces en unos minutos,
+    // agotarla, y dejar a TODO el mundo sin poder encontrar lugares hasta la
+    // medianoche. Activarse de verdad se hace una vez por salida, así que 10
+    // por hora es holgadísimo para el uso real y mata el abuso.
+    const refLimite = admin.firestore().doc(`limites/${uid}`);
+    const ahoraMs = Date.now();
+    const limite = (await refLimite.get()).data() || {};
+    const dentroDeLaVentana =
+      limite.ventanaIniciadaEn && ahoraMs - limite.ventanaIniciadaEn < VENTANA_LIMITE_MS;
+    const intentos = dentroDeLaVentana ? limite.intentos || 0 : 0;
+    if (intentos >= MAX_ACTIVACIONES_POR_VENTANA) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Hiciste demasiados intentos seguidos. Espera un rato antes de volver a activarte."
+      );
+    }
+    await refLimite.set(
+      {
+        intentos: intentos + 1,
+        ventanaIniciadaEn: dentroDeLaVentana ? limite.ventanaIniciadaEn : ahoraMs,
+      },
+      { merge: true }
+    );
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
     }
