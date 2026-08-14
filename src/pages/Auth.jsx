@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { SocialLogin } from '@capgo/capacitor-social-login'
@@ -22,6 +22,9 @@ const GOOGLE_WEB_CLIENT_ID = '39224828573-tv3ldb05effvtqpddo76c9nuoo6cj4hp.apps.
 
 // Client ID tipo "iOS" en Google Cloud Console (creado 2026-07-30, bundle id com.aquimatch.app).
 const GOOGLE_IOS_CLIENT_ID = '39224828573-1f98utljsje3oe8abobd0qdtup0q45fb.apps.googleusercontent.com'
+
+// Espera obligatoria entre dos correos de recuperación de contraseña.
+const SEGUNDOS_ESPERA_RECUPERACION = 60
 
 function IconoGoogle() {
   return (
@@ -67,6 +70,8 @@ export default function Auth() {
   const [mensaje, setMensaje] = useState('')
   const [cargando, setCargando] = useState(false)
   const [recuperando, setRecuperando] = useState(false)
+  // Segundos que faltan para poder volver a pedir el correo de recuperacion.
+  const [esperaRecuperacion, setEsperaRecuperacion] = useState(0)
   const [verContrasena, setVerContrasena] = useState(false)
   // Toca "Continuar con Google" una vez sin haber aceptado los Términos
   // todavía: en vez de lanzar el selector de Google de inmediato, primero
@@ -197,8 +202,24 @@ export default function Auth() {
     setAceptaTerminosGoogle(false)
   }
 
+  // Cuenta atrás para poder volver a pedir el correo de recuperación.
+  useEffect(() => {
+    if (esperaRecuperacion <= 0) return
+    const t = setTimeout(() => setEsperaRecuperacion((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [esperaRecuperacion])
+
+  // Antes esto mandaba un correo con cada toque, sin ningún freno: llegaron a
+  // salir doce en un minuto cuando alguien se trabó en esta pantalla. Como el
+  // correo además suele caer en spam, la persona no ve ninguno, vuelve a
+  // tocar, y se repite. El freno de un minuto corta ese círculo, y el mensaje
+  // ahora dice explícitamente que revise el spam.
+  //
+  // Esto es una protección de uso, no de seguridad: quien quiera saltársela
+  // puede hacerlo. El abuso real desde fuera de la app lo frena Firebase por
+  // su cuenta, del lado del servidor.
   async function manejarRecuperarContrasena() {
-    if (recuperando) return
+    if (recuperando || esperaRecuperacion > 0) return
     setError('')
     setMensaje('')
     if (!correo) {
@@ -208,7 +229,10 @@ export default function Auth() {
     setRecuperando(true)
     try {
       await recuperarContrasena(correo)
-      setMensaje('Te enviamos un correo con un enlace para crear una nueva contraseña.')
+      setMensaje(
+        'Te enviamos un correo con un enlace para crear una nueva contraseña. Revisa también tu carpeta de spam o correo no deseado.'
+      )
+      setEsperaRecuperacion(SEGUNDOS_ESPERA_RECUPERACION)
     } catch (err) {
       setError(traducirErrorFirebase(err.code))
     } finally {
@@ -363,8 +387,22 @@ export default function Auth() {
             </div>
             {!modoRegistro && (
               <p style={{ textAlign: 'right', marginTop: 8 }}>
-                <span className="link" onClick={manejarRecuperarContrasena} style={{ fontSize: 12.5 }}>
-                  {recuperando ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
+                <span
+                  className="link"
+                  onClick={manejarRecuperarContrasena}
+                  style={{
+                    fontSize: 12.5,
+                    // Durante la espera se ve apagado y no responde, para que
+                    // quede claro que no sirve volver a tocarlo.
+                    opacity: esperaRecuperacion > 0 ? 0.5 : 1,
+                    cursor: esperaRecuperacion > 0 ? 'default' : 'pointer',
+                  }}
+                >
+                  {recuperando
+                    ? 'Enviando...'
+                    : esperaRecuperacion > 0
+                      ? `Espera ${esperaRecuperacion}s para reenviar`
+                      : '¿Olvidaste tu contraseña?'}
                 </span>
               </p>
             )}
