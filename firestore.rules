@@ -14,12 +14,28 @@ service cloud.firestore {
     function tieneConexionCon(otroUid) {
       return exists(/databases/$(database)/documents/conexiones/$(idConexion(request.auth.uid, otroUid)));
     }
+    // Colección heredada, sin uso en la app actual (los perfiles viven en
+    // /usuarios). Se deja cerrada salvo para el propio dueño.
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     match /usuarios/{uid} {
-      allow read: if request.auth != null;
+      // "get" y "list" se separan a propósito. Con un único `allow read`,
+      // cualquiera con una cuenta podía RECORRER la colección entera y
+      // descargarse la ficha de todos los usuarios — incluyendo la selfie de
+      // verificación (dato biométrico) y el nombre y teléfono del contacto de
+      // confianza, que es un tercero que ni siquiera usa la app.
+      //
+      // Leer una ficha puntual sigue permitido (hace falta para ver el perfil
+      // de alguien en Descubrir o en un chat), pero recorrer la colección
+      // queda solo para el panel de moderación. Como los uid son cadenas
+      // aleatorias de 28 caracteres, sin poder listar no hay forma de
+      // averiguarlos.
+      //
+      // Verificado antes de aplicar esto: el único lugar de la app que
+      // recorre la colección es services/admin.js.
+      allow get: if request.auth != null;
+      allow list: if esAdmin();
       allow write: if request.auth != null && (request.auth.uid == uid || esAdmin());
     }
     match /activaciones/{uid} {
@@ -79,8 +95,21 @@ service cloud.firestore {
     // (ver buscarLugaresCercanos en services/places.js) — información
     // pública de lugares (nombre, dirección, tipo), no datos personales de
     // nadie, así que cualquier usuario logueado puede leerla y escribirla.
+    // Antes esto era `allow read, write: if request.auth != null`, o sea que
+    // cualquiera podía escribir lo que quisiera acá: inyectar lugares falsos
+    // que después aparecen en la pantalla "¿Dónde estás?" de otras personas,
+    // o guardar documentos enormes para inflar la factura. Sigue siendo
+    // escribible por cualquier usuario logueado (lo necesita el caché
+    // compartido), pero solo con la forma exacta que escribe la app.
     match /cachePlaces/{zonaId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasOnly(['lugares', 'actualizadoEn'])
+        && request.resource.data.lugares is list
+        // maxResultCount en services/places.js es 20; más que eso no puede
+        // venir de una respuesta legítima de Google.
+        && request.resource.data.lugares.size() <= 20;
+      allow delete: if false;
     }
   }
 }
