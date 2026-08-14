@@ -313,6 +313,11 @@ const RADIO_ACTIVACION_METROS = 120;
 // Freno de uso por persona (ver el comentario dentro de la función).
 const VENTANA_LIMITE_MS = 60 * 60 * 1000;
 const MAX_ACTIVACIONES_POR_VENTANA = 10;
+const MAX_BUSQUEDAS_POR_VENTANA = 30;
+// Máximo de lugares que se le ofrecen a la persona para elegir.
+const MAX_LUGARES_MOSTRADOS = 2;
+// Cuánto se reutiliza la respuesta de Google para la misma zona.
+const DURACION_CACHE_MS = 5 * 60 * 1000;
 // Radio con el que se le pregunta a Google: más amplio que el anterior para no
 // perder por unos metros un lugar que sí es válido (mismo criterio que usa el
 // cliente para buscar).
@@ -328,6 +333,136 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
     Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+// Única llamada a Google Places en todo el proyecto. Antes esta consulta la
+// hacía el teléfono, con la clave de API incrustada en el código publicado —
+// cualquiera podía extraerla del APK y gastarla con cargo a la tarjeta de
+// Max. Ahora vive acá, con la clave guardada como secreto del servidor, donde
+// no la ve nadie.
+async function consultarPlacesCercanos(lat, lng) {
+  const respuesta = await fetch(
+    "https://places.googleapis.com/v1/places:searchNearby",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY.value(),
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.location,places.types,places.formattedAddress",
+      },
+      body: JSON.stringify({
+        includedTypes: ["bar", "night_club", "restaurant", "cafe", "pub"],
+        // Sin esto Google ordena por POPULARIDAD y devuelve los locales más
+        // famosos del sector en vez de los que tenés al lado.
+        rankPreference: "DISTANCE",
+        maxResultCount: 20,
+        locationRestriction: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: RADIO_CONSULTA_METROS,
+          },
+        },
+      }),
+    }
+  );
+  if (!respuesta.ok) throw new Error(`Places respondió ${respuesta.status}`);
+  return (await respuesta.json()).places || [];
+}
+
+// Agrupa coordenadas cercanas en la misma "zona" de caché, redondeando a
+// ~100m: diez personas activándose en el mismo bar en pocos minutos generan
+// una sola consulta pagada a Google en vez de diez.
+function idZonaCache(lat, lng) {
+  return `${lat.toFixed(3)}_${lng.toFixed(3)}`;
+}
+
+/**
+ * Busca los lugares donde la persona puede activarse.
+ *
+ * La consulta se centra en el CENTRO de la zona de caché, no en las
+ * coordenadas exactas de quien pregunta, para que el resultado guardado sirva
+ * igual de bien a cualquiera de esa zona. El límite real de 120 metros se
+ * aplica después, contra las coordenadas exactas de cada persona.
+ */
+exports.buscarLugares = onCall(
+  { secrets: [GOOGLE_PLACES_API_KEY], timeoutSeconds: 30 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+    const uid = request.auth.uid;
+    const { lat, lng } = request.data || {};
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      throw new HttpsError("invalid-argument", "Faltan las coordenadas.");
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
+    }
+
+    // Freno por persona: cada búsqueda sin caché gasta una consulta pagada.
+    // Buscar es más frecuente que activarse (se puede reintentar), así que el
+    // tope es más alto que el de activarEnLugar.
+    const refLimite = admin.firestore().doc(`limites/${uid}`);
+    const ahoraMs = Date.now();
+    const limite = (await refLimite.get()).data() || {};
+    const enVentana =
+      limite.ventanaBusquedasEn && ahoraMs - limite.ventanaBusquedasEn < VENTANA_LIMITE_MS;
+    const busquedas = enVentana ? limite.busquedas || 0 : 0;
+    if (busquedas >= MAX_BUSQUEDAS_POR_VENTANA) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Hiciste demasiadas búsquedas seguidas. Espera un rato."
+      );
+    }
+    await refLimite.set(
+      {
+        busquedas: busquedas + 1,
+        ventanaBusquedasEn: enVentana ? limite.ventanaBusquedasEn : ahoraMs,
+      },
+      { merge: true }
+    );
+
+    const zonaId = idZonaCache(lat, lng);
+    const refCache = admin.firestore().doc(`cachePlaces/${zonaId}`);
+    let lugares = null;
+
+    const cache = (await refCache.get()).data();
+    if (cache?.actualizadoEnMs && ahoraMs - cache.actualizadoEnMs < DURACION_CACHE_MS) {
+      lugares = cache.lugares;
+    }
+
+    if (!lugares) {
+      let crudos;
+      try {
+        crudos = await consultarPlacesCercanos(
+          Number(lat.toFixed(3)),
+          Number(lng.toFixed(3))
+        );
+      } catch (error) {
+        console.error("[buscarLugares] error consultando Places:", error);
+        throw new HttpsError("unavailable", "No pudimos buscar lugares. Intenta de nuevo.");
+      }
+      lugares = crudos.map((p) => ({
+        placeId: p.id,
+        nombre: p.displayName?.text || "Lugar sin nombre",
+        direccion: p.formattedAddress || "",
+        tipos: p.types || [],
+        lat: p.location?.latitude,
+        lng: p.location?.longitude,
+      }));
+      // El caché ya no lo puede tocar el cliente (ver firestore.rules): antes
+      // cualquiera podía inyectar lugares falsos que aparecían en la pantalla
+      // "¿Dónde estás?" de otras personas.
+      await refCache.set({ lugares, actualizadoEnMs: ahoraMs }).catch(() => {});
+    }
+
+    return lugares
+      .map((l) => ({ ...l, distanciaMetros: distanciaMetros(lat, lng, l.lat, l.lng) }))
+      .filter((l) => l.distanciaMetros <= RADIO_ACTIVACION_METROS)
+      .sort((a, b) => a.distanciaMetros - b.distanciaMetros)
+      .slice(0, MAX_LUGARES_MOSTRADOS);
+  }
+);
 
 exports.activarEnLugar = onCall(
   { secrets: [GOOGLE_PLACES_API_KEY], timeoutSeconds: 30 },
@@ -372,33 +507,11 @@ exports.activarEnLugar = onCall(
     }
 
     // 1. Preguntarle a Google qué hay realmente alrededor de esas coordenadas.
+    //    Misma consulta que usa buscarLugares: una sola implementación, para
+    //    que el radio y los tipos de lugar no se puedan desincronizar.
     let lugares = [];
     try {
-      const respuesta = await fetch(
-        "https://places.googleapis.com/v1/places:searchNearby",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY.value(),
-            "X-Goog-FieldMask":
-              "places.id,places.displayName,places.location,places.types",
-          },
-          body: JSON.stringify({
-            includedTypes: ["bar", "night_club", "restaurant", "cafe", "pub"],
-            rankPreference: "DISTANCE",
-            maxResultCount: 20,
-            locationRestriction: {
-              circle: {
-                center: { latitude: lat, longitude: lng },
-                radius: RADIO_CONSULTA_METROS,
-              },
-            },
-          }),
-        }
-      );
-      if (!respuesta.ok) throw new Error(`Places respondió ${respuesta.status}`);
-      lugares = (await respuesta.json()).places || [];
+      lugares = await consultarPlacesCercanos(lat, lng);
     } catch (error) {
       console.error("[activarEnLugar] error consultando Places:", error);
       throw new HttpsError("unavailable", "No pudimos verificar tu ubicación. Intenta de nuevo.");

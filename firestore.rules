@@ -143,14 +143,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /cachePlaces/{zonaId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null
-        && request.resource.data.keys().hasOnly(['lugares', 'actualizadoEn'])
-        && request.resource.data.lugares is list
-        // maxResultCount en services/places.js es 20; más que eso no puede
-        // venir de una respuesta legítima de Google.
-        && request.resource.data.lugares.size() <= 20;
-      allow delete: if false;
+      // Desde el 2026-08-14 el caché lo escribe y lo lee SOLO el servidor, vía
+      // la Cloud Function buscarLugares (que usa el Admin SDK y no pasa por
+      // estas reglas). Antes lo escribía el cliente: aunque se validaba su
+      // forma, igual se podían inyectar lugares con nombres inventados que
+      // después aparecían en la pantalla "¿Dónde estás?" de otras personas.
+      //
+      // Las versiones de la app anteriores a esta fecha intentan usarlo y
+      // fallan, pero no se rompen: su código ya trataba el caché como algo
+      // opcional y consulta a Google igual.
+      allow read, write: if false;
     }
   }
 }
