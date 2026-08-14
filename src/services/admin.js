@@ -9,10 +9,18 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
-// UID de la única cuenta con acceso al panel (Max). Si en el futuro hay más
-// de una persona en el equipo de moderación, esto se reemplaza por un
-// sistema de roles; por ahora es un MVP simple y directo.
-export const ADMIN_UID = 'CLdj1h5eVoS1RknR4flaEoMYZZf1'
+// UID de la única cuenta con acceso al panel: maxherreraf018@gmail.com.
+// Si en el futuro hay más de una persona en el equipo de moderación, esto se
+// reemplaza por un sistema de roles; por ahora es un MVP simple y directo.
+//
+// Dejar SIEMPRE anotado a qué correo corresponde el uid: el anterior apuntaba
+// a "max_15619@hotmail.com", una cuenta creada por error de tipeo que Max ni
+// sabía que existía, así que nunca pudo entrar a su propio panel.
+//
+// Esto solo controla si el panel se MUESTRA. Quien realmente da o niega el
+// acceso es la función esAdmin() de firestore.rules, en el servidor — las dos
+// tienen que apuntar al mismo uid.
+export const ADMIN_UID = 'SM1r3pWsTYU2soVHMUmOT1xzIfi2'
 
 /**
  * Escucha en tiempo real todos los perfiles con selfie pendiente de revisión.

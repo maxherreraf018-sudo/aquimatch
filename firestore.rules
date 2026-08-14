@@ -1,10 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Único usuario con acceso al panel de moderación (Max). Si más adelante
-    // el equipo crece, esto se reemplaza por un sistema de roles real.
+    // Único usuario con acceso al panel de moderación: maxherreraf018@gmail.com
+    // (entra con Google, correo verificado). Si más adelante el equipo crece,
+    // esto se reemplaza por un sistema de roles real.
+    //
+    // El uid anterior (CLdj1h5eVoS1RknR4flaEoMYZZf1) correspondía a
+    // "max_15619@hotmail.com": una cuenta creada por error de tipeo el
+    // 2026-07-26 y usada una sola vez. Nunca verificó el correo, así que si esa
+    // dirección pertenecía a otra persona, esa persona podía reclamarla con
+    // "olvidé mi contraseña" y quedarse con el acceso de administrador.
+    // Por eso SIEMPRE hay que dejar anotado a qué correo corresponde el uid.
     function esAdmin() {
-      return request.auth != null && request.auth.uid == 'CLdj1h5eVoS1RknR4flaEoMYZZf1';
+      return request.auth != null && request.auth.uid == 'SM1r3pWsTYU2soVHMUmOT1xzIfi2';
     }
     // ID de una conexión (match) entre dos uid, mismo criterio que usa
     // crearConexion() en el cliente: ambos uid ordenados y unidos con "_".
