@@ -3,52 +3,254 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AquíMatch</title>
+<title>AquíMatch — Conoce a quien está en el mismo lugar que tú</title>
+<meta name="description" content="AquíMatch te muestra quién está en el mismo bar, café o restorán que tú, ahora mismo. Solo funciona si estás realmente ahí." />
+<meta property="og:title" content="AquíMatch" />
+<meta property="og:description" content="La gente que te interesa está a tres mesas, no a tres kilómetros." />
+<meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap" rel="stylesheet" />
 <style>
   :root {
     --bg: #0D0D14;
+    --bg-card: #16121F;
+    --border: #241C33;
     --text: #F5F3F7;
     --text-dim: #B3A6BF;
+    --text-faint: #7C7089;
+    --magenta: #FF2D8E;
     --purple: #B12DFF;
     --gradient: linear-gradient(135deg, #FF2D8E 0%, #B12DFF 32%, #6A00FF 100%);
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
     background: var(--bg);
     color: var(--text);
     font-family: var(--font);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .envoltura { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Portada ---------- */
+  .portada {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 0 72px;
     text-align: center;
-    padding: 24px;
   }
+  /* Resplandor de marca detrás del título, con el mismo degradé de la app. */
+  .portada::before {
+    content: '';
+    position: absolute;
+    top: -260px; left: 50%;
+    width: 720px; height: 620px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(177,45,255,0.22) 0%, rgba(255,45,142,0.08) 42%, transparent 68%);
+    pointer-events: none;
+  }
+  .portada > * { position: relative; }
+  .marca { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 40px; }
+  .marca span { color: var(--purple); }
+
   h1 {
-    font-size: 28px;
+    font-size: clamp(30px, 6.2vw, 52px);
     font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin: 0 auto 20px;
+    max-width: 15ch;
+    text-wrap: balance;
   }
-  h1 .match { color: var(--purple); }
-  p { font-size: 15px; color: var(--text-dim); margin: 0; max-width: 420px; }
-  .links { display: flex; gap: 20px; margin-top: 8px; }
-  a { font-size: 13.5px; color: var(--text-dim); text-decoration: none; }
+  h1 em {
+    font-style: normal;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .bajada {
+    font-size: clamp(15px, 2.2vw, 18px);
+    color: var(--text-dim);
+    max-width: 46ch;
+    margin: 0 auto 32px;
+    text-wrap: balance;
+  }
+
+  .tiendas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .tienda {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 22px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-faint);
+    font-size: 14.5px; font-weight: 500;
+    cursor: default;
+  }
+  .proximamente {
+    font-size: 12.5px; color: var(--text-faint);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+
+  /* ---------- Secciones ---------- */
+  section { padding: 64px 0; border-top: 1px solid var(--border); }
+  h2 {
+    font-size: clamp(22px, 3.6vw, 30px);
+    font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  .intro { color: var(--text-dim); margin: 0 0 40px; max-width: 52ch; }
+
+  .pasos { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  /* La numeración es real: son tres pasos en orden, no adorno. */
+  .paso-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--gradient);
+    font-size: 14px; font-weight: 700; color: #fff;
+    margin-bottom: 12px;
+  }
+  .paso h3 { font-size: 16.5px; font-weight: 600; margin: 0 0 6px; }
+  .paso p { font-size: 14.5px; color: var(--text-dim); margin: 0; }
+
+  .capturas { display: flex; gap: 22px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+  .captura { flex: 0 0 auto; width: 236px; scroll-snap-align: center; text-align: center; }
+  .captura img {
+    width: 100%; height: auto; display: block;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .captura span { display: block; margin-top: 12px; font-size: 13px; color: var(--text-faint); }
+
+  .seguridad { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .tarjeta {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .tarjeta h3 { font-size: 15.5px; font-weight: 600; margin: 0 0 6px; }
+  .tarjeta p { font-size: 14px; color: var(--text-dim); margin: 0; }
+  .tarjeta .icono { font-size: 20px; display: block; margin-bottom: 10px; }
+
+  /* ---------- Pie ---------- */
+  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; text-align: center; }
+  .enlaces { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+  a { color: var(--text-dim); text-decoration: none; font-size: 13.5px; }
   a:hover { color: var(--text); }
+  a:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; border-radius: 4px; }
+  .legal { font-size: 12.5px; color: var(--text-faint); margin: 0; }
+  .legal a { font-size: 12.5px; }
 </style>
 </head>
 <body>
-  <h1>Aquí<span class="match">Match</span></h1>
-  <p>Conecta con gente en el mismo lugar.</p>
-  <p style="font-size: 13.5px;">¿Necesitas ayuda? Escríbenos a <a href="mailto:contacto@aquimatch.cl" style="color: var(--text-dim);">contacto@aquimatch.cl</a></p>
-  <div class="links">
-    <a href="/terminos.html">Términos y Condiciones</a>
-    <a href="/privacidad.html">Política de Privacidad</a>
-    <a href="/agente-dmca.html">Agente DMCA</a>
+
+<header class="portada">
+  <div class="envoltura">
+    <p class="marca">Aquí<span>Match</span></p>
+    <h1>La gente que te interesa está a <em>tres mesas</em>, no a tres kilómetros.</h1>
+    <p class="bajada">
+      AquíMatch te muestra quién está en el mismo bar, café o restorán que tú,
+      ahora mismo. Solo funciona si estás realmente ahí.
+    </p>
+    <div class="tiendas">
+      <span class="tienda">▶ Google Play</span>
+      <span class="tienda"> App Store</span>
+    </div>
+    <p class="proximamente">Muy pronto</p>
   </div>
+</header>
+
+<section>
+  <div class="envoltura">
+    <h2>Cómo funciona</h2>
+    <p class="intro">Tres pasos, y ninguno ocurre lejos de donde estás.</p>
+    <div class="pasos">
+      <div class="paso">
+        <span class="paso-num">1</span>
+        <h3>Actívate en el lugar</h3>
+        <p>Llegas a un bar, café, restorán o pub y activas tu participación. Confirmamos con tu ubicación que estás realmente ahí.</p>
+      </div>
+      <div class="paso">
+        <span class="paso-num">2</span>
+        <h3>Descubre quién está</h3>
+        <p>Ves los perfiles de las personas que están en ese mismo lugar, en ese mismo momento. Nadie más.</p>
+      </div>
+      <div class="paso">
+        <span class="paso-num">3</span>
+        <h3>Si hay match, conversen</h3>
+        <p>Cuando el interés es mutuo se abre el chat. Y la otra persona está a unos metros, no a una ciudad de distancia.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="envoltura">
+    <h2>Así se ve</h2>
+    <p class="intro">Tres pantallas de la aplicación.</p>
+    <div class="capturas">
+      <figure class="captura" style="margin:0">
+        <img src="/img/estado.webp" width="440" height="956" alt="Pantalla Estado de AquíMatch, mostrando que el usuario está activo en un local llamado Jia Bao" loading="lazy" />
+        <span>Estado — dónde estás ahora</span>
+      </figure>
+      <figure class="captura" style="margin:0">
+        <img src="/img/descubrir.webp" width="440" height="956" alt="Pantalla Descubrir, con el perfil de una persona presente en el mismo lugar" loading="lazy" />
+        <span>Descubrir — quién más está aquí</span>
+      </figure>
+      <figure class="captura" style="margin:0">
+        <img src="/img/chat.webp" width="440" height="956" alt="Pantalla de chat con una conversación entre dos personas" loading="lazy" />
+        <span>Chat — cuando el interés es mutuo</span>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="envoltura">
+    <h2>Seguridad primero</h2>
+    <p class="intro">Conocer a alguien en persona exige confianza. Por eso partimos por ahí.</p>
+    <div class="seguridad">
+      <div class="tarjeta">
+        <span class="icono">🛡️</span>
+        <h3>Verificación con selfie</h3>
+        <p>Comparamos tu selfie con tu foto de perfil para confirmar que eres tú. Sin perfiles falsos.</p>
+      </div>
+      <div class="tarjeta">
+        <span class="icono">📍</span>
+        <h3>Contacto de confianza</h3>
+        <p>Avisa a alguien dónde estás con un solo toque, sin salir de la aplicación.</p>
+      </div>
+      <div class="tarjeta">
+        <span class="icono">🔞</span>
+        <h3>Solo mayores de 18</h3>
+        <p>AquíMatch es exclusivamente para personas adultas.</p>
+      </div>
+      <div class="tarjeta">
+        <span class="icono">🚫</span>
+        <h3>Reportar y bloquear</h3>
+        <p>Puedes reportar o bloquear a cualquier persona en cualquier momento. Revisamos cada reporte.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="envoltura">
+    <div class="enlaces">
+      <a href="/terminos.html">Términos y Condiciones</a>
+      <a href="/privacidad.html">Política de Privacidad</a>
+      <a href="/agente-dmca.html">Agente DMCA</a>
+      <a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a>
+    </div>
+    <p class="legal">© 2026 AQUIMATCH SpA · Santiago, Chile</p>
+  </div>
+</footer>
+
 </body>
 </html>
