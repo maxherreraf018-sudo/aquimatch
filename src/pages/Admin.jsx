@@ -10,6 +10,7 @@ import {
 } from '../services/admin'
 import { obtenerUsuario } from '../firebase/auth'
 import { IconVolver, IconMasTarde, IconVerificado } from '../components/Icons'
+import AdminLocales from '../components/AdminLocales'
 
 const MOTIVO_COLOR = {
   'Perfil falso': 'var(--danger)',
@@ -118,6 +119,8 @@ export default function Admin() {
           {interesGold.filter((i) => i.plan === 'sin_elegir').length}
         </div>
       </div>
+
+      <AdminLocales />
 
       {/* Selfies pendientes */}
       <h2 style={{ fontSize: 16, marginBottom: 4 }}>

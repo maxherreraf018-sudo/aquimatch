@@ -142,6 +142,27 @@ service cloud.firestore {
     match /limites/{uid} {
       allow read, write: if false;
     }
+    // Cuentas de local para el panel de dueños. El id del documento es el
+    // placeId de Google, así que no pueden existir dos cuentas para el mismo
+    // local: el problema de "dos personas dicen ser dueñas del mismo bar" lo
+    // resuelve la base de datos sola.
+    //
+    // Hoy SOLO el panel de moderación crea y modifica estas cuentas, después
+    // de una verificación hecha a mano. El estado y el nivel de acceso nunca
+    // los puede tocar el cliente: si pudiera, un local se auto-verificaría y
+    // se daría permiso para mandarle avisos a la gente que está adentro.
+    //
+    // Cuando exista el registro de autoservicio, acá se agrega un `create`
+    // que fuerce estado 'pendiente' y nivel 'ninguno'.
+    match /locales/{placeId} {
+      // "resource != null" cubre el caso de consultar un local que todavía no
+      // tiene cuenta: sin eso, Firestore deniega al comparar campos de un
+      // documento inexistente en vez de simplemente no encontrar nada.
+      allow get: if request.auth != null &&
+        (esAdmin() || (resource != null && resource.data.responsableUid == request.auth.uid));
+      allow list: if esAdmin();
+      allow write: if esAdmin();
+    }
     // Contadores anónimos por local y por hora (ver registrarEstadistica en
     // functions/index.js). No hay ningún uid acá dentro: solo cuánta gente
     // hubo, en qué local, a qué hora y en qué rango de edad.
