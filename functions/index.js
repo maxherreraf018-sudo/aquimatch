@@ -308,6 +308,102 @@ exports.eliminarCuenta = onCall(async (request) => {
 // ---------------------------------------------------------------------------
 const GOOGLE_PLACES_API_KEY = defineSecret("GOOGLE_PLACES_API_KEY");
 
+// ---------------------------------------------------------------------------
+// Estadísticas por local — contadores ANÓNIMOS
+//
+// `activaciones/{uid}` es un documento por persona que se sobreescribe en cada
+// activación, así que la app solo sabe dónde está cada quien AHORA: de todo lo
+// que pasó antes no queda rastro. Sin esto, el día que un dueño de local pague
+// por ver sus patrones de actividad, su panel arrancaría vacío y habría que
+// esperar meses a que se junten datos. Los datos de hoy no se recuperan mañana.
+//
+// Se guardan SOLO conteos: por local, por hora, por rango de edad. Nunca el
+// uid ni nada que apunte a una persona. Guardar "quién estuvo en qué bar cada
+// noche" sería el dato más sensible que esta app podría tener — declarable en
+// la política de privacidad, con plazo de retención y borrable al eliminar la
+// cuenta (Ley 21.719). Con contadores anónimos ese problema no existe, y para
+// lo que el panel necesita —cuántos, no quiénes— alcanza igual.
+// ---------------------------------------------------------------------------
+
+const ZONA_HORARIA = "America/Santiago";
+
+// El corte por hora tiene que ser en hora de Chile, no en UTC: si no, "viernes
+// a las 22:00" caería en el sábado y todo el patrón semanal quedaría corrido.
+// Se usa Intl y no un desfase fijo porque Chile cambia de horario dos veces al
+// año.
+function bucketHorario(fecha) {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONA_HORARIA,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(fecha);
+  const valor = (tipo) => partes.find((p) => p.type === tipo)?.value;
+  const dia = `${valor("year")}-${valor("month")}-${valor("day")}`;
+  // El % 24 cubre los runtimes viejos que devuelven "24" a medianoche.
+  const hora = Number(valor("hour")) % 24;
+  // Mediodía UTC sobre una fecha que ya es la local: así ninguna zona horaria
+  // puede correr el día al calcular a qué día de la semana corresponde.
+  const diaSemana = new Date(`${dia}T12:00:00Z`).getUTCDay();
+  return { dia, hora, diaSemana };
+}
+
+function rangoEdad(fechaNacimiento) {
+  if (!fechaNacimiento) return null;
+  const nacimiento = new Date(fechaNacimiento);
+  if (Number.isNaN(nacimiento.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getUTCFullYear() - nacimiento.getUTCFullYear();
+  const m = hoy.getUTCMonth() - nacimiento.getUTCMonth();
+  if (m < 0 || (m === 0 && hoy.getUTCDate() < nacimiento.getUTCDate())) edad--;
+  if (edad < 18) return null;
+  if (edad <= 24) return "18-24";
+  if (edad <= 34) return "25-34";
+  if (edad <= 44) return "35-44";
+  return "45+";
+}
+
+/**
+ * Suma 1 al contador del local para esta hora. Nunca lanza: una estadística no
+ * puede impedir que alguien se active.
+ *
+ * `activacionPrevia` sirve para no contar dos veces a la misma persona: si ya
+ * estaba activa en este mismo local dentro de esta misma hora, no se suma.
+ */
+async function registrarEstadistica(placeId, placeName, perfil, activacionPrevia) {
+  try {
+    const ahora = new Date();
+    const { dia, hora, diaSemana } = bucketHorario(ahora);
+
+    if (activacionPrevia && activacionPrevia.placeId === placeId && activacionPrevia.iniciadaEn) {
+      const previa = bucketHorario(activacionPrevia.iniciadaEn.toDate());
+      if (previa.dia === dia && previa.hora === hora) return;
+    }
+
+    const rango = rangoEdad(perfil.fechaNacimiento);
+    const incremento = admin.firestore.FieldValue.increment(1);
+    const datos = {
+      placeId,
+      placeName,
+      dia,
+      hora,
+      diaSemana,
+      total: incremento,
+      actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (rango) datos.rangos = { [rango]: incremento };
+
+    await admin
+      .firestore()
+      .doc(`estadisticasLugar/${placeId}_${dia}-${String(hora).padStart(2, "0")}`)
+      .set(datos, { merge: true });
+  } catch (error) {
+    console.error("[registrarEstadistica] no se pudo guardar:", error);
+  }
+}
+
 // Tiene que coincidir con RADIO_BUSQUEDA_METROS de src/services/places.js.
 const RADIO_ACTIVACION_METROS = 120;
 // Freno de uso por persona (ver el comentario dentro de la función).
@@ -543,7 +639,14 @@ exports.activarEnLugar = onCall(
     // 4. Los datos propios se leen del perfil guardado, nunca de lo que mande
     //    el cliente: si no, cualquiera podría activarse con el nombre y la
     //    foto de otra persona.
-    const perfilSnap = await admin.firestore().doc(`usuarios/${uid}`).get();
+    //    La activación previa se lee ACÁ, antes del .set() de más abajo que la
+    //    sobreescribe: es lo único que permite saber si esta persona ya estaba
+    //    en este mismo local en esta misma hora, y así no contarla dos veces en
+    //    las estadísticas.
+    const [perfilSnap, activacionPreviaSnap] = await Promise.all([
+      admin.firestore().doc(`usuarios/${uid}`).get(),
+      admin.firestore().doc(`activaciones/${uid}`).get(),
+    ]);
     if (!perfilSnap.exists) {
       throw new HttpsError("failed-precondition", "Todavía no tienes perfil.");
     }
@@ -574,6 +677,17 @@ exports.activarEnLugar = onCall(
       iniciadaEn: admin.firestore.FieldValue.serverTimestamp(),
       actualizadaEn: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Se espera a que termine (y no se deja "suelta") porque en Cloud
+    // Functions el proceso se puede congelar apenas la función devuelve, y una
+    // escritura a medias no se completaría. Igual no puede tumbar la
+    // activación: registrarEstadistica se traga sus propios errores.
+    await registrarEstadistica(
+      placeId,
+      lugar.displayName?.text || "",
+      perfil,
+      activacionPreviaSnap.exists ? activacionPreviaSnap.data() : null
+    );
 
     return {
       placeId,

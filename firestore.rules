@@ -142,6 +142,18 @@ service cloud.firestore {
     match /limites/{uid} {
       allow read, write: if false;
     }
+    // Contadores anónimos por local y por hora (ver registrarEstadistica en
+    // functions/index.js). No hay ningún uid acá dentro: solo cuánta gente
+    // hubo, en qué local, a qué hora y en qué rango de edad.
+    //
+    // Los escribe únicamente el servidor con el Admin SDK, que no pasa por
+    // estas reglas. El cliente no puede escribir ni leer: si pudiera escribir,
+    // cualquiera podría inflar los números de un local que después se le
+    // venden a su dueño como datos reales.
+    match /estadisticasLugar/{bucket} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
     // Lista de espera de la suscripción Gold: quién dijo "avísame" y con qué
     // plan se quedó mirando. No desbloquea nada ni cobra nada — es solo la
     // señal que decide si vale la pena construir el cobro.
