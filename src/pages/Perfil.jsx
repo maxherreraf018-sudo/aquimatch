@@ -270,6 +270,48 @@ export default function Perfil() {
         />
       )}
 
+      {/* Entrada a Gold. Todavía no se puede comprar nada: la pantalla muestra
+          las funciones y los precios reales y deja un "avísame", que es lo que
+          nos dice si alguien pagaría antes de construir todo el cobro. */}
+      <div
+        onClick={() => navigate('/gold')}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '14px 16px',
+          borderRadius: 16,
+          background: 'rgba(255, 45, 142, 0.10)',
+          border: '1px solid rgba(255, 45, 142, 0.45)',
+          cursor: 'pointer',
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span
+              style={{
+                padding: '3px 9px',
+                borderRadius: 100,
+                background: 'var(--gradient)',
+                color: '#fff',
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+              }}
+            >
+              GOLD
+            </span>
+            <span style={{ color: 'var(--text)', fontSize: 13.5, fontWeight: 600 }}>
+              Muy pronto
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5 }}>Mira quién te mostró interés, y más.</div>
+        </div>
+        <span style={{ color: 'var(--magenta)', fontSize: 18, flexShrink: 0 }}>›</span>
+      </div>
+
       <EtiquetaSeccion texto="Tu perfil" />
       <div className="grupo-perfil" style={{ marginBottom: 24 }}>
         <div style={{ padding: 14 }}>

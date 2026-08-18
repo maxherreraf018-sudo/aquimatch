@@ -20,6 +20,7 @@ const MutualMatch = lazy(() => import('./pages/MutualMatch'))
 const Chat = lazy(() => import('./pages/Chat'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Perfil = lazy(() => import('./pages/Perfil'))
+const Gold = lazy(() => import('./pages/Gold'))
 const Terminos = lazy(() => import('./pages/Terminos'))
 const Privacidad = lazy(() => import('./pages/Privacidad'))
 
@@ -114,6 +115,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Perfil />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/gold"
+            element={
+              <RequireAuth>
+                <Gold />
               </RequireAuth>
             }
           />

@@ -95,6 +95,19 @@ export function escucharReportes(callback) {
 }
 
 /**
+ * Lista de espera de la suscripción Gold. Es el único lugar donde se puede ver
+ * el resultado del experimento de precio: cuánta gente tocó "avísame" y con
+ * qué plan se quedó mirando. Sin esto los datos se juntan y nadie los mira.
+ */
+export function escucharInteresGold(callback) {
+  const ref = collection(db, 'interesGold')
+  const q = query(ref, orderBy('creadoEn', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ uid: d.id, ...d.data() })))
+  })
+}
+
+/**
  * Marca un reporte como revisado por el equipo.
  */
 export async function marcarReporteRevisado(reporteId) {

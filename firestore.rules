@@ -142,6 +142,27 @@ service cloud.firestore {
     match /limites/{uid} {
       allow read, write: if false;
     }
+    // Lista de espera de la suscripción Gold: quién dijo "avísame" y con qué
+    // plan se quedó mirando. No desbloquea nada ni cobra nada — es solo la
+    // señal que decide si vale la pena construir el cobro.
+    //
+    // "get" y "list" separados, mismo criterio que /usuarios: si el dueño
+    // pudiera listar, cualquiera sabría exactamente cuánta gente estaría
+    // dispuesta a pagar, que es información de negocio.
+    match /interesGold/{uid} {
+      allow get: if request.auth != null && (request.auth.uid == uid || esAdmin());
+      allow list: if esAdmin();
+      // Escribir solo el propio documento, y solo con esta forma exacta: sin
+      // esto se podría guardar un documento enorme para inflar la factura, o
+      // un plan inventado que después ensucia el conteo.
+      allow create, update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['creadoEn', 'plan', 'plataforma']) &&
+        request.resource.data.plan in ['mensual', 'anual', 'sin_elegir'] &&
+        request.resource.data.plataforma in ['android', 'ios', 'web'];
+      // Borrar el propio aviso sí se permite: si alguien pidió que le avisemos
+      // y cambia de opinión, tiene que poder deshacerlo.
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
     match /cachePlaces/{zonaId} {
       // Desde el 2026-08-14 el caché lo escribe y lo lee SOLO el servidor, vía
       // la Cloud Function buscarLugares (que usa el Admin SDK y no pasa por

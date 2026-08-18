@@ -6,6 +6,7 @@ import {
   actualizarEstadoVerificacion,
   escucharReportes,
   marcarReporteRevisado,
+  escucharInteresGold,
 } from '../services/admin'
 import { obtenerUsuario } from '../firebase/auth'
 import { IconVolver, IconMasTarde, IconVerificado } from '../components/Icons'
@@ -25,15 +26,18 @@ export default function Admin() {
   const [reportes, setReportes] = useState([])
   const [nombresCache, setNombresCache] = useState({})
   const [procesando, setProcesando] = useState(null)
+  const [interesGold, setInteresGold] = useState([])
 
   useEffect(() => {
     const detenerSelfies = escucharSelfiesPendientes(setSelfies)
     const detenerRechazadas = escucharSelfiesRechazadas(setRechazadas)
     const detenerReportes = escucharReportes(setReportes)
+    const detenerGold = escucharInteresGold(setInteresGold)
     return () => {
       detenerSelfies()
       detenerRechazadas()
       detenerReportes()
+      detenerGold()
     }
   }, [])
 
@@ -84,6 +88,35 @@ export default function Admin() {
           <IconVolver size={20} />
         </button>
         <h1 style={{ fontSize: 20 }}>Panel de moderación</h1>
+      </div>
+
+      {/* Resultado del experimento de precio de Gold. Está acá porque es el
+          único panel que existe, y un dato que nadie mira no sirve de nada. */}
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 14,
+          background: 'rgba(255, 45, 142, 0.08)',
+          border: '1px solid rgba(255, 45, 142, 0.3)',
+          marginBottom: 26,
+        }}
+      >
+        <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 8 }}>
+          Interés en Gold
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+          <span style={{ color: 'var(--text)', fontSize: 26, fontWeight: 700 }}>
+            {interesGold.length}
+          </span>
+          <span style={{ fontSize: 12.5 }}>
+            {interesGold.length === 1 ? 'persona pidió aviso' : 'personas pidieron aviso'}
+          </span>
+        </div>
+        <div style={{ fontSize: 12 }}>
+          Anual: {interesGold.filter((i) => i.plan === 'anual').length} · Mensual:{' '}
+          {interesGold.filter((i) => i.plan === 'mensual').length} · Sin elegir:{' '}
+          {interesGold.filter((i) => i.plan === 'sin_elegir').length}
+        </div>
       </div>
 
       {/* Selfies pendientes */}
