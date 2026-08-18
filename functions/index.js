@@ -722,8 +722,11 @@ exports.activarEnLugar = onCall(
 // gente, un rango de edad deja de ser una estadística y pasa a señalar a una
 // persona concreta.
 const MINIMO_PARA_MOSTRAR = 5;
-// Cuánta historia mira el panel.
-const DIAS_HISTORIA = 60;
+// Rangos que puede elegir el dueño. Lista cerrada a propósito: si el cliente
+// pudiera mandar cualquier número, alguien pediría 3650 días y la consulta se
+// llevaría media colección por delante.
+const RANGOS_DIAS = [7, 14, 30, 60];
+const DIAS_POR_DEFECTO = 30;
 
 function fechaISOChile(fecha) {
   return bucketHorario(fecha).dia;
@@ -792,7 +795,8 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Tu cuenta no tiene acceso a las estadísticas.");
   }
 
-  const desde = new Date(Date.now() - DIAS_HISTORIA * 24 * 60 * 60 * 1000);
+  const dias = RANGOS_DIAS.includes(request.data?.dias) ? request.data.dias : DIAS_POR_DEFECTO;
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
   const buckets = await db
     .collection("estadisticasLugar")
     .where("placeId", "==", local.placeId)
@@ -806,12 +810,14 @@ exports.estadisticasDelLocal = onCall(async (request) => {
   // Matriz día de la semana x hora, para encontrar la mejor franja.
   const porFranja = new Map();
   const porRango = { "18-24": 0, "25-34": 0, "35-44": 0, "45+": 0 };
+  const porDia = new Map();
   let totalPeriodo = 0;
 
   buckets.docs.forEach((documento) => {
     const b = documento.data();
     const total = b.total || 0;
     totalPeriodo += total;
+    porDia.set(b.dia, (porDia.get(b.dia) || 0) + total);
     if (b.dia === ahora.dia && b.hora === ahora.hora) activosAhora = total;
 
     const clave = `${b.diaSemana}-${b.hora}`;
@@ -844,9 +850,18 @@ exports.estadisticasDelLocal = onCall(async (request) => {
       placeName: local.placeName,
       nivel: local.nivel,
     },
-    activosAhora,
+    // El contador de "ahora" es el dato más delicado del panel: en un local
+    // vacío con una sola persona usando la app, un número exacto más una
+    // mirada alrededor de la sala la identifica. Por debajo del umbral se
+    // devuelve null y la pantalla dice "menos de N", nunca el número real.
+    activosAhora: activosAhora >= MINIMO_PARA_MOSTRAR ? activosAhora : null,
     totalPeriodo,
-    dias: DIAS_HISTORIA,
+    dias,
+    rangosDisponibles: RANGOS_DIAS,
+    // Movimiento día a día dentro del rango elegido, para ver la tendencia.
+    porDia: [...porDia.entries()]
+      .map(([dia, total]) => ({ dia, total }))
+      .sort((a, b) => (a.dia < b.dia ? -1 : 1)),
     // El desglose por edad solo tiene sentido con volumen suficiente. Con poca
     // gente, decir "3 personas de 45+" en un bar chico apunta a alguien.
     porRango: totalPeriodo >= MINIMO_PARA_MOSTRAR ? porRango : null,

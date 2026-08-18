@@ -54,6 +54,15 @@
   .cantidad { text-align: right; color: var(--texto-dim); font-variant-numeric: tabular-nums; }
   h2 { font-size: 15px; font-weight: 600; margin: 26px 0 12px; }
   .nota { font-size: 11.5px; color: var(--texto-tenue); line-height: 1.6; margin-top: 14px; }
+  .rango {
+    width: auto; padding: 7px 13px; border-radius: 100px; background: var(--card);
+    border: 1px solid var(--borde); color: var(--texto-dim); font-size: 12px; font-weight: 400;
+  }
+  .rango.activo { border-color: var(--magenta); color: var(--texto); background: rgba(255,45,142,.12); }
+  /* Columnas del movimiento diario. align-items:end para que crezcan desde
+     abajo, como cualquier gráfico de barras. */
+  .dias { display: flex; align-items: end; gap: 3px; height: 110px; }
+  .dia-col { flex: 1; min-width: 2px; border-radius: 3px 3px 0 0; background: var(--degrade); }
   .campo { margin-bottom: 14px; }
   .campo label { display: block; font-size: 12px; color: var(--texto-dim); margin-bottom: 6px; }
   input {
@@ -122,6 +131,12 @@
         <div id="mejor-franja"></div>
       </div>
     </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 12px">
+      <h2 style="margin:0">Movimiento</h2>
+      <div id="rangos" style="display:flex;gap:6px"></div>
+    </div>
+    <div class="tarjeta" id="tarjeta-dias"></div>
 
     <h2>Quién pasa por tu local</h2>
     <div class="tarjeta" id="tarjeta-edades"></div>
@@ -206,7 +221,9 @@ onAuthStateChanged(auth, async (usuario) => {
 
 // --- Panel ------------------------------------------------------------------
 
-async function cargarPanel() {
+let rangoElegido = null
+
+async function cargarPanel(dias) {
   mostrar('error-panel', false)
   try {
     // Enlaza la cuenta con su local la primera vez. Si ya estaba enlazada no
@@ -218,7 +235,7 @@ async function cargarPanel() {
       // estadísticas de más abajo, con un mensaje más claro.
     }
 
-    const { data } = await httpsCallable(funciones, 'estadisticasDelLocal')()
+    const { data } = await httpsCallable(funciones, 'estadisticasDelLocal')({ dias })
     pintar(data)
   } catch (error) {
     $('error-panel').textContent =
@@ -228,12 +245,43 @@ async function cargarPanel() {
 }
 
 function pintar(d) {
+  rangoElegido = d.dias
   $('nombre-local').textContent = d.local.placeName || ''
-  $('ahora').textContent = d.activosAhora
-  $('ahora-pie').textContent =
-    d.activosAhora === 1
-      ? 'persona con AquíMatch activo en este momento'
-      : 'personas con AquíMatch activo en este momento'
+
+  // activosAhora llega en null cuando hay menos gente que el umbral. Se
+  // muestra "menos de N" en vez del número: con una sola persona en el local,
+  // un número exacto más una mirada alrededor de la sala la identifica.
+  if (d.activosAhora === null) {
+    $('ahora').textContent = `menos de ${d.minimoParaMostrar}`
+    $('ahora').style.fontSize = '26px'
+    $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
+  } else {
+    $('ahora').textContent = d.activosAhora
+    $('ahora').style.fontSize = ''
+    $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
+  }
+
+  // Selector de rango
+  $('rangos').innerHTML = d.rangosDisponibles
+    .map((dias) => `<button class="rango${dias === d.dias ? ' activo' : ''}" data-dias="${dias}">${dias} días</button>`)
+    .join('')
+  $('rangos').querySelectorAll('button').forEach((boton) => {
+    boton.addEventListener('click', () => cargarPanel(Number(boton.dataset.dias)))
+  })
+
+  // Movimiento día a día
+  if (d.porDia.length > 0) {
+    const maximo = Math.max(...d.porDia.map((x) => x.total), 1)
+    $('tarjeta-dias').innerHTML =
+      `<div class="dias">${d.porDia
+        .map((x) => `<span class="dia-col" style="height:${Math.max((x.total / maximo) * 100, 4)}%" title="${x.dia}: ${x.total}"></span>`)
+        .join('')}</div>` +
+      `<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-tenue);margin-top:8px">` +
+      `<span>${d.porDia[0].dia}</span><span>${d.totalPeriodo} activaciones en total</span><span>${d.porDia[d.porDia.length - 1].dia}</span></div>`
+  } else {
+    $('tarjeta-dias').innerHTML =
+      `<div class="pie-cifra" style="margin-top:0">Sin actividad registrada en este período.</div>`
+  }
 
   // Mejor franja
   if (d.mejorFranja) {
