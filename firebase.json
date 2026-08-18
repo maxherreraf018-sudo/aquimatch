@@ -1,5 +1,6 @@
 {
-  "hosting": {
+  "hosting": [{
+    "target": "sitio",
     "public": "hosting-public",
     "ignore": ["firebase.json", "**/.*"],
     "headers": [
@@ -36,6 +37,34 @@
       }
     ]
   },
+  {
+    "comment": "Panel para dueños de locales. Va como sitio aparte y no dentro de hosting-public a propósito: Hosting despliega el directorio completo, así que si compartieran carpeta, publicar el panel obligaría a publicar también la portada nueva y los documentos legales, que están esperando la aprobación de Apple.",
+    "target": "panel",
+    "public": "panel-public",
+    "ignore": ["firebase.json", "**/.*"],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          {
+            "comment": "El panel muestra tablas y números: no necesita cámara, micrófono ni ubicación.",
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=()"
+          },
+          {
+            "comment": "Es un panel privado de cada local: que no lo indexe ningún buscador.",
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      }
+    ]
+  }],
   "firestore": {
     "rules": "firestore.rules"
   },

@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "mi-app-conexion"
-  }
+  },
+  "targets": {
+    "mi-app-conexion": {
+      "hosting": {
+        "sitio": [
+          "mi-app-conexion"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

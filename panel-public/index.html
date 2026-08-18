@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Panel de local · AquíMatch</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0d14;
+    --card: #16121f;
+    --card-alto: #1c1728;
+    --borde: #2a2338;
+    --texto: #f2eef6;
+    --texto-dim: #b3a6bf;
+    --texto-tenue: #7c7089;
+    --magenta: #ff2d8e;
+    --violeta: #b12dff;
+    --degrade: linear-gradient(135deg, #ff2d8e, #b12dff);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(900px circle at 10% -10%, rgba(255,45,142,.10), transparent 60%),
+      radial-gradient(900px circle at 95% 105%, rgba(177,45,255,.10), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    min-height: 100vh;
+    color: var(--texto);
+    font-family: Poppins, system-ui, -apple-system, Segoe UI, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .envoltura { max-width: 900px; margin: 0 auto; padding: 28px 20px 64px; }
+  .marca { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+  .marca span { color: var(--violeta); }
+  .encabezado { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 30px; }
+  .local { font-size: 13px; color: var(--texto-dim); }
+  .tarjeta { background: var(--card); border: 1px solid var(--borde); border-radius: 18px; padding: 20px; }
+  .rejilla { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 14px; }
+  .rotulo { font-size: 10.5px; letter-spacing: .10em; text-transform: uppercase; color: var(--texto-tenue); margin-bottom: 10px; }
+  .cifra { font-size: 46px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .cifra-degrade { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .pie-cifra { font-size: 12.5px; color: var(--texto-dim); margin-top: 8px; line-height: 1.5; }
+  .barra-fila { display: grid; grid-template-columns: 62px 1fr 46px; align-items: center; gap: 12px; margin-bottom: 9px; font-size: 12.5px; }
+  /* display:block en las dos: son <span>, y un span hijo sigue siendo elemento
+     de línea aunque el padre sea una celda de rejilla — sin esto el alto no
+     aplica y la barra se ve vacía. */
+  .barra-pista { display: block; height: 9px; border-radius: 6px; background: var(--card-alto); overflow: hidden; }
+  .barra-relleno { display: block; height: 100%; min-width: 3px; border-radius: 6px; background: var(--degrade); }
+  .cantidad { text-align: right; color: var(--texto-dim); font-variant-numeric: tabular-nums; }
+  h2 { font-size: 15px; font-weight: 600; margin: 26px 0 12px; }
+  .nota { font-size: 11.5px; color: var(--texto-tenue); line-height: 1.6; margin-top: 14px; }
+  .campo { margin-bottom: 14px; }
+  .campo label { display: block; font-size: 12px; color: var(--texto-dim); margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 12px 14px; border-radius: 12px; background: var(--card-alto);
+    border: 1px solid var(--borde); color: var(--texto); font-size: 14px; font-family: inherit;
+  }
+  input:focus { outline: 2px solid var(--magenta); outline-offset: 1px; }
+  button {
+    width: 100%; padding: 13px; border: none; border-radius: 12px; background: var(--degrade);
+    color: #fff; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  .enlace { background: none; color: var(--texto-tenue); font-size: 12.5px; font-weight: 400; padding: 10px; width: auto; }
+  .error { color: #ff6b6b; font-size: 12.5px; margin-top: 12px; line-height: 1.5; }
+  .centro { max-width: 380px; margin: 8vh auto 0; }
+  .oculto { display: none; }
+</style>
+</head>
+<body>
+
+<div class="envoltura">
+
+  <!-- ENTRAR. Visible por defecto a propósito: si el navegador no logra cargar
+       el SDK de Firebase (red caída, bloqueador, red corporativa que filtra
+       gstatic), el JavaScript de abajo nunca corre. Si esta sección arrancara
+       oculta, el dueño vería una pantalla en negro sin ninguna explicación. -->
+  <section id="entrar" class="centro">
+    <div class="marca" style="margin-bottom:6px">Aquí<span>Match</span></div>
+    <p style="font-size:13px;color:var(--texto-dim);margin:0 0 26px">Panel para locales</p>
+    <div class="tarjeta">
+      <div class="campo">
+        <label for="correo">Correo</label>
+        <input id="correo" type="email" autocomplete="email" />
+      </div>
+      <div class="campo">
+        <label for="clave">Contraseña</label>
+        <input id="clave" type="password" autocomplete="current-password" />
+      </div>
+      <button id="btn-entrar" disabled>Cargando...</button>
+      <p id="error-entrar" class="error oculto"></p>
+    </div>
+    <p class="nota">
+      Si todavía no tienes acceso, escríbenos a contacto@aquimatch.cl. Las cuentas de local se
+      crean después de verificar que administras el establecimiento.
+    </p>
+  </section>
+
+  <!-- PANEL -->
+  <section id="panel" class="oculto">
+    <div class="encabezado">
+      <div>
+        <div class="marca">Aquí<span>Match</span></div>
+        <div class="local" id="nombre-local"></div>
+      </div>
+      <button class="enlace" id="btn-salir">Cerrar sesión</button>
+    </div>
+
+    <div class="rejilla">
+      <div class="tarjeta">
+        <div class="rotulo">Ahora en tu local</div>
+        <div class="cifra cifra-degrade" id="ahora">0</div>
+        <div class="pie-cifra" id="ahora-pie">personas con AquíMatch activo</div>
+      </div>
+      <div class="tarjeta">
+        <div class="rotulo">Tu mejor franja</div>
+        <div id="mejor-franja"></div>
+      </div>
+    </div>
+
+    <h2>Quién pasa por tu local</h2>
+    <div class="tarjeta" id="tarjeta-edades"></div>
+
+    <h2>Franjas con más movimiento</h2>
+    <div class="tarjeta" id="tarjeta-franjas"></div>
+
+    <p class="nota" id="nota-privacidad"></p>
+    <p id="error-panel" class="error oculto"></p>
+  </section>
+
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js'
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js'
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js'
+
+// Mismo proyecto de Firebase que la app: misma base de datos, mismas reglas y
+// las mismas cuentas. El panel es una web aparte por el cobro (dentro de la
+// app, las tiendas se quedarían con 15-30% de la suscripción del local), no
+// porque sea un sistema distinto.
+const app = initializeApp({
+  apiKey: 'AIzaSyDs1nixTjDd0UuT5Haft9y9iqicJmWt1sk',
+  authDomain: 'mi-app-conexion.firebaseapp.com',
+  projectId: 'mi-app-conexion',
+  storageBucket: 'mi-app-conexion.firebasestorage.app',
+  messagingSenderId: '39224828573',
+  appId: '1:39224828573:web:68b8d350c5a7305d672a74',
+})
+const auth = getAuth(app)
+const funciones = getFunctions(app)
+
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const $ = (id) => document.getElementById(id)
+const mostrar = (id, visible) => $(id).classList.toggle('oculto', !visible)
+
+// El botón arranca deshabilitado en el HTML y se habilita acá. Si el SDK no
+// cargó, esta línea nunca corre y el botón se queda diciendo "Cargando...",
+// que es una señal honesta en vez de un botón que no responde al apretarlo.
+$('btn-entrar').disabled = false
+$('btn-entrar').textContent = 'Entrar'
+
+function franjaEnPalabras(diaSemana, hora) {
+  const fin = (hora + 2) % 24
+  return `${DIAS[diaSemana]} ${String(hora).padStart(2, '0')}:00–${String(fin).padStart(2, '0')}:00`
+}
+
+// --- Entrar -----------------------------------------------------------------
+
+$('btn-entrar').addEventListener('click', async () => {
+  const boton = $('btn-entrar')
+  boton.disabled = true
+  mostrar('error-entrar', false)
+  try {
+    await signInWithEmailAndPassword(auth, $('correo').value.trim(), $('clave').value)
+  } catch (error) {
+    // A propósito no se distingue entre "correo no existe" y "contraseña
+    // incorrecta": decirlo permite averiguar qué correos tienen cuenta.
+    $('error-entrar').textContent = 'Correo o contraseña incorrectos.'
+    mostrar('error-entrar', true)
+  } finally {
+    boton.disabled = false
+  }
+})
+
+$('clave').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-entrar').click() })
+$('btn-salir').addEventListener('click', () => signOut(auth))
+
+onAuthStateChanged(auth, async (usuario) => {
+  if (!usuario) {
+    mostrar('panel', false)
+    mostrar('entrar', true)
+    return
+  }
+  mostrar('entrar', false)
+  mostrar('panel', true)
+  await cargarPanel()
+})
+
+// --- Panel ------------------------------------------------------------------
+
+async function cargarPanel() {
+  mostrar('error-panel', false)
+  try {
+    // Enlaza la cuenta con su local la primera vez. Si ya estaba enlazada no
+    // hace nada, así que se puede llamar siempre.
+    try {
+      await httpsCallable(funciones, 'vincularCuentaLocal')()
+    } catch (error) {
+      // Si no hay local para este correo, el error real lo da la consulta de
+      // estadísticas de más abajo, con un mensaje más claro.
+    }
+
+    const { data } = await httpsCallable(funciones, 'estadisticasDelLocal')()
+    pintar(data)
+  } catch (error) {
+    $('error-panel').textContent =
+      error?.message || 'No pudimos cargar tus datos. Intenta de nuevo en un momento.'
+    mostrar('error-panel', true)
+  }
+}
+
+function pintar(d) {
+  $('nombre-local').textContent = d.local.placeName || ''
+  $('ahora').textContent = d.activosAhora
+  $('ahora-pie').textContent =
+    d.activosAhora === 1
+      ? 'persona con AquíMatch activo en este momento'
+      : 'personas con AquíMatch activo en este momento'
+
+  // Mejor franja
+  if (d.mejorFranja) {
+    const f = d.mejorFranja
+    $('mejor-franja').innerHTML =
+      `<div style="font-size:20px;font-weight:600;line-height:1.3">${franjaEnPalabras(f.diaSemana, f.hora)}</div>` +
+      `<div class="pie-cifra">${f.promedio} personas en promedio` +
+      (f.vecesMas && f.vecesMas > 1 ? ` — ${f.vecesMas} veces más que una franja cualquiera` : '') +
+      `</div>`
+  } else {
+    $('mejor-franja').innerHTML =
+      `<div class="pie-cifra" style="margin-top:0">Todavía no hay suficiente actividad para
+       identificar un patrón. Aparece cuando una franja supera las ${d.minimoParaMostrar} personas.</div>`
+  }
+
+  // Rangos de edad
+  if (d.porRango) {
+    const maximo = Math.max(...Object.values(d.porRango), 1)
+    $('tarjeta-edades').innerHTML = Object.entries(d.porRango)
+      .map(([rango, cantidad]) => `
+        <div class="barra-fila">
+          <span>${rango}</span>
+          <span class="barra-pista"><span class="barra-relleno" style="width:${(cantidad / maximo) * 100}%"></span></span>
+          <span class="cantidad">${cantidad}</span>
+        </div>`)
+      .join('')
+  } else {
+    $('tarjeta-edades').innerHTML =
+      `<div class="pie-cifra" style="margin-top:0">Todavía no hay suficientes datos.</div>`
+  }
+
+  // Franjas
+  if (d.franjas.length > 0) {
+    const maximo = Math.max(...d.franjas.map((f) => f.promedio), 1)
+    $('tarjeta-franjas').innerHTML = d.franjas
+      .map((f) => `
+        <div class="barra-fila" style="grid-template-columns:170px 1fr 46px">
+          <span>${franjaEnPalabras(f.diaSemana, f.hora)}</span>
+          <span class="barra-pista"><span class="barra-relleno" style="width:${(f.promedio / maximo) * 100}%"></span></span>
+          <span class="cantidad">${f.promedio}</span>
+        </div>`)
+      .join('')
+  } else {
+    $('tarjeta-franjas').innerHTML =
+      `<div class="pie-cifra" style="margin-top:0">Todavía no hay ninguna franja con actividad suficiente.</div>`
+  }
+
+  $('nota-privacidad').textContent =
+    `Datos de los últimos ${d.dias} días. Solo se muestran franjas con al menos ` +
+    `${d.minimoParaMostrar} personas: con menos, un rango de edad dejaría de ser una ` +
+    `estadística y pasaría a señalar a una persona concreta. Este panel nunca muestra ` +
+    `nombres, fotos ni perfiles de quienes están en tu local.`
+}
+</script>
+</body>
+</html>

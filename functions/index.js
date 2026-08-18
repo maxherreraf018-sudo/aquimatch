@@ -698,3 +698,173 @@ exports.activarEnLugar = onCall(
     };
   }
 );
+
+// ---------------------------------------------------------------------------
+// Panel para dueños de locales
+//
+// El panel vive en una web aparte, no dentro de la app: si el dueño pagara la
+// suscripción dentro de la app, Apple y Google podrían exigir su sistema de
+// compras y quedarse con 15-30% para siempre.
+//
+// Los datos NO se leen directo desde el navegador del dueño, aunque las reglas
+// podrían permitirlo. Van por estas funciones a propósito, por dos motivos:
+//
+//   1. El umbral de anonimato tiene que aplicarse en el servidor. Si se
+//      escondieran las franjas con poca gente solo en la pantalla, cualquiera
+//      abriría la consola del navegador y vería los números reales. En un bar
+//      con dos clientes, "2 personas, 25-34" empieza a ser identificable.
+//   2. Comprobar en las reglas que quien consulta es el dueño de ese local
+//      obligaría a leer el documento del local por cada bucket devuelto, y eso
+//      se cobra. Acá se comprueba una sola vez.
+// ---------------------------------------------------------------------------
+
+// Por debajo de esto no se muestra el desglose de una franja: con muy poca
+// gente, un rango de edad deja de ser una estadística y pasa a señalar a una
+// persona concreta.
+const MINIMO_PARA_MOSTRAR = 5;
+// Cuánta historia mira el panel.
+const DIAS_HISTORIA = 60;
+
+function fechaISOChile(fecha) {
+  return bucketHorario(fecha).dia;
+}
+
+/**
+ * Enlaza la cuenta de usuario recién creada por el dueño con la cuenta de
+ * local que ya se le había creado a mano desde el panel de moderación.
+ *
+ * El enlace se hace por correo verificado: al crear la cuenta del local se
+ * anota el correo del responsable, y cuando esa persona entra por primera vez
+ * al panel con ese mismo correo, se guarda su uid. Se exige el correo
+ * verificado porque si no, cualquiera podría registrarse con el correo de un
+ * dueño y quedarse con el acceso a su local.
+ */
+exports.vincularCuentaLocal = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Necesitas iniciar sesión.");
+
+  const usuario = await admin.auth().getUser(uid);
+  if (!usuario.emailVerified) {
+    throw new HttpsError("failed-precondition", "Primero verifica tu correo.");
+  }
+  const correo = (usuario.email || "").trim().toLowerCase();
+  if (!correo) throw new HttpsError("failed-precondition", "Tu cuenta no tiene correo.");
+
+  const db = admin.firestore();
+
+  // Si ya estaba enlazada, no hay nada que hacer.
+  const yaEnlazado = await db.collection("locales").where("responsableUid", "==", uid).limit(1).get();
+  if (!yaEnlazado.empty) return { placeId: yaEnlazado.docs[0].id };
+
+  const porCorreo = await db
+    .collection("locales")
+    .where("responsableCorreo", "==", correo)
+    .where("responsableUid", "==", null)
+    .limit(1)
+    .get();
+  if (porCorreo.empty) {
+    throw new HttpsError("not-found", "No encontramos ningún local asociado a este correo.");
+  }
+
+  await porCorreo.docs[0].ref.update({
+    responsableUid: uid,
+    actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { placeId: porCorreo.docs[0].id };
+});
+
+/**
+ * Datos del panel: cuánta gente hay ahora, y los patrones por día y hora.
+ * Devuelve solo conteos agregados — nunca perfiles, fotos ni nombres de las
+ * personas que están en el local.
+ */
+exports.estadisticasDelLocal = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Necesitas iniciar sesión.");
+
+  const db = admin.firestore();
+  const locales = await db.collection("locales").where("responsableUid", "==", uid).limit(1).get();
+  if (locales.empty) {
+    throw new HttpsError("permission-denied", "Tu cuenta no administra ningún local.");
+  }
+  const local = { placeId: locales.docs[0].id, ...locales.docs[0].data() };
+  if (local.estado !== "verificado" || local.nivel === "ninguno") {
+    throw new HttpsError("permission-denied", "Tu cuenta no tiene acceso a las estadísticas.");
+  }
+
+  const desde = new Date(Date.now() - DIAS_HISTORIA * 24 * 60 * 60 * 1000);
+  const buckets = await db
+    .collection("estadisticasLugar")
+    .where("placeId", "==", local.placeId)
+    .where("dia", ">=", fechaISOChile(desde))
+    .get();
+
+  // Cuánta gente hay ahora: el bucket de la hora en curso.
+  const ahora = bucketHorario(new Date());
+  let activosAhora = 0;
+
+  // Matriz día de la semana x hora, para encontrar la mejor franja.
+  const porFranja = new Map();
+  const porRango = { "18-24": 0, "25-34": 0, "35-44": 0, "45+": 0 };
+  let totalPeriodo = 0;
+
+  buckets.docs.forEach((documento) => {
+    const b = documento.data();
+    const total = b.total || 0;
+    totalPeriodo += total;
+    if (b.dia === ahora.dia && b.hora === ahora.hora) activosAhora = total;
+
+    const clave = `${b.diaSemana}-${b.hora}`;
+    const franja = porFranja.get(clave) || { diaSemana: b.diaSemana, hora: b.hora, total: 0, veces: 0 };
+    franja.total += total;
+    franja.veces += 1;
+    porFranja.set(clave, franja);
+
+    Object.entries(b.rangos || {}).forEach(([rango, cantidad]) => {
+      if (porRango[rango] !== undefined) porRango[rango] += cantidad;
+    });
+  });
+
+  // Promedio por ocurrencia, no suma total: si no, un viernes que se repitió 8
+  // veces siempre le gana a un sábado que se repitió 2, aunque el sábado tenga
+  // más gente cada vez.
+  const franjas = [...porFranja.values()]
+    .map((f) => ({ ...f, promedio: f.total / f.veces }))
+    .sort((a, b) => b.promedio - a.promedio);
+
+  const mejor = franjas[0] || null;
+  // Referencia para el "X veces más": el promedio de todas las franjas que
+  // tuvieron algo de actividad.
+  const promedioGeneral =
+    franjas.length > 0 ? franjas.reduce((s, f) => s + f.promedio, 0) / franjas.length : 0;
+
+  return {
+    local: {
+      placeId: local.placeId,
+      placeName: local.placeName,
+      nivel: local.nivel,
+    },
+    activosAhora,
+    totalPeriodo,
+    dias: DIAS_HISTORIA,
+    // El desglose por edad solo tiene sentido con volumen suficiente. Con poca
+    // gente, decir "3 personas de 45+" en un bar chico apunta a alguien.
+    porRango: totalPeriodo >= MINIMO_PARA_MOSTRAR ? porRango : null,
+    mejorFranja:
+      mejor && mejor.promedio >= MINIMO_PARA_MOSTRAR
+        ? {
+          diaSemana: mejor.diaSemana,
+          hora: mejor.hora,
+          promedio: Math.round(mejor.promedio),
+          vecesMas: promedioGeneral > 0 ? Number((mejor.promedio / promedioGeneral).toFixed(1)) : null,
+        }
+        : null,
+    // Solo las franjas con suficiente gente. Las demás se devuelven en cero, no
+    // con su número real: el filtro tiene que estar acá y no en la pantalla.
+    franjas: franjas
+      .filter((f) => f.promedio >= MINIMO_PARA_MOSTRAR)
+      .slice(0, 24)
+      .map((f) => ({ diaSemana: f.diaSemana, hora: f.hora, promedio: Math.round(f.promedio) })),
+    minimoParaMostrar: MINIMO_PARA_MOSTRAR,
+  };
+});
