@@ -22,7 +22,7 @@ import { auth, db, googleProvider } from './config'
 // Versión de los Términos/Política vigente. Cámbiala cada vez que el texto
 // legal tenga un cambio relevante, así queda registrado con qué versión
 // exacta aceptó cada usuario.
-const VERSION_TERMINOS = '2026-07-27'
+const VERSION_TERMINOS = '2026-08-17'
 
 // Crear cuenta con correo y contraseña
 export async function registrarConCorreo(correo, contrasena) {

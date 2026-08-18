@@ -130,9 +130,38 @@ const SECCIONES = [
     parrafos: ['Estos Términos se rigen por las leyes de la República de Chile. Cualquier controversia será resuelta por los tribunales competentes de Chile.'],
   },
   {
-    titulo: '17. Contacto',
+    titulo: '17. Establecimientos no asociados',
     parrafos: [
-      'Para consultas relacionadas con estos Términos, los usuarios podrán comunicarse con AQUIMATCH SpA a través del correo contacto@aquimatch.cl o de los canales oficiales de soporte que se publiquen en la Aplicación.',
+      'AquíMatch muestra bares, cafés, restoranes, pubs, discotecas y otros locales únicamente como referencia geográfica, a partir de información de Google Maps Platform.',
+      'Que un local aparezca en AquíMatch no significa que exista relación comercial, patrocinio, autorización, recomendación, afiliación ni colaboración con AQUIMATCH SpA. Salvo indicación expresa, el establecimiento no es socio ni auspiciador de AquíMatch.',
+      'AQUIMATCH SpA no controla ni responde por las condiciones de acceso, el funcionamiento, la seguridad, los horarios, los productos ni los servicios de esos establecimientos, que son independientes.',
+    ],
+  },
+  {
+    titulo: '18. Denuncia y retiro de contenido',
+    parrafos: [
+      'Si consideras que un contenido publicado en AquíMatch infringe tus derechos de autor, tu derecho a la propia imagen o cualquier otro derecho que te asista, puedes denunciarlo escribiendo a contacto@aquimatch.cl e indicando: tu identificación y datos de contacto; el contenido específico que denuncias y dónde se encuentra; el derecho que invocas; y una declaración de buena fe de que tu denuncia es veraz.',
+      'Revisaremos toda denuncia dentro de un plazo razonable y, cuando corresponda, retiraremos el contenido y podremos suspender o eliminar la cuenta responsable.',
+      'Quien publica contenido declara y garantiza que cuenta con todos los derechos necesarios para hacerlo, y responde frente a terceros por cualquier reclamación derivada de esa publicación. AquíMatch no revisa previamente el contenido que suben los usuarios.',
+      'Si tu denuncia no se refiere a derechos de autor sino a otro contenido indebido —por ejemplo, imágenes tuyas publicadas sin tu consentimiento, suplantación de identidad o acoso— escríbenos igualmente a contacto@aquimatch.cl. Las revisamos con la misma prioridad.',
+      'Para usuarios y titulares de derechos en Estados Unidos, AQUIMATCH SpA cuenta con un agente designado conforme a la Digital Millennium Copyright Act, registrado ante la Oficina de Derechos de Autor de ese país bajo el número DMCA-1078299. Sus datos están publicados en el sitio web de AquíMatch.',
+    ],
+  },
+  {
+    titulo: '19. Infractores reincidentes',
+    parrafos: [
+      'AQUIMATCH SpA aplica una política de terminación de cuentas para quienes infrinjan reiteradamente derechos de terceros.',
+      'Cuando una misma persona sea objeto de denuncias fundadas en más de una oportunidad, o cuando la gravedad del caso lo justifique, AquíMatch podrá cerrar su cuenta de forma definitiva e impedir la creación de cuentas nuevas.',
+      'Cada caso se evalúa considerando su gravedad y sus circunstancias, y se deja registro de las medidas adoptadas.',
+    ],
+  },
+  {
+    titulo: '20. Contacto',
+    parrafos: [
+      'AQUIMATCH SpA · RUT 78.465.887-2',
+      'Domicilio: Federico Errázuriz 686, Pudahuel, Santiago, Chile.',
+      'Consultas sobre estos Términos: contacto@aquimatch.cl',
+      'Asuntos de privacidad y datos personales: privacidad@aquimatch.cl',
     ],
   },
 ]
@@ -155,7 +184,7 @@ export default function Terminos() {
 
       <p style={{ marginBottom: 16 }}>
         Estos Términos y Condiciones regulan el acceso y uso de la aplicación móvil AquíMatch, operada por
-        AQUIMATCH SpA, RUT 78.465.887-2, con domicilio en Eyzaguirre N°819, Santiago, Chile.
+        AQUIMATCH SpA, RUT 78.465.887-2, con domicilio en Federico Errázuriz 686, Pudahuel, Santiago, Chile.
         Al crear una cuenta o utilizar la Aplicación, el usuario declara
         haber leído, comprendido y aceptado íntegramente estos Términos y la Política de Privacidad.
       </p>
