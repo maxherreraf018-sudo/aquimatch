@@ -4,5 +4,13 @@
 <dict>
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- Sign in with Apple. Sin esta capacidad el diálogo del sistema no abre
+	     y el login falla en el dispositivo, aunque el código sea correcto.
+	     Tiene que estar activada también en el App ID, en el portal de
+	     desarrolladores de Apple. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

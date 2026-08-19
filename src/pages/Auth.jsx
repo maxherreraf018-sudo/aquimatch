@@ -7,6 +7,8 @@ import {
   iniciarSesionConCorreo,
   iniciarSesionConGoogle,
   iniciarSesionConGoogleNativo,
+  iniciarSesionConApple,
+  iniciarSesionConAppleNativo,
   crearDocumentoUsuario,
   obtenerUsuario,
   recuperarContrasena,
@@ -25,6 +27,29 @@ const GOOGLE_IOS_CLIENT_ID = '39224828573-1f98utljsje3oe8abobd0qdtup0q45fb.apps.
 
 // Espera obligatoria entre dos correos de recuperación de contraseña.
 const SEGUNDOS_ESPERA_RECUPERACION = 60
+
+// ---------------------------------------------------------------------------
+// Nonce para Sign in with Apple
+//
+// A Apple se le manda el SHA-256 del nonce y a Firebase el original. El plugin
+// pasa lo que le demos tal cual a Apple (no lo hashea él), así que el hash lo
+// tenemos que calcular acá. Si se mandara el mismo valor a los dos, Firebase
+// rechazaría la credencial — y solo se vería en un iPhone real.
+// ---------------------------------------------------------------------------
+function generarNonce(largo = 32) {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._'
+  const bytes = new Uint8Array(largo)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => letras[b % letras.length]).join('')
+}
+
+async function sha256Hex(texto) {
+  const datos = new TextEncoder().encode(texto)
+  const resumen = await crypto.subtle.digest('SHA-256', datos)
+  return Array.from(new Uint8Array(resumen))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
 
 function IconoGoogle() {
   return (
@@ -73,14 +98,22 @@ export default function Auth() {
   // Segundos que faltan para poder volver a pedir el correo de recuperacion.
   const [esperaRecuperacion, setEsperaRecuperacion] = useState(0)
   const [verContrasena, setVerContrasena] = useState(false)
-  // Toca "Continuar con Google" una vez sin haber aceptado los Términos
-  // todavía: en vez de lanzar el selector de Google de inmediato, primero
-  // se revela la casilla de aceptación (ver más abajo).
-  const [intentoGoogle, setIntentoGoogle] = useState(false)
-  // Cuenta de Google recién autenticada, primera vez (sin perfil todavía):
-  // se le pide aceptar los Términos acá antes de crear su perfil.
-  const [usuarioGooglePendiente, setUsuarioGooglePendiente] = useState(null)
-  const [aceptaTerminosGoogle, setAceptaTerminosGoogle] = useState(false)
+  // Toca "Continuar con Google" o "Continuar con Apple" una vez sin haber
+  // aceptado los Términos todavía: en vez de lanzar el diálogo del proveedor
+  // de inmediato, primero se revela la casilla de aceptación (ver más abajo).
+  const [intentoSocial, setIntentoSocial] = useState(false)
+  // Cuenta de Google o de Apple recién autenticada, primera vez (sin perfil
+  // todavía): se le pide aceptar los Términos acá antes de crear su perfil.
+  const [usuarioPendiente, setUsuarioPendiente] = useState(null)
+  // De qué proveedor viene el usuario pendiente ('google' | 'apple'): solo se
+  // usa para registrar el evento de analítica con el método correcto.
+  const [proveedorPendiente, setProveedorPendiente] = useState('google')
+  // Nombre que entregó Apple. Apple SOLO lo manda la primera vez que alguien
+  // autoriza la app; si esa primera vez se pierde, no hay forma de volver a
+  // pedirlo. Por eso se guarda apenas llega, en vez de leerlo del usuario de
+  // Firebase (que para Apple viene sin displayName).
+  const [nombreApple, setNombreApple] = useState('')
+  const [aceptaTerminosSocial, setAceptaTerminosSocial] = useState(false)
   const [creandoCuenta, setCreandoCuenta] = useState(false)
 
   async function manejarEnvio(e) {
@@ -122,10 +155,69 @@ export default function Auth() {
   // marcada, un segundo toque continúa de verdad.
   function manejarClickGoogle() {
     if (!aceptaTerminos) {
-      setIntentoGoogle(true)
+      setIntentoSocial(true)
       return
     }
     manejarGoogle()
+  }
+
+  function manejarClickApple() {
+    if (!aceptaTerminos) {
+      setIntentoSocial(true)
+      return
+    }
+    manejarApple()
+  }
+
+  async function manejarApple() {
+    setError('')
+    setMensaje('')
+    setCargando(true)
+    try {
+      let usuarioFirebase
+      let nombreEntregado = ''
+
+      if (Capacitor.isNativePlatform()) {
+        await SocialLogin.initialize({
+          // En iOS el diálogo lo abre el sistema, así que no hace falta ni
+          // clientId ni redirectUrl. La cadena vacía evita que el plugin
+          // intente redirigir.
+          apple: { redirectUrl: '' },
+        })
+        const rawNonce = generarNonce()
+        const resultado = await SocialLogin.login({
+          provider: 'apple',
+          options: { scopes: ['name', 'email'], nonce: await sha256Hex(rawNonce) },
+        })
+        const idToken = resultado?.result?.idToken
+        if (!idToken) {
+          throw new Error('No recibimos el token de Apple. Intenta de nuevo.')
+        }
+        const perfil = resultado.result.profile || {}
+        nombreEntregado = [perfil.givenName, perfil.familyName].filter(Boolean).join(' ')
+        usuarioFirebase = await iniciarSesionConAppleNativo(idToken, rawNonce)
+      } else {
+        usuarioFirebase = await iniciarSesionConApple()
+        nombreEntregado = usuarioFirebase.displayName || ''
+      }
+
+      const datosUsuario = await obtenerUsuario(usuarioFirebase.uid)
+      if (datosUsuario) {
+        navigate(datosUsuario.perfilCompleto ? '/activacion' : '/crear-perfil')
+        return
+      }
+      setNombreApple(nombreEntregado)
+      setProveedorPendiente('apple')
+      setUsuarioPendiente(usuarioFirebase)
+    } catch (err) {
+      // Cancelar el diálogo de Apple no es un error que valga la pena mostrar:
+      // la persona ya sabe que lo cerró.
+      const codigo = err?.code || ''
+      if (String(codigo).includes('1001') || /cancel/i.test(err?.message || '')) return
+      setError(`No pudimos iniciar sesión con Apple. (${codigo || err?.message || 'sin código'})`)
+    } finally {
+      setCargando(false)
+    }
   }
 
   async function manejarGoogle() {
@@ -170,7 +262,8 @@ export default function Auth() {
       }
       // Cuenta de Google nueva: todavía no existe su perfil en la base de
       // datos. Antes de crearlo, le pedimos que acepte los Términos.
-      setUsuarioGooglePendiente(usuarioFirebase)
+      setProveedorPendiente('google')
+      setUsuarioPendiente(usuarioFirebase)
     } catch (err) {
       setError(`No pudimos iniciar sesión con Google. (${err?.code || err?.message || 'sin código'})`)
     } finally {
@@ -178,15 +271,17 @@ export default function Auth() {
     }
   }
 
-  async function manejarAceptarTerminosGoogle() {
-    if (!aceptaTerminosGoogle || !usuarioGooglePendiente) return
+  async function manejarAceptarTerminosSocial() {
+    if (!aceptaTerminosSocial || !usuarioPendiente) return
     setCreandoCuenta(true)
     try {
-      await crearDocumentoUsuario(usuarioGooglePendiente.uid, {
-        correo: usuarioGooglePendiente.email,
-        nombre: usuarioGooglePendiente.displayName || '',
+      await crearDocumentoUsuario(usuarioPendiente.uid, {
+        correo: usuarioPendiente.email,
+        // Con Apple, displayName viene vacío: el nombre solo llega en la
+        // respuesta del plugin, y solo la primera vez.
+        nombre: usuarioPendiente.displayName || nombreApple || '',
       })
-      registrarEvento('sign_up', { method: 'google' })
+      registrarEvento('sign_up', { method: proveedorPendiente })
       navigate('/crear-perfil')
     } catch (err) {
       setError('No pudimos crear tu cuenta. Intenta de nuevo.')
@@ -194,12 +289,13 @@ export default function Auth() {
     }
   }
 
-  // Si cancela, cerramos la sesión de Google que se acababa de abrir — no
-  // queremos dejarla logueada sin haber aceptado los Términos.
-  async function manejarCancelarGoogle() {
+  // Si cancela, cerramos la sesión recién abierta — no queremos dejar a nadie
+  // logueado sin haber aceptado los Términos.
+  async function manejarCancelarSocial() {
     await cerrarSesion()
-    setUsuarioGooglePendiente(null)
-    setAceptaTerminosGoogle(false)
+    setUsuarioPendiente(null)
+    setAceptaTerminosSocial(false)
+    setNombreApple('')
   }
 
   // Cuenta atrás para poder volver a pedir el correo de recuperación.
@@ -240,7 +336,8 @@ export default function Auth() {
     }
   }
 
-  if (usuarioGooglePendiente) {
+  if (usuarioPendiente) {
+    const saludo = usuarioPendiente.displayName || nombreApple
     return (
       <div className="screen" style={{ justifyContent: 'center', textAlign: 'center' }}>
         <div
@@ -256,17 +353,15 @@ export default function Auth() {
             margin: '0 auto 16px',
           }}
         >
-          {usuarioGooglePendiente.photoURL && (
+          {usuarioPendiente.photoURL && (
             <img
-              src={usuarioGooglePendiente.photoURL}
+              src={usuarioPendiente.photoURL}
               alt=""
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           )}
         </div>
-        {usuarioGooglePendiente.displayName && (
-          <p style={{ fontSize: 13, marginBottom: 4 }}>Hola, {usuarioGooglePendiente.displayName}</p>
-        )}
+        {saludo && <p style={{ fontSize: 13, marginBottom: 4 }}>Hola, {saludo}</p>}
         <h1 style={{ marginBottom: 22 }}>Un último paso</h1>
         <label
           style={{
@@ -283,8 +378,8 @@ export default function Auth() {
         >
           <input
             type="checkbox"
-            checked={aceptaTerminosGoogle}
-            onChange={(e) => setAceptaTerminosGoogle(e.target.checked)}
+            checked={aceptaTerminosSocial}
+            onChange={(e) => setAceptaTerminosSocial(e.target.checked)}
             style={{ marginTop: 2, flexShrink: 0, width: 16, height: 16 }}
           />
           <span>
@@ -302,12 +397,12 @@ export default function Auth() {
         {error && <p className="error-text">{error}</p>}
         <button
           className="btn btn-primary"
-          onClick={manejarAceptarTerminosGoogle}
-          disabled={!aceptaTerminosGoogle || creandoCuenta}
+          onClick={manejarAceptarTerminosSocial}
+          disabled={!aceptaTerminosSocial || creandoCuenta}
         >
           {creandoCuenta ? 'Un momento...' : 'Aceptar y continuar'}
         </button>
-        <button className="btn btn-ghost" onClick={manejarCancelarGoogle} disabled={creandoCuenta}>
+        <button className="btn btn-ghost" onClick={manejarCancelarSocial} disabled={creandoCuenta}>
           Cancelar
         </button>
       </div>
@@ -339,9 +434,9 @@ export default function Auth() {
           <IconoGoogle />
           Continuar con Google
         </button>
-        <button className="btn btn-social" disabled>
+        <button className="btn btn-social" onClick={manejarClickApple} disabled={cargando}>
           <IconoApple />
-          Continuar con Apple (próximamente)
+          Continuar con Apple
         </button>
         <div className="divider">o</div>
         <form onSubmit={manejarEnvio} className="stack">
@@ -408,7 +503,7 @@ export default function Auth() {
             )}
           </div>
 
-          {(Boolean(correo && contrasena) || intentoGoogle) && (
+          {(Boolean(correo && contrasena) || intentoSocial) && (
             <label
               style={{
                 display: 'flex',

@@ -4,6 +4,7 @@ import {
   signInWithPopup,
   signInWithCredential,
   GoogleAuthProvider,
+  OAuthProvider,
   signOut,
   onAuthStateChanged,
   sendEmailVerification,
@@ -54,6 +55,39 @@ export async function iniciarSesionConGoogleNativo(idToken) {
   const cred = await signInWithCredential(auth, credencial)
   return cred.user
 }
+// ---------------------------------------------------------------------------
+// Sign in with Apple
+//
+// Apple lo exige (regla 4.8): si la app ofrece un login de terceros —el de
+// Google, en este caso— tiene que ofrecer también otro que limite los datos a
+// nombre y correo y que permita ocultar el correo. El login con correo y
+// contraseña NO sirve como reemplazo, porque no permite ocultar la dirección.
+// Por no tenerlo, la versión 1.0 fue rechazada el 2026-08-19.
+// ---------------------------------------------------------------------------
+
+// Versión NATIVA (dentro de la app empacada de iOS).
+//
+// `rawNonce` es el nonce SIN hashear. A Apple se le manda el SHA-256 de ese
+// valor, y Apple lo copia dentro del token; Firebase recibe el original, lo
+// vuelve a hashear y compara. Si se le pasara el mismo valor a los dos, la
+// comparación fallaría y el inicio de sesión sería rechazado — y solo se
+// notaría en un iPhone real, nunca en el navegador.
+export async function iniciarSesionConAppleNativo(idToken, rawNonce) {
+  const proveedor = new OAuthProvider('apple.com')
+  const credencial = proveedor.credential({ idToken, rawNonce })
+  const cred = await signInWithCredential(auth, credencial)
+  return cred.user
+}
+
+// Versión WEB (solo para probar en el navegador durante el desarrollo).
+export async function iniciarSesionConApple() {
+  const proveedor = new OAuthProvider('apple.com')
+  proveedor.addScope('email')
+  proveedor.addScope('name')
+  const cred = await signInWithPopup(auth, proveedor)
+  return cred.user
+}
+
 export async function cerrarSesion() {
   await signOut(auth)
 }
