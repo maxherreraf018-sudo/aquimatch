@@ -4,6 +4,7 @@ import RequireAuth from './components/RequireAuth'
 import RequireAdmin from './components/RequireAdmin'
 import RequireVerificacion from './components/RequireVerificacion'
 import useLatidoConexion from './hooks/useLatidoConexion'
+import { GOLD_OCULTO } from './services/plataforma'
 
 // Cada pantalla se carga sola (su propio archivo .js), no todas juntas en un
 // solo bundle gigante — así la primera pantalla que ve alguien pesa mucho
@@ -118,14 +119,19 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/gold"
-            element={
-              <RequireAuth>
-                <Gold />
-              </RequireAuth>
-            }
-          />
+          {/* En iOS la pantalla de Gold ni siquiera se registra como ruta: no
+              está escondida, directamente no existe en esa plataforma. Ver el
+              porqué en services/plataforma.js. */}
+          {!GOLD_OCULTO && (
+            <Route
+              path="/gold"
+              element={
+                <RequireAuth>
+                  <Gold />
+                </RequireAuth>
+              }
+            />
+          )}
           <Route
             path="/admin"
             element={

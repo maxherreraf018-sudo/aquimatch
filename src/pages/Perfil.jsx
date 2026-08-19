@@ -7,6 +7,7 @@ import { obtenerUsuarioPropio, actualizarUsuario, guardarDatosPrivados } from '.
 import { elegirFoto } from '../services/fotos'
 import { obtenerActivacionPropia, actualizarPlan, actualizarPreferenciaGeneroActivacion } from '../services/activation'
 import { eliminarCuenta } from '../services/cuenta'
+import { GOLD_OCULTO } from '../services/plataforma'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
 import { IconAgregar, IconCerrar, IconLapiz } from '../components/Icons'
 import BottomNav from '../components/BottomNav'
@@ -272,7 +273,19 @@ export default function Perfil() {
 
       {/* Entrada a Gold. Todavía no se puede comprar nada: la pantalla muestra
           las funciones y los precios reales y deja un "avísame", que es lo que
-          nos dice si alguien pagaría antes de construir todo el cobro. */}
+          nos dice si alguien pagaría antes de construir todo el cobro.
+
+          OCULTA EN iOS a propósito (2026-08-19). La regla 2.1 de Apple rechaza
+          funciones anunciadas como "próximamente", y esta pantalla dice
+          literalmente "Todavía no puedes activarlo". Con la app ya rechazada
+          por 4.3, el próximo revisor no llega neutral y no conviene darle nada
+          más que mirar. Además hoy no cuesta nada esconderla: sin usuarios, el
+          contador de interesados iba a marcar cero igual.
+
+          En Android queda visible, que es donde va a haber usuarios primero.
+          Se vuelve a activar en iOS en la primera actualización después de que
+          Apple apruebe. */}
+      {!GOLD_OCULTO && (
       <div
         onClick={() => navigate('/gold')}
         style={{
@@ -311,6 +324,7 @@ export default function Perfil() {
         </div>
         <span style={{ color: 'var(--magenta)', fontSize: 18, flexShrink: 0 }}>›</span>
       </div>
+      )}
 
       <EtiquetaSeccion texto="Tu perfil" />
       <div className="grupo-perfil" style={{ marginBottom: 24 }}>
