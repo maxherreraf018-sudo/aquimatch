@@ -58,9 +58,15 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>AquíMatch usa tu ubicación para confirmar que estás en el lugar donde querés activar tu participación.</string>
+	<string>AquíMatch usa tu ubicación para confirmar que estás en el lugar donde quieres activar tu participación.</string>
+	<!-- Apple exige este texto (aviso ITMS-90683) porque el plugin de ubicación
+	     menciona en su código la API de ubicación "siempre", aunque AquíMatch
+	     no la use: solo pide la ubicación mientras la app está abierta. El
+	     texto lo dice explícitamente para no prometer algo que no hacemos. -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AquíMatch usa tu ubicación solo mientras tienes la app abierta, para confirmar que estás en el lugar donde quieres activar tu participación. No la usa en segundo plano.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>AquíMatch usa la cámara para tomar tu selfie de verificación y confirmar que sos vos.</string>
+	<string>AquíMatch usa la cámara para tomar tu selfie de verificación y confirmar que eres tú.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>AquíMatch necesita acceder a tus fotos para que puedas elegir una foto de perfil desde tu galería.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
