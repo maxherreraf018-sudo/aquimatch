@@ -4,8 +4,18 @@
 <dict>
     <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
+	<!-- La app es en español. Con "en" acá, iOS la trataba como app en inglés y
+	     mostraba TODOS los diálogos del sistema en inglés ("Allow" /
+	     "Don't Allow") aunque el teléfono estuviera en español: ubicación,
+	     cámara, fotos y notificaciones. Los textos propios (los mensajes que
+	     explican para qué se pide cada permiso) ya estaban en español; lo que
+	     salía en inglés era todo lo que dibuja iOS alrededor. -->
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>es</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+	</array>
 	<key>CFBundleDisplayName</key>
         <string>AquiMatch</string>
 	<key>CFBundleExecutable</key>

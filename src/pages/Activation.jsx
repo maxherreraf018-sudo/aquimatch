@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { obtenerUsuario } from '../firebase/auth'
 import { buscarLugaresCercanos } from '../services/places'
+import { obtenerPosicion, hayUbicacionDisponible } from '../services/ubicacion'
 import {
   activarEnLugar,
   actualizarModo,
@@ -125,41 +126,40 @@ export default function Activation() {
   async function solicitarUbicacionYBuscar() {
     setEstado(ESTADOS.PIDIENDO_UBICACION)
 
-    if (!navigator.geolocation) {
-      setMensajeError('Tu navegador no soporta geolocalización.')
+    if (!hayUbicacionDisponible()) {
+      setMensajeError('Este dispositivo no puede entregar tu ubicación.')
       setEstado(ESTADOS.ERROR)
       return
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (posicion) => {
-        setEstado(ESTADOS.BUSCANDO_LUGAR)
-        const { latitude, longitude } = posicion.coords
-        // Se guardan porque el servidor las necesita después, al confirmar el
-        // lugar: es él quien comprueba que el lugar elegido esté realmente
-        // cerca de donde está el teléfono.
-        setMisCoords({ lat: latitude, lng: longitude })
-        try {
-          const encontrados = await buscarLugaresCercanos(latitude, longitude)
-          if (encontrados.length === 0) {
-            setEstado(ESTADOS.SIN_LUGARES)
-          } else {
-            setLugares(encontrados)
-            setEstado(ESTADOS.ELEGIR_LUGAR)
-          }
-        } catch (err) {
-          setMensajeError(err.message)
-          setEstado(ESTADOS.ERROR)
-        }
-      },
-      () => {
-        setMensajeError(
-          'No pudimos acceder a tu ubicación. Actívala en los permisos del navegador e intenta de nuevo.'
-        )
-        setEstado(ESTADOS.ERROR)
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    )
+    let coords
+    try {
+      coords = await obtenerPosicion()
+    } catch (err) {
+      setMensajeError(
+        'No pudimos acceder a tu ubicación. Actívala en los permisos del teléfono e intenta de nuevo.'
+      )
+      setEstado(ESTADOS.ERROR)
+      return
+    }
+
+    setEstado(ESTADOS.BUSCANDO_LUGAR)
+    // Se guardan porque el servidor las necesita después, al confirmar el
+    // lugar: es él quien comprueba que el lugar elegido esté realmente cerca
+    // de donde está el teléfono.
+    setMisCoords(coords)
+    try {
+      const encontrados = await buscarLugaresCercanos(coords.lat, coords.lng)
+      if (encontrados.length === 0) {
+        setEstado(ESTADOS.SIN_LUGARES)
+      } else {
+        setLugares(encontrados)
+        setEstado(ESTADOS.ELEGIR_LUGAR)
+      }
+    } catch (err) {
+      setMensajeError(err.message)
+      setEstado(ESTADOS.ERROR)
+    }
   }
 
   async function confirmarLugar(lugar) {
