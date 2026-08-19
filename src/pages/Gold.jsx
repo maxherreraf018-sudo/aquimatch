@@ -254,9 +254,11 @@ export default function Gold() {
           <button className="btn btn-primary" onClick={manejarAvisame} disabled={guardando}>
             {guardando ? 'Guardando...' : 'Avísame cuando esté'}
           </button>
+          {/* Esta línea existe solo para dejar claro que no hay cobro. No debe
+              insinuar que Gold podría no llegar a existir: nadie pide que le
+              avisen de algo que capaz no se termina. */}
           <p style={{ fontSize: 11.5, textAlign: 'center', marginTop: 10, lineHeight: 1.55 }}>
-            No se te cobra nada. Solo nos dejas dicho que te interesa, para saber si vale la pena
-            terminarlo.
+            No se te cobra nada. Te avisamos apenas puedas activarlo.
           </p>
         </>
       )}
