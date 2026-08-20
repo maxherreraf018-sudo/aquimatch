@@ -70,7 +70,34 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/activaciones/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.placeId == resource.data.placeId)
       );
-      allow write: if request.auth != null && request.auth.uid == uid;
+      // El candado que faltaba. Antes esto era `allow write: if uid propio`, o
+      // sea que alguien con conocimientos técnicos podía escribir su propia
+      // activación con cualquier placeId y ver a toda la gente activa en ese
+      // bar sin haber estado nunca ahí — justo lo contrario de lo que promete
+      // la app, y de lo que le estamos explicando a Apple.
+      //
+      // Crear una activación queda SOLO para la Cloud Function activarEnLugar,
+      // que usa el Admin SDK y no pasa por estas reglas: es la que comprueba
+      // contra Google Places que el lugar esté a menos de 120 metros de las
+      // coordenadas del teléfono.
+      //
+      // La app sí sigue actualizando su propia activación, pero únicamente los
+      // campos que no dicen DÓNDE está: el latido, salir del lugar, el modo, el
+      // plan, la preferencia y la pausa. placeId, lat y lng quedan intocables
+      // desde el cliente.
+      //
+      // Se pudo cerrar recién ahora porque la versión que tienen los probadores
+      // (la 21, en Play desde el 14 de agosto) ya activa a través de la
+      // función. Una versión anterior a eso escribía directo y se quedaría sin
+      // poder activarse en ningún lado.
+      allow create: if false;
+      allow update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'actualizadaEn', 'activa', 'modo', 'plan',
+          'preferenciaGenero', 'pausadoHasta', 'pausaUsada'
+        ]);
+      // Borrar solo lo hace eliminarCuenta, con el Admin SDK.
+      allow delete: if false;
     }
     // "resource == null" cubre el caso de leer un documento que todavía no
     // existe (por ejemplo, marcarMeInteresa() revisando si la otra persona
