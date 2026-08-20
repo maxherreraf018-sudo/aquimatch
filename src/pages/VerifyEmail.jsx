@@ -69,7 +69,7 @@ export default function VerifyEmail() {
       const listo = await comprobar()
       if (!listo) {
         setError(
-          'Todavía no detectamos la verificación. Asegúrate de haber abierto el enlace del correo; puede tardar unos segundos.'
+          'Todavía no detectamos la verificación. Revisa que hayas tocado el botón de confirmación en la página que abrió el enlace — con abrir el correo no alcanza.'
         )
       }
     } catch (err) {
@@ -107,9 +107,18 @@ export default function VerifyEmail() {
       <h1 style={{ marginBottom: 8 }}>Revisa tu correo</h1>
       <p style={{ marginBottom: 2 }}>Enviamos un enlace de verificación a</p>
       <p style={{ color: 'var(--text)', fontWeight: 600, marginBottom: 24 }}>{correo}</p>
+      {/* El paso del botón NO es un detalle. Abrir el enlace del correo no
+          verifica nada: lleva a una página de Firebase donde hay que tocar un
+          botón ("Verificación completa"), y recién ahí queda verificado. La
+          instrucción decía solo "abre el enlace y vuelve", así que la persona
+          hacía exactamente lo que se le pedía y no funcionaba. */}
       <div className="chip" style={{ textAlign: 'left', marginBottom: 20, cursor: 'default' }}>
         <span style={{ marginRight: 8 }}>💡</span>
-        Abre el enlace del correo y vuelve aquí. Esta pantalla avanza sola en cuanto lo detecte.
+        <span>
+          Abre el enlace del correo y, en la página que se abre,{' '}
+          <strong style={{ color: 'var(--text)' }}>toca el botón de confirmación</strong>. Después
+          vuelve aquí: esta pantalla avanza sola.
+        </span>
       </div>
       <p style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 20 }}>
         ¿No lo ves? Revisa tu carpeta de spam o no deseado.
