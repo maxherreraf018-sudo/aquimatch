@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import {
@@ -16,20 +16,62 @@ export default function VerifyEmail() {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
 
+  // Le pregunta a Firebase si el correo ya quedó verificado. Devuelve true
+  // solo cuando lo está, para que quien la llama decida si avisar o callarse.
+  const comprobar = useCallback(async () => {
+    const usuarioActualizado = await recargarUsuarioActual()
+    if (!usuarioActualizado?.emailVerified) return false
+    const datosUsuario = await obtenerUsuario(usuarioActualizado.uid)
+    navigate(datosUsuario?.perfilCompleto ? '/activacion' : '/crear-perfil')
+    return true
+  }, [navigate])
+
+  // Esta pantalla prometía "vuelve aquí — se actualizará automáticamente" y no
+  // comprobaba nada: la única forma de avanzar era apretar el botón. La persona
+  // hacía clic en el enlace del correo, volvía a la app, se quedaba mirando una
+  // pantalla que decía que se iba a actualizar sola, y no pasaba nada.
+  //
+  // Ahora sí pregunta sola, y además pregunta de inmediato al volver a la app —
+  // que es justo el momento en que uno vuelve del correo.
+  const comprobando = useRef(false)
+  useEffect(() => {
+    let vivo = true
+    async function mirar() {
+      // Sin este candado, una comprobación lenta se pisa con la siguiente.
+      if (comprobando.current || !vivo) return
+      comprobando.current = true
+      try {
+        await comprobar()
+      } catch (err) {
+        // Un fallo puntual (red intermitente) no tiene por qué mostrar un
+        // error: el siguiente intento llega en unos segundos.
+      } finally {
+        comprobando.current = false
+      }
+    }
+    const intervalo = setInterval(mirar, 4000)
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') mirar()
+    }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      vivo = false
+      clearInterval(intervalo)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
+  }, [comprobar])
+
   async function manejarYaVerifique() {
     setError('')
     setMensaje('')
     setVerificando(true)
     try {
-      const usuarioActualizado = await recargarUsuarioActual()
-      if (!usuarioActualizado?.emailVerified) {
+      const listo = await comprobar()
+      if (!listo) {
         setError(
-          'Todavía no detectamos la verificación. Espera unos segundos después de hacer clic en el enlace e inténtalo de nuevo.'
+          'Todavía no detectamos la verificación. Asegúrate de haber abierto el enlace del correo; puede tardar unos segundos.'
         )
-        return
       }
-      const datosUsuario = await obtenerUsuario(usuarioActualizado.uid)
-      navigate(datosUsuario?.perfilCompleto ? '/activacion' : '/crear-perfil')
     } catch (err) {
       setError(`No pudimos confirmar la verificación. (${err?.code || err?.message || 'sin código'})`)
     } finally {
@@ -67,7 +109,7 @@ export default function VerifyEmail() {
       <p style={{ color: 'var(--text)', fontWeight: 600, marginBottom: 24 }}>{correo}</p>
       <div className="chip" style={{ textAlign: 'left', marginBottom: 20, cursor: 'default' }}>
         <span style={{ marginRight: 8 }}>💡</span>
-        Haz clic en el enlace del correo y vuelve aquí — se actualizará automáticamente.
+        Abre el enlace del correo y vuelve aquí. Esta pantalla avanza sola en cuanto lo detecte.
       </div>
       <p style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 20 }}>
         ¿No lo ves? Revisa tu carpeta de spam o no deseado.
