@@ -15,6 +15,7 @@ import {
   cerrarSesion,
 } from '../firebase/auth'
 import { registrarEvento } from '../firebase/analytics'
+import { esIOS } from '../services/plataforma'
 import { IconOjo, IconOjoTachado } from '../components/Icons'
 
 // Web Client ID (tipo "Aplicación web" en Google Cloud Console). Es el
@@ -434,10 +435,18 @@ export default function Auth() {
           <IconoGoogle />
           Continuar con Google
         </button>
-        <button className="btn btn-social" onClick={manejarClickApple} disabled={cargando}>
-          <IconoApple />
-          Continuar con Apple
-        </button>
+        {/* Solo en iPhone. La regla 4.8 que obliga a ofrecer Sign in with Apple
+            es de la App Store; en Android nadie lo exige. Y ahí además estaría
+            roto: el login de Apple fuera de iOS necesita un Services ID y una
+            URL de retorno configurados en el portal de Apple y en Firebase, que
+            no hicimos porque no hacían falta. Un botón que solo da error es
+            peor que no tenerlo. */}
+        {esIOS && (
+          <button className="btn btn-social" onClick={manejarClickApple} disabled={cargando}>
+            <IconoApple />
+            Continuar con Apple
+          </button>
+        )}
         <div className="divider">o</div>
         <form onSubmit={manejarEnvio} className="stack">
           <div className="field">
