@@ -428,7 +428,25 @@ const MAX_BUSQUEDAS_POR_VENTANA = 30;
 // Máximo de lugares que se le ofrecen a la persona para elegir.
 const MAX_LUGARES_MOSTRADOS = 2;
 // Cuánto se reutiliza la respuesta de Google para la misma zona.
-const DURACION_CACHE_MS = 5 * 60 * 1000;
+//
+// Eran 5 minutos, y con eso cada tanda de gente que llegaba a un bar a lo largo
+// de la noche volvía a pagar una consulta: 20 personas repartidas en la noche
+// eran ~20 consultas por la misma esquina. Con 3 horas es 1. El costo deja de
+// escalar con la cantidad de usuarios y pasa a escalar con zonas × noche, que
+// es lo que hace viable crecer (ver la cuota diaria de Places, que es el techo
+// que de verdad rompe la app un sábado).
+//
+// Por qué 3 horas y no más: un bar no se mueve, pero el nombre y la dirección
+// de Places no tienen excepción de caché en los términos de Google — solo el
+// place ID se puede guardar indefinidamente. Unas horas se sostiene como caché
+// temporal de rendimiento; una base propia de locales, no. Y un error en una
+// zona (como el de Bellavista) ahora dura lo que dure el caché, así que cuanto
+// más corto, antes se corrige solo.
+const DURACION_CACHE_MS = 3 * 60 * 60 * 1000;
+// Cuenta de administración (maxherreraf018@gmail.com). Solo se usa para poder
+// saltarse el caché al probar en la calle: sin esto, un arreglo en la búsqueda
+// de lugares no se puede verificar en terreno hasta 3 horas después.
+const ADMIN_UID = "SM1r3pWsTYU2soVHMUmOT1xzIfi2";
 // Radio con el que se le pregunta a Google: más amplio que el anterior para no
 // perder por unos metros un lugar que sí es válido (mismo criterio que usa el
 // cliente para buscar).
@@ -502,13 +520,17 @@ exports.buscarLugares = onCall(
       throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
     }
     const uid = request.auth.uid;
-    const { lat, lng } = request.data || {};
+    const { lat, lng, sinCache } = request.data || {};
     if (typeof lat !== "number" || typeof lng !== "number") {
       throw new HttpsError("invalid-argument", "Faltan las coordenadas.");
     }
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
     }
+    // Solo la cuenta de administración puede pedir datos frescos. Si esto fuera
+    // abierto, cualquiera podría vaciar la cuota diaria de Places pidiendo
+    // siempre sin caché, que es justo lo que el caché evita.
+    const omitirCache = sinCache === true && uid === ADMIN_UID;
 
     // Freno por persona: cada búsqueda sin caché gasta una consulta pagada.
     // Buscar es más frecuente que activarse (se puede reintentar), así que el
@@ -537,9 +559,11 @@ exports.buscarLugares = onCall(
     const refCache = admin.firestore().doc(`cachePlaces/${zonaId}`);
     let lugares = null;
 
-    const cache = (await refCache.get()).data();
-    if (cache?.actualizadoEnMs && ahoraMs - cache.actualizadoEnMs < DURACION_CACHE_MS) {
-      lugares = cache.lugares;
+    if (!omitirCache) {
+      const cache = (await refCache.get()).data();
+      if (cache?.actualizadoEnMs && ahoraMs - cache.actualizadoEnMs < DURACION_CACHE_MS) {
+        lugares = cache.lugares;
+      }
     }
 
     if (!lugares) {
@@ -564,7 +588,17 @@ exports.buscarLugares = onCall(
       // El caché ya no lo puede tocar el cliente (ver firestore.rules): antes
       // cualquiera podía inyectar lugares falsos que aparecían en la pantalla
       // "¿Dónde estás?" de otras personas.
-      await refCache.set({ lugares, actualizadoEnMs: ahoraMs }).catch(() => {});
+      // `expiraEn` no lo lee el código: existe para que Firestore borre solo el
+      // documento (política de TTL sobre este campo, se activa en la consola).
+      // Sin eso quedaría una entrada por cada celda de ~100 m que alguien haya
+      // visitado alguna vez, creciendo para siempre.
+      await refCache
+        .set({
+          lugares,
+          actualizadoEnMs: ahoraMs,
+          expiraEn: admin.firestore.Timestamp.fromMillis(ahoraMs + DURACION_CACHE_MS),
+        })
+        .catch(() => {});
     }
 
     return lugares
