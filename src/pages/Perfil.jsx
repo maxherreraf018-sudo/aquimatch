@@ -112,8 +112,18 @@ export default function Perfil() {
       await uploadBytes(storageRef, fotoPendiente)
       const fotoURL = await getDownloadURL(storageRef)
       if (slotFotoPendiente === 'principal') {
-        await actualizarUsuario(uid, { fotoPrincipal: fotoURL })
-        setUsuario((prev) => ({ ...(prev || {}), fotoPrincipal: fotoURL }))
+        const cambios = { fotoPrincipal: fotoURL }
+        // Si estaba trabada por falta de foto, agregar la foto tiene que
+        // reactivar la verificación. La función del servidor solo se dispara
+        // cuando el estado es "pendiente" y hay una selfie nueva, así que hay
+        // que volver a marcar las dos cosas — si no, la persona agrega la foto
+        // y se queda igual de trabada, sin entender por qué.
+        if (usuario?.estadoVerificacion === 'falta_foto') {
+          cambios.estadoVerificacion = 'pendiente'
+          cambios.selfieActualizadaEn = Date.now()
+        }
+        await actualizarUsuario(uid, cambios)
+        setUsuario((prev) => ({ ...(prev || {}), ...cambios }))
       } else {
         const existentes = usuario?.fotosAdicionales || []
         const fotosAdicionales = [existentes[0] ?? null, existentes[1] ?? null]

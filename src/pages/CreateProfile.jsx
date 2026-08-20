@@ -75,6 +75,12 @@ export default function CreateProfile() {
       return setError('AquiMatch es solo para personas mayores de 18 años.')
     }
     if (!genero) return setError('Selecciona con qué género te identificas.')
+    // La foto es obligatoria y no lo era. Sin ella el perfil se guardaba con
+    // fotoPrincipal vacío, y después la verificación de la selfie no tenía con
+    // qué compararla: la persona quedaba atrapada para siempre en la pantalla
+    // de "no pudimos verificar tu selfie", sin que nada le dijera que lo que
+    // faltaba era esto.
+    if (!foto) return setError('Agrega una foto de perfil para continuar.')
     setCargando(true)
     try {
       const auth = getAuth()

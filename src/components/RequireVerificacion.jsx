@@ -74,6 +74,12 @@ export default function RequireVerificacion({ children }) {
     )
   }
 
+  // Falta la foto de perfil: no es un rechazo de la selfie y no hay que
+  // mandarla a sacarse otra. Se le dice qué falta y se la lleva a agregarla.
+  if (estado === 'falta_foto') {
+    return <FaltaFotoPerfil />
+  }
+
   if (estado === 'rechazado' || estado === 'error_verificacion') {
     return <VerificacionRechazada uid={uid} />
   }
@@ -83,6 +89,41 @@ export default function RequireVerificacion({ children }) {
   }
 
   return children
+}
+
+// Pantalla para quien completó el perfil sin foto. El problema no es su
+// selfie, así que no se le pide otra: se le explica qué falta y se la manda a
+// Perfil, donde puede agregarla tocando su avatar. Al guardarla, la propia
+// escritura del documento vuelve a disparar la verificación.
+function FaltaFotoPerfil() {
+  const navigate = useNavigate()
+  return (
+    <div className="screen" style={{ justifyContent: 'center', textAlign: 'center' }}>
+      <div
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: '50%',
+          border: '2px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-dim)',
+          margin: '0 auto 20px',
+        }}
+      >
+        <IconAlerta size={26} />
+      </div>
+      <h1 style={{ marginBottom: 10 }}>Te falta tu foto de perfil</h1>
+      <p style={{ marginBottom: 24 }}>
+        Comparamos tu selfie con tu foto de perfil para confirmar que eres tú, y todavía no tienes
+        una. Agrégala y verificamos tu selfie enseguida.
+      </p>
+      <button className="btn btn-primary" onClick={() => navigate('/perfil')}>
+        Agregar mi foto
+      </button>
+    </div>
+  )
 }
 
 function VerificacionRechazada({ uid, tardando }) {
@@ -135,7 +176,7 @@ function VerificacionRechazada({ uid, tardando }) {
       </h1>
       <p style={{ marginBottom: tardando ? 20 : 10 }}>
         {tardando
-          ? 'Puede haber sido un problema de conexión. Volvé a tomarte la selfie para intentarlo de nuevo.'
+          ? 'Puede haber sido un problema de conexión. Vuelve a tomarte la selfie para intentarlo de nuevo.'
           : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
       </p>
       {!tardando && (

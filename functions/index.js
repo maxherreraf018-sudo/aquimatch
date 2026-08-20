@@ -77,7 +77,22 @@ exports.verificarSelfie = onDocumentUpdated(
       const snapPrivado = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
       selfieVerificacion = snapPrivado.exists ? snapPrivado.data().selfieVerificacion : null;
     }
-    if (!fotoPrincipal || !selfieVerificacion) return;
+    // Sin foto de perfil no hay contra qué comparar la selfie. Antes esto era
+    // un `return` silencioso y el resultado era una trampa: el estado se
+    // quedaba en "pendiente" para siempre, a los 60 segundos la app mostraba
+    // "no pudimos verificar tu selfie", la persona se sacaba otra selfie, y
+    // volvía a pasar exactamente lo mismo. Nada le decía que lo que faltaba
+    // era la foto de perfil.
+    //
+    // Ahora se deja un estado propio para que la app pueda mandarla a
+    // agregarla. Hace falta también para las cuentas que ya quedaron trabadas
+    // antes de este arreglo: con solo exigir la foto al crear el perfil, esas
+    // seguirian atascadas.
+    if (!fotoPrincipal) {
+      await ref.update({ estadoVerificacion: "falta_foto" });
+      return;
+    }
+    if (!selfieVerificacion) return;
 
     try {
       const [fotoBytes, selfieBytes] = await Promise.all([
