@@ -1,14 +1,41 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Todo cerrado por defecto: solo se abre lo que la app usa de verdad.
     match /{allPaths=**} {
       allow read, write: if false;
     }
-    match /fotos-perfil/{uid}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    // Antes estas dos reglas solo comprobaban quién era el dueño: ni tamaño,
+    // ni tipo de archivo, ni nombre. O sea que una cuenta cualquiera podía
+    // subir a su propia carpeta un archivo de varios gigas, o algo que no
+    // fuera una imagen, y la factura de Storage la pagaba Max.
+    //
+    // La app sube exactamente tres nombres de archivo (verificado en
+    // CreateProfile.jsx, Perfil.jsx y services/verificacion.js), así que las
+    // reglas exigen justo esos y nada más.
+    //
+    // `request.resource == null` es un borrado: ahí no hay archivo nuevo que
+    // validar, y las condiciones de tamaño/tipo no aplican.
+    function esImagenRazonable() {
+      return request.resource == null || (
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*')
+      );
     }
-    match /selfies-verificacion/{uid}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    match /fotos-perfil/{uid}/{archivo} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid &&
+        archivo.matches('principal\\.jpg|adicional-[01]\\.jpg') &&
+        esImagenRazonable();
+    }
+
+    match /selfies-verificacion/{uid}/{archivo} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid &&
+        archivo.matches('selfie\\.jpg') &&
+        esImagenRazonable();
     }
   }
 }

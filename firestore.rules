@@ -44,7 +44,48 @@ service cloud.firestore {
       // recorre la colección es services/admin.js.
       allow get: if request.auth != null;
       allow list: if esAdmin();
-      allow write: if request.auth != null && (request.auth.uid == uid || esAdmin());
+
+      // Campos que decide el SERVIDOR y que el dueño no puede tocar. Sin esto,
+      // `allow write` dejaba al dueño escribir cualquier campo de su propia
+      // ficha — incluido `estadoVerificacion`. O sea que alguien con
+      // conocimientos técnicos se ponía "aprobado" a sí mismo desde fuera de
+      // la app y se saltaba la selfie por completo: la pantalla que bloquea
+      // (RequireVerificacion) es del lado del cliente y no frena a quien
+      // escribe directo a Firestore. Y `activarEnLugar` confía en ese mismo
+      // campo para dejar activarse, así que el agujero llegaba hasta el final.
+      function camposDelServidor() {
+        return ['parecidoSelfie', 'verificadoEn', 'motivoRechazo', 'suspendido'];
+      }
+      function cambiosUsuario() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      // La app sí necesita poder pedir una revisión nueva: al completar el
+      // perfil y al reintentar tras un rechazo escribe `pendiente`. Ese es el
+      // único valor que puede poner el cliente; "aprobado", "rechazado",
+      // "falta_foto" y "error_verificacion" los escribe solo la función
+      // verificarSelfie con el Admin SDK.
+      function verificacionValida() {
+        return !cambiosUsuario().hasAny(['estadoVerificacion']) ||
+          request.resource.data.estadoVerificacion == 'pendiente';
+      }
+      // La fecha de nacimiento se puede escribir durante el registro, pero
+      // queda congelada al terminarlo. Si no, cualquiera se cambia la edad
+      // después de haber pasado el control de los 18 años.
+      function fechaNacimientoValida() {
+        return !cambiosUsuario().hasAny(['fechaNacimiento']) ||
+          resource.data.perfilCompleto != true;
+      }
+      allow create: if request.auth != null && request.auth.uid == uid &&
+        !request.resource.data.keys().hasAny(camposDelServidor()) &&
+        !request.resource.data.keys().hasAny(['estadoVerificacion']);
+      allow update: if esAdmin() || (
+        request.auth != null && request.auth.uid == uid &&
+        !cambiosUsuario().hasAny(camposDelServidor()) &&
+        verificacionValida() &&
+        fechaNacimientoValida()
+      );
+      // Borrar la ficha es cosa de eliminarCuenta, que usa el Admin SDK.
+      allow delete: if false;
 
       // Datos que NADIE más debe poder leer, ni siquiera alguien que tenga tu
       // uid (y lo tiene cualquiera que se haya activado en el mismo lugar que
@@ -122,8 +163,44 @@ service cloud.firestore {
       // crearConexion() en el cliente primero revisa si ya existe antes de
       // crearla, y la primera vez entre dos personas nunca existe todavía.
       allow read: if request.auth != null && (resource == null || request.auth.uid in resource.data.usuarios);
-      allow create: if request.auth != null && request.auth.uid in request.resource.data.usuarios;
-      allow update: if request.auth != null && request.auth.uid in resource.data.usuarios;
+
+      // Antes alcanzaba con incluirse a uno mismo en la lista de usuarios para
+      // crear una conexión con QUIEN FUERA. Con eso, cualquiera con una cuenta
+      // le fabricaba un match a una persona que nunca le dio "me interesa", y
+      // a partir de ahí le mandaba mensajes y notificaciones. En una app donde
+      // la otra persona está a tres mesas, eso es un vector de acoso, no un
+      // problema teórico.
+      //
+      // Ahora las reglas exigen lo mismo que ya hacía la app (ver
+      // crearConexion en src/services/discover.js), así que no cambia nada
+      // para el uso normal:
+      //   - exactamente dos participantes, y uno sos vos
+      //   - el id del documento son esos dos uid ordenados
+      //   - existen los DOS documentos de interés, el tuyo y el de la otra
+      //     persona, en el mismo lugar. Es lo que hace que el match sea mutuo
+      //     de verdad y no una declaración del cliente.
+      // El id de un interés es `{placeId}_{desde}_{hacia}` (idInteres, en
+      // discover.js).
+      function hayInteres(desde, hacia, placeId) {
+        return exists(/databases/$(database)/documents/intereses/$(placeId + '_' + desde + '_' + hacia));
+      }
+      allow create: if request.auth != null &&
+        request.resource.data.usuarios.size() == 2 &&
+        request.auth.uid in request.resource.data.usuarios &&
+        conexionId == idConexion(request.resource.data.usuarios[0], request.resource.data.usuarios[1]) &&
+        hayInteres(request.resource.data.usuarios[0], request.resource.data.usuarios[1], request.resource.data.placeId) &&
+        hayInteres(request.resource.data.usuarios[1], request.resource.data.usuarios[0], request.resource.data.placeId);
+
+      // Y un participante ya no puede reescribir el documento entero: antes
+      // podía cambiar la lista de participantes y meter a un tercero en una
+      // conversación ajena. Solo se tocan los campos que la app usa para el
+      // chat, deshacer el match y volver a activarlo.
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.usuarios &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'ultimoMensajeEn', 'ultimoMensajeTexto', 'ultimoMensajeAutor',
+          'ultimaLectura', 'deshecho', 'deshechoEn', 'placeId', 'creadaEn'
+        ]);
       allow delete: if false;
       match /mensajes/{mensajeId} {
         allow read: if request.auth != null &&
