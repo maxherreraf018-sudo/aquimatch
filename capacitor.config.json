@@ -3,6 +3,10 @@
   "appName": "AquiMatch",
   "webDir": "dist",
   "plugins": {
+    "Keyboard": {
+      "resize": "native",
+      "resizeOnFullScreen": true
+    },
     "SocialLogin": {
       "providers": {
         "google": true,
