@@ -1,6 +1,8 @@
 const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
+const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 const { RekognitionClient, CompareFacesCommand } = require("@aws-sdk/client-rekognition");
 
@@ -932,3 +934,117 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     minimoParaMostrar: MINIMO_PARA_MOSTRAR,
   };
 });
+
+// ---------------------------------------------------------------------------
+// Migración de una sola vez: selfies y datos privados que quedaron expuestos
+//
+// El 2026-08-14 los campos sensibles (selfie de verificación, contacto de
+// confianza y correo) se movieron a `usuarios/{uid}/privado/datos`. Pero la
+// migración es del lado del cliente: corre la primera vez que cada persona
+// vuelve a entrar. Quien no volvió, sigue con esos campos en el documento
+// PÚBLICO, que puede leer cualquiera que conozca su uid — y el uid viaja
+// dentro de cada activación, así que lo tiene cualquiera que haya estado en
+// el mismo bar.
+//
+// Y hay algo peor, que es la razón de fondo de esta función: quitar el campo
+// NO alcanza. La selfie se guardaba como URL de descarga de Firebase Storage,
+// y esa URL lleva su propio token: sigue funcionando para siempre, para
+// cualquiera que la haya copiado, sin pasar por las reglas de Storage. Antes
+// del 2026-08-13 se podía además RECORRER la colección entera de usuarios, o
+// sea que cualquiera con una cuenta pudo bajarse todas esas URLs de una sola
+// vez.
+//
+// Por eso se le rota el token a TODAS las selfies, no solo a las sin migrar:
+// cualquier cuenta anterior al 13 de agosto pudo quedar expuesta aunque su
+// documento ya esté limpio. Rotar el token mata las URLs viejas, y la URL
+// nueva se guarda en la subcolección privada, que es de donde la lee el panel
+// de moderación (ver conSelfies en src/services/admin.js).
+//
+// Corre sola y se marca como hecha para no repetirse. Una vez confirmada,
+// esta función se puede borrar del archivo.
+// ---------------------------------------------------------------------------
+const CAMPOS_PRIVADOS = ["correo", "selfieVerificacion", "contactoConfianza"];
+
+exports.migrarDatosExpuestos = onSchedule(
+  { schedule: "every 10 minutes", timeZone: "America/Santiago" },
+  async () => {
+    const db = admin.firestore();
+    const refMarca = db.doc("mantenimiento/migracionSelfies");
+    if ((await refMarca.get()).exists) {
+      console.log("[migrarDatosExpuestos] ya se hizo, no hay nada que hacer");
+      return;
+    }
+
+    const bucket = admin.storage().bucket();
+    const usuarios = await db.collection("usuarios").get();
+    let camposMovidos = 0;
+    let tokensRotados = 0;
+    let sinSelfie = 0;
+
+    for (const documento of usuarios.docs) {
+      const uid = documento.id;
+      const datos = documento.data();
+
+      // 1. Rotar el token de la selfie y quedarse con la URL nueva.
+      let urlNueva = null;
+      try {
+        const archivo = bucket.file(`selfies-verificacion/${uid}/selfie.jpg`);
+        const [existe] = await archivo.exists();
+        if (existe) {
+          const token = crypto.randomUUID();
+          // Escribir este campo REEMPLAZA los tokens anteriores: cualquier URL
+          // que se haya filtrado deja de servir en ese mismo momento.
+          await archivo.setMetadata({
+            metadata: { firebaseStorageDownloadTokens: token },
+          });
+          urlNueva =
+            `https://firebasestorage.googleapis.com/v0/b/${bucket.name}` +
+            `/o/${encodeURIComponent(archivo.name)}?alt=media&token=${token}`;
+          tokensRotados++;
+        } else {
+          sinSelfie++;
+        }
+      } catch (error) {
+        console.error(`[migrarDatosExpuestos] token de ${uid}:`, error);
+      }
+
+      // 2. Mover a la subcolección privada lo que haya quedado en el público,
+      //    y guardar de paso la URL nueva de la selfie.
+      const presentes = CAMPOS_PRIVADOS.filter((campo) => datos[campo] !== undefined);
+      const aGuardar = {};
+      const aBorrar = {};
+      presentes.forEach((campo) => {
+        aGuardar[campo] = datos[campo];
+        aBorrar[campo] = admin.firestore.FieldValue.delete();
+      });
+      if (urlNueva) aGuardar.selfieVerificacion = urlNueva;
+
+      try {
+        // Copiar primero y borrar después: si algo falla en el medio, el dato
+        // queda duplicado (recuperable) en vez de perdido.
+        if (Object.keys(aGuardar).length > 0) {
+          await db.doc(`usuarios/${uid}/privado/datos`).set(aGuardar, { merge: true });
+        }
+        if (presentes.length > 0) {
+          await documento.ref.update(aBorrar);
+          camposMovidos++;
+        }
+      } catch (error) {
+        console.error(`[migrarDatosExpuestos] campos de ${uid}:`, error);
+      }
+    }
+
+    await refMarca.set({
+      hechoEn: admin.firestore.FieldValue.serverTimestamp(),
+      usuariosRevisados: usuarios.size,
+      camposMovidos,
+      tokensRotados,
+      sinSelfie,
+    });
+    console.log(
+      `[migrarDatosExpuestos] ${usuarios.size} usuarios · ` +
+        `${camposMovidos} con datos en el documento público · ` +
+        `${tokensRotados} tokens rotados · ${sinSelfie} sin selfie`
+    );
+  }
+);
