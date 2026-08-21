@@ -653,33 +653,67 @@ exports.activarEnLugar = onCall(
       throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
     }
 
-    // 1. Preguntarle a Google qué hay realmente alrededor de esas coordenadas.
-    //    Misma consulta que usa buscarLugares: una sola implementación, para
-    //    que el radio y los tipos de lugar no se puedan desincronizar.
-    let lugares = [];
-    try {
-      lugares = await consultarPlacesCercanos(lat, lng);
-    } catch (error) {
-      console.error("[activarEnLugar] error consultando Places:", error);
-      throw new HttpsError("unavailable", "No pudimos verificar tu ubicación. Intenta de nuevo.");
+    // 1. El lugar elegido tiene que ser uno de los que hay realmente alrededor
+    //    de esas coordenadas.
+    //
+    //    Se mira PRIMERO el caché de zona que dejó buscarLugares. La persona
+    //    acaba de buscar para poder elegir el local, así que esa consulta ya se
+    //    pagó hace segundos. Antes acá se le preguntaba a Google de nuevo en
+    //    cada activación: dos consultas pagadas por salida en vez de una, y era
+    //    la mitad del gasto de Places que el caché de búsquedas no tocaba.
+    //
+    //    Que los datos sean de hace un rato no debilita la comprobación: un bar
+    //    no se mueve, y el candado real es el paso 2, que mide la distancia
+    //    contra las coordenadas que manda el teléfono AHORA.
+    //
+    //    Si el lugar no está en el caché, se le pregunta a Google igual que
+    //    siempre ANTES de rechazar a nadie. Eso es lo que impide reintroducir
+    //    el falso rechazo tipo Bellavista: si el caché de esa celda quedó
+    //    incompleto, la persona igual se puede activar estando adentro.
+    let lugar = null;
+    const zonaId = idZonaCache(lat, lng);
+    const cache = (await admin.firestore().doc(`cachePlaces/${zonaId}`).get()).data();
+    if (cache?.actualizadoEnMs && ahoraMs - cache.actualizadoEnMs < DURACION_CACHE_MS) {
+      const enCache = (cache.lugares || []).find((l) => l.placeId === placeId);
+      if (enCache) {
+        lugar = {
+          nombre: enCache.nombre || "",
+          lat: enCache.lat,
+          lng: enCache.lng,
+          tipos: enCache.tipos || [],
+        };
+      }
     }
-
-    // 2. El lugar elegido tiene que estar entre los que Google ve desde ahí...
-    const lugar = lugares.find((p) => p.id === placeId);
     if (!lugar) {
-      throw new HttpsError(
-        "permission-denied",
-        "No pudimos confirmar que estés en ese lugar. Acércate a la entrada e intenta de nuevo."
-      );
+      let lugares = [];
+      try {
+        // Misma consulta que usa buscarLugares: una sola implementación, para
+        // que el radio y los tipos de lugar no se puedan desincronizar.
+        lugares = await consultarPlacesCercanos(lat, lng);
+      } catch (error) {
+        console.error("[activarEnLugar] error consultando Places:", error);
+        throw new HttpsError("unavailable", "No pudimos verificar tu ubicación. Intenta de nuevo.");
+      }
+      const crudo = lugares.find((p) => p.id === placeId);
+      if (!crudo) {
+        throw new HttpsError(
+          "permission-denied",
+          "No pudimos confirmar que estés en ese lugar. Acércate a la entrada e intenta de nuevo."
+        );
+      }
+      lugar = {
+        nombre: crudo.displayName?.text || "",
+        lat: crudo.location?.latitude,
+        lng: crudo.location?.longitude,
+        tipos: crudo.types || [],
+      };
     }
 
-    // 3. ...y a menos de 120 metros de verdad.
-    const distancia = distanciaMetros(
-      lat,
-      lng,
-      lugar.location?.latitude,
-      lugar.location?.longitude
-    );
+    // 2. Y tiene que estar a menos de 120 metros de verdad. Este es el candado
+    //    real, y se calcula siempre contra las coordenadas que manda el
+    //    teléfono en esta llamada, vengan los datos del lugar del caché o de
+    //    una consulta fresca.
+    const distancia = distanciaMetros(lat, lng, lugar.lat, lugar.lng);
     if (!(distancia <= RADIO_ACTIVACION_METROS)) {
       throw new HttpsError(
         "permission-denied",
@@ -713,10 +747,10 @@ exports.activarEnLugar = onCall(
       genero: perfil.genero || "",
       preferenciaGenero: perfil.preferenciaGenero || "ambos",
       placeId,
-      placeName: lugar.displayName?.text || "",
-      lat: lugar.location?.latitude,
-      lng: lugar.location?.longitude,
-      tipos: lugar.types || [],
+      placeName: lugar.nombre,
+      lat: lugar.lat,
+      lng: lugar.lng,
+      tipos: lugar.tipos,
       activa: true,
       modo: null,
       pausadoHasta: null,
@@ -735,17 +769,17 @@ exports.activarEnLugar = onCall(
     // activación: registrarEstadistica se traga sus propios errores.
     await registrarEstadistica(
       placeId,
-      lugar.displayName?.text || "",
+      lugar.nombre,
       perfil,
       activacionPreviaSnap.exists ? activacionPreviaSnap.data() : null
     );
 
     return {
       placeId,
-      placeName: lugar.displayName?.text || "",
-      lat: lugar.location?.latitude,
-      lng: lugar.location?.longitude,
-      tipos: lugar.types || [],
+      placeName: lugar.nombre,
+      lat: lugar.lat,
+      lng: lugar.lng,
+      tipos: lugar.tipos,
     };
   }
 );
