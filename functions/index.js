@@ -452,6 +452,24 @@ const ADMIN_UID = "SM1r3pWsTYU2soVHMUmOT1xzIfi2";
 // cliente para buscar).
 const RADIO_CONSULTA_METROS = 200;
 
+// Edad a partir de "AAAA-M-D", que es como la guarda CreateProfile (el mes y
+// el día pueden venir sin cero adelante). Devuelve null si no se puede
+// calcular, y quien llama tiene que tratar eso como NO elegible: sin una fecha
+// válida no hay forma de saber si es mayor de edad, y en la duda no se pasa.
+function calcularEdad(fechaNacimiento) {
+  if (typeof fechaNacimiento !== "string") return null;
+  const partes = fechaNacimiento.split("-").map(Number);
+  if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return null;
+  const [anio, mes, dia] = partes;
+  const nacimiento = new Date(Date.UTC(anio, mes - 1, dia));
+  if (Number.isNaN(nacimiento.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getUTCFullYear() - anio;
+  const mesesDeDiferencia = hoy.getUTCMonth() + 1 - mes;
+  if (mesesDeDiferencia < 0 || (mesesDeDiferencia === 0 && hoy.getUTCDate() < dia)) edad--;
+  return edad;
+}
+
 function distanciaMetros(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const rad = (g) => (g * Math.PI) / 180;
@@ -734,8 +752,33 @@ exports.activarEnLugar = onCall(
       throw new HttpsError("failed-precondition", "Todavía no tienes perfil.");
     }
     const perfil = perfilSnap.data();
-    if (perfil.estadoVerificacion === "pendiente" || perfil.estadoVerificacion === "rechazado") {
+
+    // Lista blanca, no lista negra. Antes se rechazaban SOLO "pendiente" y
+    // "rechazado", así que dejaba pasar cualquier otro valor — y sobre todo,
+    // dejaba pasar cuando el campo NO EXISTÍA. Alcanzaba con crear el
+    // documento de usuario directamente contra Firebase, sin pasar nunca por
+    // la app, para activarse en un lugar sin haber subido una selfie. También
+    // pasaban "falta_foto" y "error_verificacion", que son estados de gente
+    // que justamente NO terminó de verificarse.
+    //
+    // Regla general que conviene mantener: una cuenta en un estado que no
+    // reconocemos se trata como bloqueada, nunca como aprobada.
+    if (perfil.estadoVerificacion !== "aprobado") {
       throw new HttpsError("failed-precondition", "Tu perfil todavía no está verificado.");
+    }
+    if (perfil.perfilCompleto !== true) {
+      throw new HttpsError("failed-precondition", "Todavía no completaste tu perfil.");
+    }
+    if (perfil.suspendido === true) {
+      throw new HttpsError("permission-denied", "Tu cuenta está suspendida.");
+    }
+    // El control de los 18 años vivía solo en la pantalla de registro, o sea
+    // en el cliente: quien escribiera su perfil por fuera de la app se lo
+    // saltaba entero. Acá se recalcula contra la fecha guardada, y sin fecha
+    // válida no se activa nadie.
+    const edad = calcularEdad(perfil.fechaNacimiento);
+    if (edad === null || edad < 18) {
+      throw new HttpsError("failed-precondition", "AquiMatch es solo para mayores de 18 años.");
     }
 
     await admin.firestore().doc(`activaciones/${uid}`).set({

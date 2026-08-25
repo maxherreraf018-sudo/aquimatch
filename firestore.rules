@@ -195,12 +195,28 @@ service cloud.firestore {
       // podía cambiar la lista de participantes y meter a un tercero en una
       // conversación ajena. Solo se tocan los campos que la app usa para el
       // chat, deshacer el match y volver a activarlo.
+      function cambiosConexion() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      // Deshacer un match lo puede hacer cualquiera de los dos por su cuenta.
+      // VOLVER A ACTIVARLO, no: si bastara con poner `deshecho: false`, quien
+      // fue eliminado podría resucitar la conversación solo, que es la misma
+      // puerta de acoso que cerramos al exigir interés mutuo para crearla.
+      // Reactivar exige otra vez los dos "me interesa", igual que la primera
+      // vez (es lo que ya hace crearConexion en el cliente).
+      function reactivacionLegitima() {
+        return !cambiosConexion().hasAny(['deshecho']) ||
+          request.resource.data.deshecho == true ||
+          (hayInteres(resource.data.usuarios[0], resource.data.usuarios[1], request.resource.data.placeId) &&
+           hayInteres(resource.data.usuarios[1], resource.data.usuarios[0], request.resource.data.placeId));
+      }
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.usuarios &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        cambiosConexion().hasOnly([
           'ultimoMensajeEn', 'ultimoMensajeTexto', 'ultimoMensajeAutor',
           'ultimaLectura', 'deshecho', 'deshechoEn', 'placeId', 'creadaEn'
-        ]);
+        ]) &&
+        reactivacionLegitima();
       allow delete: if false;
       match /mensajes/{mensajeId} {
         allow read: if request.auth != null &&
