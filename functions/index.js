@@ -452,6 +452,38 @@ const ADMIN_UID = "SM1r3pWsTYU2soVHMUmOT1xzIfi2";
 // cliente para buscar).
 const RADIO_CONSULTA_METROS = 200;
 
+/**
+ * Cuenta un uso dentro de una ventana de tiempo, de forma ATÓMICA.
+ *
+ * Antes esto era leer el contador y después escribirlo, en dos pasos: dos
+ * llamadas simultáneas leían el mismo número y las dos se daban por debajo del
+ * tope, así que el límite se podía superar mandando solicitudes en paralelo —
+ * justo lo que haría alguien que quiere agotar la cuota de Places. Dentro de
+ * una transacción, Firestore detecta el choque y reintenta la segunda, así que
+ * el conteo queda bien.
+ */
+async function contarUso(uid, campoConteo, campoVentana, maximo, mensaje) {
+  const ref = admin.firestore().doc(`limites/${uid}`);
+  const ahoraMs = Date.now();
+  await admin.firestore().runTransaction(async (transaccion) => {
+    const datos = (await transaccion.get(ref)).data() || {};
+    const enVentana =
+      datos[campoVentana] && ahoraMs - datos[campoVentana] < VENTANA_LIMITE_MS;
+    const usados = enVentana ? datos[campoConteo] || 0 : 0;
+    if (usados >= maximo) {
+      throw new HttpsError("resource-exhausted", mensaje);
+    }
+    transaccion.set(
+      ref,
+      {
+        [campoConteo]: usados + 1,
+        [campoVentana]: enVentana ? datos[campoVentana] : ahoraMs,
+      },
+      { merge: true }
+    );
+  });
+}
+
 // Edad a partir de "AAAA-M-D", que es como la guarda CreateProfile (el mes y
 // el día pueden venir sin cero adelante). Devuelve null si no se puede
 // calcular, y quien llama tiene que tratar eso como NO elegible: sin una fecha
@@ -553,24 +585,13 @@ exports.buscarLugares = onCall(
     // Freno por persona: cada búsqueda sin caché gasta una consulta pagada.
     // Buscar es más frecuente que activarse (se puede reintentar), así que el
     // tope es más alto que el de activarEnLugar.
-    const refLimite = admin.firestore().doc(`limites/${uid}`);
     const ahoraMs = Date.now();
-    const limite = (await refLimite.get()).data() || {};
-    const enVentana =
-      limite.ventanaBusquedasEn && ahoraMs - limite.ventanaBusquedasEn < VENTANA_LIMITE_MS;
-    const busquedas = enVentana ? limite.busquedas || 0 : 0;
-    if (busquedas >= MAX_BUSQUEDAS_POR_VENTANA) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "Hiciste demasiadas búsquedas seguidas. Espera un rato."
-      );
-    }
-    await refLimite.set(
-      {
-        busquedas: busquedas + 1,
-        ventanaBusquedasEn: enVentana ? limite.ventanaBusquedasEn : ahoraMs,
-      },
-      { merge: true }
+    await contarUso(
+      uid,
+      "busquedas",
+      "ventanaBusquedasEn",
+      MAX_BUSQUEDAS_POR_VENTANA,
+      "Hiciste demasiadas búsquedas seguidas. Espera un rato."
     );
 
     const zonaId = idZonaCache(lat, lng);
@@ -646,24 +667,13 @@ exports.activarEnLugar = onCall(
     // agotarla, y dejar a TODO el mundo sin poder encontrar lugares hasta la
     // medianoche. Activarse de verdad se hace una vez por salida, así que 10
     // por hora es holgadísimo para el uso real y mata el abuso.
-    const refLimite = admin.firestore().doc(`limites/${uid}`);
     const ahoraMs = Date.now();
-    const limite = (await refLimite.get()).data() || {};
-    const dentroDeLaVentana =
-      limite.ventanaIniciadaEn && ahoraMs - limite.ventanaIniciadaEn < VENTANA_LIMITE_MS;
-    const intentos = dentroDeLaVentana ? limite.intentos || 0 : 0;
-    if (intentos >= MAX_ACTIVACIONES_POR_VENTANA) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "Hiciste demasiados intentos seguidos. Espera un rato antes de volver a activarte."
-      );
-    }
-    await refLimite.set(
-      {
-        intentos: intentos + 1,
-        ventanaIniciadaEn: dentroDeLaVentana ? limite.ventanaIniciadaEn : ahoraMs,
-      },
-      { merge: true }
+    await contarUso(
+      uid,
+      "intentos",
+      "ventanaIniciadaEn",
+      MAX_ACTIVACIONES_POR_VENTANA,
+      "Hiciste demasiados intentos seguidos. Espera un rato antes de volver a activarte."
     );
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");

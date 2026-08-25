@@ -19,6 +19,29 @@ service cloud.firestore {
     function idConexion(a, b) {
       return a < b ? a + '_' + b : b + '_' + a;
     }
+    // Bloquear y suspender existían solo en la pantalla: la app filtraba a
+    // quien bloqueaste en Descubrir, pero Firestore no le impedía nada. Con un
+    // cliente modificado, alguien a quien bloqueaste podía seguir
+    // mandándote mensajes — y en una app donde esa persona sabe en qué bar
+    // estás, eso no es un detalle técnico.
+    //
+    // `bloqueados` vive en el documento de quien bloquea (ver bloquearUsuario
+    // en src/services/chat.js), así que "¿me bloqueó?" se pregunta mirando SU
+    // ficha. `.get(campo, valor)` evita que la regla falle cuando el campo
+    // todavía no existe, que es el caso de casi todos.
+    function perfilDe(uid) {
+      return get(/databases/$(database)/documents/usuarios/$(uid)).data;
+    }
+    function estaSuspendido(uid) {
+      return perfilDe(uid).get('suspendido', false) == true;
+    }
+    function meBloqueo(otroUid) {
+      return request.auth.uid in perfilDe(otroUid).get('bloqueados', []);
+    }
+    function otroDeLaConexion(conexionId) {
+      let usuarios = get(/databases/$(database)/documents/conexiones/$(conexionId)).data.usuarios;
+      return usuarios[0] == request.auth.uid ? usuarios[1] : usuarios[0];
+    }
     function tieneConexionCon(otroUid) {
       return exists(/databases/$(database)/documents/conexiones/$(idConexion(request.auth.uid, otroUid)));
     }
@@ -149,13 +172,23 @@ service cloud.firestore {
     match /intereses/{interesId} {
       allow read: if request.auth != null &&
         (resource == null || resource.data.desde == request.auth.uid || resource.data.hacia == request.auth.uid);
-      allow write: if request.auth != null && request.auth.uid == request.resource.data.desde;
+      // Además del dueño: esquema cerrado (antes se podía escribir cualquier
+      // campo, de cualquier tamaño), cuenta no suspendida, y no se le puede
+      // dar "me interesa" a alguien que te bloqueó.
+      allow write: if request.auth != null &&
+        request.auth.uid == request.resource.data.desde &&
+        request.resource.data.keys().hasOnly(['desde', 'hacia', 'placeId', 'creadoEn']) &&
+        !estaSuspendido(request.auth.uid) &&
+        !meBloqueo(request.resource.data.hacia);
       allow delete: if false;
     }
     match /pases/{paseId} {
       allow read: if request.auth != null &&
         (resource == null || resource.data.desde == request.auth.uid || resource.data.hacia == request.auth.uid);
-      allow write: if request.auth != null && request.auth.uid == request.resource.data.desde;
+      allow write: if request.auth != null &&
+        request.auth.uid == request.resource.data.desde &&
+        request.resource.data.keys().hasOnly(['desde', 'hacia', 'placeId', 'creadoEn']) &&
+        !estaSuspendido(request.auth.uid);
       allow delete: if false;
     }
     match /conexiones/{conexionId} {
@@ -189,7 +222,8 @@ service cloud.firestore {
         request.auth.uid in request.resource.data.usuarios &&
         conexionId == idConexion(request.resource.data.usuarios[0], request.resource.data.usuarios[1]) &&
         hayInteres(request.resource.data.usuarios[0], request.resource.data.usuarios[1], request.resource.data.placeId) &&
-        hayInteres(request.resource.data.usuarios[1], request.resource.data.usuarios[0], request.resource.data.placeId);
+        hayInteres(request.resource.data.usuarios[1], request.resource.data.usuarios[0], request.resource.data.placeId) &&
+        !estaSuspendido(request.auth.uid);
 
       // Y un participante ya no puede reescribir el documento entero: antes
       // podía cambiar la lista de participantes y meter a un tercero en una
@@ -236,7 +270,9 @@ service cloud.firestore {
           request.resource.data.keys().hasOnly(['autorUid', 'texto', 'creadoEn']) &&
           request.resource.data.texto is string &&
           request.resource.data.texto.size() > 0 &&
-          request.resource.data.texto.size() <= 2000;
+          request.resource.data.texto.size() <= 2000 &&
+          !estaSuspendido(request.auth.uid) &&
+          !meBloqueo(otroDeLaConexion(conexionId));
         allow update, delete: if false;
       }
     }
