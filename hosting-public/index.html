@@ -1,254 +1,303 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es-CL">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AquíMatch — Conoce a quien está en el mismo lugar que tú</title>
-<meta name="description" content="AquíMatch te muestra quién está en el mismo bar, café o restorán que tú, ahora mismo. Solo funciona si estás realmente ahí." />
-<meta property="og:title" content="AquíMatch" />
-<meta property="og:description" content="La gente que te interesa está a tres mesas, no a tres kilómetros." />
-<meta property="og:type" content="website" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap" rel="stylesheet" />
+<meta name="description" content="AquíMatch solo te muestra a las personas que están en el mismo bar, pub, café, restorán o discoteca que tú, en este momento. Solo para mayores de 18 años.">
+<meta name="theme-color" content="#0A0910">
+<link rel="icon" href="/img/logo.webp" type="image/webp">
+<link rel="apple-touch-icon" href="/img/logo.webp">
+<!-- Sin esto, al compartir el enlace por WhatsApp o Instagram sale un
+     recuadro gris sin imagen. La URL tiene que ser absoluta: se apunta al
+     dominio de Firebase, que responde siempre, incluso después de conectar
+     aquimatch.cl. -->
+<meta property="og:title" content="AquíMatch">
+<meta property="og:description" content="La gente que te interesa está a tres mesas, no a tres kilómetros.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CL">
+<meta property="og:url" content="https://aquimatch.cl/">
+<meta property="og:image" content="https://mi-app-conexion.web.app/img/match.webp">
+<meta property="og:image:width" content="1080">
+<meta property="og:image:height" content="600">
+<meta property="og:image:alt" content="Dos personas en mesas contiguas de un bar, cada una viendo el perfil de la otra en AquíMatch.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0D0D14;
-    --bg-card: #16121F;
-    --border: #241C33;
-    --text: #F5F3F7;
-    --text-dim: #B3A6BF;
-    --text-faint: #7C7089;
-    --magenta: #FF2D8E;
-    --purple: #B12DFF;
-    --gradient: linear-gradient(135deg, #FF2D8E 0%, #B12DFF 32%, #6A00FF 100%);
-    --font: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  .envoltura { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+/* Modo oscuro a propósito: la app es de noche, en lugares oscuros. */
+:root{
+  --fondo:#0A0910; --alt:#100D1A; --sup:#16121F;
+  --linea:#272036; --linea2:#332A47;
+  --texto:#F4F1FA; --dim:#A79BC0; --tenue:#7A7091;
+  --magenta:#FF3D9A;
+  --grad:linear-gradient(120deg,#FF3D9A 0%,#9B4DFF 55%,#6C5CFF 100%);
+  --ancho:1060px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--fondo);color:var(--texto);
+  font-family:"Public Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Bricolage Grotesque","Public Sans",system-ui,sans-serif;font-weight:800;line-height:1.03;letter-spacing:-.03em;text-wrap:balance;margin:0}
+p{margin:0}
+img{max-width:100%;display:block}
+.env{width:100%;max-width:var(--ancho);margin:0 auto;padding:0 24px}
+.sec{padding:96px 0}
+.eti{font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--tenue)}
+.grad-txt{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 
-  /* ---------- Portada ---------- */
-  .portada {
-    position: relative;
-    overflow: hidden;
-    padding: 56px 0 72px;
-    text-align: center;
-  }
-  /* Resplandor de marca detrás del título, con el mismo degradé de la app. */
-  .portada::before {
-    content: '';
-    position: absolute;
-    top: -260px; left: 50%;
-    width: 720px; height: 620px;
-    transform: translateX(-50%);
-    background: radial-gradient(circle, rgba(177,45,255,0.22) 0%, rgba(255,45,142,0.08) 42%, transparent 68%);
-    pointer-events: none;
-  }
-  .portada > * { position: relative; }
-  .marca { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 40px; }
-  .marca span { color: var(--purple); }
+.barra{position:sticky;top:0;z-index:20;background:rgba(10,9,16,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--linea)}
+.barra .env{display:flex;align-items:center;justify-content:space-between;height:62px}
+.marca{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.punto{width:26px;height:26px;border-radius:8px;flex:0 0 auto;display:block}
 
-  h1 {
-    font-size: clamp(30px, 6.2vw, 52px);
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.03em;
-    margin: 0 auto 20px;
-    max-width: 15ch;
-    text-wrap: balance;
-  }
-  h1 em {
-    font-style: normal;
-    background: var(--gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .bajada {
-    font-size: clamp(15px, 2.2vw, 18px);
-    color: var(--text-dim);
-    max-width: 46ch;
-    margin: 0 auto 32px;
-    text-wrap: balance;
-  }
+.portada{position:relative;overflow:hidden;padding:104px 0 84px;text-align:center}
+.portada::before{content:"";position:absolute;inset:-45% 0 auto -10%;height:125%;background:radial-gradient(55% 50% at 30% 25%,rgba(255,61,154,.17),transparent 70%),radial-gradient(50% 45% at 80% 10%,rgba(108,92,255,.19),transparent 70%);pointer-events:none}
+.portada .env{position:relative}
+.portada h1{font-size:clamp(40px,7.4vw,80px);max-width:15ch;margin:20px auto 0}
+.portada .bajada{margin:22px auto 0;max-width:40ch;font-size:clamp(18px,2.2vw,21px);color:var(--dim)}
+.acciones{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;margin-top:36px}
+.boton{display:inline-flex;align-items:center;gap:10px;padding:15px 26px;border-radius:999px;background:var(--grad);color:#fff;font-weight:600;text-decoration:none;font-size:16.5px;box-shadow:0 12px 34px -14px rgba(255,61,154,.75)}
+.boton:hover{filter:brightness(1.08)}
+.boton-espera{background:none;border:1px solid var(--linea2);color:var(--dim);box-shadow:none;cursor:default}
+a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radius:8px}
+.pronto{padding:14px 22px;border-radius:999px;border:1px solid var(--linea2);color:var(--dim);font-size:15px}
 
-  .tiendas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
-  .tienda {
-    display: flex; align-items: center; gap: 10px;
-    padding: 13px 22px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-faint);
-    font-size: 14.5px; font-weight: 500;
-    cursor: default;
-  }
-  .proximamente {
-    font-size: 12.5px; color: var(--text-faint);
-    letter-spacing: 0.04em; text-transform: uppercase;
-  }
+/* La foto original mide 1080 px de ancho. Antes iba a todo el ancho de la
+   pantalla y en un monitor grande se agrandaba a 1500 o más: por eso se veían
+   pixeleadas las pantallitas dentro de los teléfonos. Ahora se limita a su
+   tamaño real y nunca se estira. */
+.foto-match{margin:56px auto 0;line-height:0;max-width:1080px;padding:0 24px}
+.foto-match img{width:100%;height:auto;border-radius:20px;border:1px solid var(--linea2)}
 
-  /* ---------- Secciones ---------- */
-  section { padding: 64px 0; border-top: 1px solid var(--border); }
-  h2 {
-    font-size: clamp(22px, 3.6vw, 30px);
-    font-weight: 700; letter-spacing: -0.02em;
-    margin: 0 0 8px; text-wrap: balance;
-  }
-  .intro { color: var(--text-dim); margin: 0 0 40px; max-width: 52ch; }
+/* Radio */
+.radio{background:var(--alt);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+.radio-grid{display:grid;grid-template-columns:1fr;gap:44px;align-items:center}
+@media(min-width:900px){.radio-grid{grid-template-columns:1.05fr 1fr;gap:70px}}
+.radio h2{font-size:clamp(34px,5vw,54px)}
+.radio .linea{margin-top:20px;color:var(--dim);font-size:19px;max-width:26ch}
+.dato{margin-top:34px;padding-top:26px;border-top:1px solid var(--linea);display:flex;gap:34px;flex-wrap:wrap}
+.dato strong{display:block;font-family:"Bricolage Grotesque",sans-serif;font-size:32px;font-weight:800;letter-spacing:-.03em}
+.dato span{font-size:13.5px;color:var(--tenue)}
 
-  .pasos { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-  /* La numeración es real: son tres pasos en orden, no adorno. */
-  .paso-num {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border-radius: 50%;
-    background: var(--gradient);
-    font-size: 14px; font-weight: 700; color: #fff;
-    margin-bottom: 12px;
-  }
-  .paso h3 { font-size: 16.5px; font-weight: 600; margin: 0 0 6px; }
-  .paso p { font-size: 14.5px; color: var(--text-dim); margin: 0; }
+/* Pasos */
+.pasos{display:grid;grid-template-columns:1fr;gap:2px;background:var(--linea);border:1px solid var(--linea);border-radius:18px;overflow:hidden;margin-top:48px}
+@media(min-width:820px){.pasos{grid-template-columns:repeat(3,1fr)}}
+.paso{background:var(--sup);padding:34px 30px}
+.paso .n{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:13px;width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:var(--grad);color:#fff}
+.paso h3{font-size:21px;margin:20px 0 9px}
+.paso p{color:var(--dim);font-size:16.5px}
 
-  .capturas { display: flex; gap: 22px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
-  .captura { flex: 0 0 auto; width: 236px; scroll-snap-align: center; text-align: center; }
-  .captura img {
-    width: 100%; height: auto; display: block;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  }
-  .captura span { display: block; margin-top: 12px; font-size: 13px; color: var(--text-faint); }
+/* Pantallas */
+/* minmax chico para que en el teléfono entren DE A DOS por fila: cuatro
+   capturas apiladas alargarían justo lo que se acortó del texto. */
+.pantallas{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:20px;margin-top:56px}
+@media(min-width:760px){.pantallas{grid-template-columns:repeat(4,1fr);gap:26px}}
+.pantallas figure{margin:0}
+.pantallas img{border-radius:26px;border:1px solid var(--linea2);width:100%;height:auto}
+.pantallas figcaption{margin-top:15px;font-size:14.5px;color:var(--tenue);text-align:center}
 
-  .seguridad { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-  .tarjeta {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 22px;
-  }
-  .tarjeta h3 { font-size: 15.5px; font-weight: 600; margin: 0 0 6px; }
-  .tarjeta p { font-size: 14px; color: var(--text-dim); margin: 0; }
-  .tarjeta .icono { font-size: 20px; display: block; margin-bottom: 10px; }
+/* Seguridad */
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:48px}
+.tj{background:var(--sup);border:1px solid var(--linea);border-radius:16px;padding:26px}
+.tj svg{width:24px;height:24px;color:var(--magenta);margin-bottom:15px}
+.tj h3{font-size:17.5px}
+.tj p{color:var(--dim);font-size:15.5px;margin-top:7px}
 
-  /* ---------- Pie ---------- */
-  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; text-align: center; }
-  .enlaces { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
-  a { color: var(--text-dim); text-decoration: none; font-size: 13.5px; }
-  a:hover { color: var(--text); }
-  a:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; border-radius: 4px; }
-  .legal { font-size: 12.5px; color: var(--text-faint); margin: 0; }
-  .legal a { font-size: 12.5px; }
+/* Honesta */
+.honesta{background:var(--alt);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);text-align:center}
+.honesta .env{max-width:680px}
+.honesta h2{font-size:clamp(28px,4.2vw,42px)}
+.honesta p{color:var(--dim);margin-top:20px;font-size:18px}
+
+.cierre{text-align:center;padding:104px 0}
+.cierre h2{font-size:clamp(32px,5.4vw,58px);max-width:17ch;margin:0 auto}
+.nota{margin-top:20px;font-size:14.5px;color:var(--tenue)}
+
+.pie{border-top:1px solid var(--linea);padding:44px 0;font-size:14.5px;color:var(--tenue)}
+.pie .env{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between}
+.pie nav{display:flex;flex-wrap:wrap;gap:20px}
+.pie a{color:var(--dim);text-decoration:none}
+.pie a:hover{color:var(--texto);text-decoration:underline}
 </style>
 </head>
 <body>
 
-<header class="portada">
-  <div class="envoltura">
-    <p class="marca">Aquí<span>Match</span></p>
-    <h1>La gente que te interesa está a <em>tres mesas</em>, no a tres kilómetros.</h1>
-    <p class="bajada">
-      AquíMatch te muestra quién está en el mismo bar, café o restorán que tú,
-      ahora mismo. Solo funciona si estás realmente ahí.
-    </p>
-    <div class="tiendas">
-      <span class="tienda">▶ Google Play</span>
-      <span class="tienda"> App Store</span>
-    </div>
-    <p class="proximamente">Muy pronto</p>
+<header class="barra">
+  <div class="env">
+    <a class="marca" href="/"><img class="punto" src="/img/logo.webp" alt="" width="26" height="26">AquíMatch</a>
+    <a class="pronto" href="#descargar" style="padding:9px 17px;font-size:14px;text-decoration:none">Descargar</a>
   </div>
 </header>
 
-<section>
-  <div class="envoltura">
-    <h2>Cómo funciona</h2>
-    <p class="intro">Tres pasos, y ninguno ocurre lejos de donde estás.</p>
-    <div class="pasos">
-      <div class="paso">
-        <span class="paso-num">1</span>
-        <h3>Actívate en el lugar</h3>
-        <p>Llegas a un bar, café, restorán o pub y activas tu participación. Confirmamos con tu ubicación que estás realmente ahí.</p>
-      </div>
-      <div class="paso">
-        <span class="paso-num">2</span>
-        <h3>Descubre quién está</h3>
-        <p>Ves los perfiles de las personas que están en ese mismo lugar, en ese mismo momento. Nadie más.</p>
-      </div>
-      <div class="paso">
-        <span class="paso-num">3</span>
-        <h3>Si hay match, conversen</h3>
-        <p>Cuando el interés es mutuo se abre el chat. Y la otra persona está a unos metros, no a una ciudad de distancia.</p>
+<main>
+
+  <section class="portada">
+    <div class="env">
+      <p class="eti">Disponible en todo Chile · Solo mayores de 18</p>
+      <h1>La gente que te interesa está a <span class="grad-txt">tres mesas</span>.</h1>
+      <p class="bajada">No a tres kilómetros. Solo ves a quienes están en el mismo lugar que tú, ahora.</p>
+      <div class="acciones">
+        <span class="boton boton-espera"><svg width="18" height="20" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><path d="M1.2.6A1.7 1.7 0 0 0 .5 2v18c0 .5.2 1 .7 1.4l10-10.4L1.2.6Zm11.1 9.7 2.9-3L3.4.5C3 .3 2.6.2 2.3.3l10 10Zm0 1.4-10 10c.3.1.7 0 1.1-.2l11.8-6.8-2.9-3Zm6.3-3.1-3.1-1.8-3.2 3.3 3.2 3.3 3.1-1.8c1-.6 1-2.4 0-3Z"/></svg> Muy pronto en Google Play</span>
+        <span class="pronto">iPhone, muy pronto</span>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section>
-  <div class="envoltura">
-    <h2>Así se ve</h2>
-    <p class="intro">Tres pantallas de la aplicación.</p>
-    <div class="capturas">
-      <figure class="captura" style="margin:0">
-        <img src="/img/estado.webp" width="440" height="956" alt="Pantalla Estado de AquíMatch, mostrando que el usuario está activo en un local llamado Jia Bao" loading="lazy" />
-        <span>Estado — dónde estás ahora</span>
-      </figure>
-      <figure class="captura" style="margin:0">
-        <img src="/img/descubrir.webp" width="440" height="956" alt="Pantalla Descubrir, con el perfil de una persona presente en el mismo lugar" loading="lazy" />
-        <span>Descubrir — quién más está aquí</span>
-      </figure>
-      <figure class="captura" style="margin:0">
-        <img src="/img/chat.webp" width="440" height="956" alt="Pantalla de chat con una conversación entre dos personas" loading="lazy" />
-        <span>Chat — cuando el interés es mutuo</span>
-      </figure>
+  <!-- La foto hace el trabajo que si no habría que explicar con párrafos:
+       dos personas, mesas distintas, mismo bar, cada una mirando el perfil
+       de la otra. Va sin epígrafe a propósito. -->
+  <figure class="foto-match">
+    <img src="/img/match.webp" alt="Dos personas en mesas contiguas de un bar, cada una viendo en su teléfono el perfil de la otra dentro de AquíMatch." width="1080" height="600">
+  </figure>
+
+  <section class="sec radio">
+    <div class="env radio-grid">
+      <div>
+        <p class="eti">Cómo lo garantizamos</p>
+        <h2>120 metros. Ese es todo el mundo.</h2>
+        <p class="linea">Solo apareces si estás realmente ahí. Lo comprueba el servidor, no tu palabra.</p>
+        <div class="dato">
+          <div><strong>120 m</strong><span>El radio</span></div>
+          <div><strong>3 h</strong><span>Y dejas de aparecer</span></div>
+          <div><strong>18+</strong><span>Edad mínima</span></div>
+        </div>
+      </div>
+      <div>
+        <svg viewBox="0 0 420 380" style="width:100%;height:auto" role="img" aria-label="Dentro de un radio de 120 metros aparece el bar donde estás y la gente que está ahí. Todo lo que queda fuera no existe para la aplicación.">
+          <defs>
+            <radialGradient id="halo" cx="50%" cy="50%">
+              <stop offset="0%" stop-color="#FF3D9A" stop-opacity=".26"/>
+              <stop offset="70%" stop-color="#7C4DFF" stop-opacity=".07"/>
+              <stop offset="100%" stop-color="#7C4DFF" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="borde" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#FF3D9A"/><stop offset="100%" stop-color="#6C5CFF"/>
+            </linearGradient>
+          </defs>
+          <g fill="#3A3450">
+            <circle cx="46" cy="52" r="5"/><circle cx="372" cy="70" r="5"/>
+            <circle cx="392" cy="286" r="5"/><circle cx="34" cy="300" r="5"/>
+            <circle cx="120" cy="26" r="5"/><circle cx="300" cy="352" r="5"/>
+          </g>
+          <text x="46" y="76" fill="#5A5273" font-size="11.5" font-family="Public Sans,sans-serif">a 2 km</text>
+          <text x="326" y="94" fill="#5A5273" font-size="11.5" font-family="Public Sans,sans-serif">a 6 km</text>
+          <circle cx="210" cy="190" r="150" fill="url(#halo)"/>
+          <circle cx="210" cy="190" r="150" fill="none" stroke="url(#borde)" stroke-width="1.5" stroke-dasharray="5 7" opacity=".75"/>
+          <circle cx="210" cy="190" r="96" fill="none" stroke="#3A3450" stroke-width="1"/>
+          <rect x="150" y="130" width="120" height="120" rx="18" fill="#16121F" stroke="#2E2742"/>
+          <text x="210" y="163" fill="#A79BC0" font-size="12" text-anchor="middle" font-family="Public Sans,sans-serif">Estás en</text>
+          <text x="210" y="186" fill="#F4F1FA" font-size="16" font-weight="600" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif">Jia Bao</text>
+          <g>
+            <circle cx="180" cy="216" r="9" fill="url(#borde)"/>
+            <circle cx="210" cy="222" r="9" fill="url(#borde)"/>
+            <circle cx="240" cy="216" r="9" fill="url(#borde)"/>
+          </g>
+          <text x="210" y="360" fill="#7A7091" font-size="12.5" text-anchor="middle" font-family="Public Sans,sans-serif">Fuera del radio, no existe</text>
+        </svg>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section>
-  <div class="envoltura">
-    <h2>Seguridad primero</h2>
-    <p class="intro">Conocer a alguien en persona exige confianza. Por eso partimos por ahí.</p>
-    <div class="seguridad">
-      <div class="tarjeta">
-        <span class="icono">🛡️</span>
-        <h3>Verificación con selfie</h3>
-        <p>Comparamos tu selfie con tu foto de perfil para confirmar que eres tú. Sin perfiles falsos.</p>
+  <section class="sec">
+    <div class="env">
+      <p class="eti">Cómo funciona</p>
+      <div class="pasos">
+        <div class="paso"><div class="n">1</div><h3>Actívate</h3><p>Llegas al bar y activas tu presencia.</p></div>
+        <div class="paso"><div class="n">2</div><h3>Mira quién está</h3><p>Solo las personas que están ahí, ahora.</p></div>
+        <div class="paso"><div class="n">3</div><h3>Hagan match</h3><p>Se abre el chat. Y está a unos metros.</p></div>
       </div>
-      <div class="tarjeta">
-        <span class="icono">📍</span>
-        <h3>Contacto de confianza</h3>
-        <p>Avisa a alguien dónde estás con un solo toque, sin salir de la aplicación.</p>
-      </div>
-      <div class="tarjeta">
-        <span class="icono">🔞</span>
-        <h3>Solo mayores de 18</h3>
-        <p>AquíMatch es exclusivamente para personas adultas.</p>
-      </div>
-      <div class="tarjeta">
-        <span class="icono">🚫</span>
-        <h3>Reportar y bloquear</h3>
-        <p>Puedes reportar o bloquear a cualquier persona en cualquier momento. Revisamos cada reporte.</p>
+
+      <div class="pantallas">
+        <figure>
+          <img src="/img/estado.webp" alt="Pantalla de estado: el lugar donde estás activado." width="440" height="956" loading="lazy">
+          <figcaption>Estás aquí</figcaption>
+        </figure>
+        <figure>
+          <img src="/img/descubrir.webp" alt="Pantalla de descubrimiento: alguien presente en el mismo lugar." width="440" height="956" loading="lazy">
+          <figcaption>Quién más está</figcaption>
+        </figure>
+        <figure>
+          <img src="/img/match-pantalla.webp" alt="Pantalla de match: las fotos de las dos personas y el botón para comenzar la conversación." width="440" height="956" loading="lazy">
+          <figcaption>Es un match</figcaption>
+        </figure>
+        <figure>
+          <img src="/img/chat.webp" alt="Pantalla de chat, tras un match mutuo." width="440" height="956" loading="lazy">
+          <figcaption>El chat</figcaption>
+        </figure>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<footer>
-  <div class="envoltura">
-    <div class="enlaces">
-      <a href="/terminos.html">Términos y Condiciones</a>
-      <a href="/privacidad.html">Política de Privacidad</a>
+  <section class="sec honesta">
+    <div class="env">
+      <h2>¿Y si no hay nadie?</h2>
+      <p>Puede pasar. Preferimos una pantalla vacía antes que mostrarte a alguien que está a diez cuadras.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="env">
+      <p class="eti">Seguridad</p>
+      <div class="tarjetas">
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="m9 12 2 2 4-4"/></svg>
+          <h3>Verificación con selfie</h3><p>Confirmamos que eres tú.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><path d="m4 4 16 16"/></svg>
+          <h3>Modo explorar</h3><p>Mira sin aparecer.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a7 7 0 1 1 14 0c0 5.6-7 10-7 10z"/><circle cx="12" cy="11" r="2.5"/></svg>
+          <h3>Ubicación privada</h3><p>Nadie ve tus coordenadas.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          <h3>Contacto de confianza</h3><p>Avisa dónde estás con un toque.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <h3>Reportar y bloquear</h3><p>En cualquier momento.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+          <h3>Solo mayores de 18</h3><p>Verificado al registrarse.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cierre" id="descargar">
+    <div class="env">
+      <h2>La próxima vez que salgas, ya sabrás quién está.</h2>
+      <div class="acciones">
+        <span class="boton boton-espera"><svg width="18" height="20" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><path d="M1.2.6A1.7 1.7 0 0 0 .5 2v18c0 .5.2 1 .7 1.4l10-10.4L1.2.6Zm11.1 9.7 2.9-3L3.4.5C3 .3 2.6.2 2.3.3l10 10Zm0 1.4-10 10c.3.1.7 0 1.1-.2l11.8-6.8-2.9-3Zm6.3-3.1-3.1-1.8-3.2 3.3 3.2 3.3 3.1-1.8c1-.6 1-2.4 0-3Z"/></svg> Muy pronto en Google Play</span>
+      </div>
+      <p class="nota">Gratis · Todo Chile · iPhone muy pronto</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <div class="env">
+    <div>
+      <div class="marca" style="font-size:17px;margin-bottom:10px"><img class="punto" src="/img/logo.webp" alt="" width="22" height="22" style="width:22px;height:22px">AquíMatch</div>
+      <p>© 2026 AQUIMATCH SpA · Santiago, Chile<br><a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a></p>
+    </div>
+    <nav aria-label="Enlaces legales">
+      <a href="/terminos.html">Términos</a>
+      <a href="/privacidad.html">Privacidad</a>
+      <a href="/eliminar-cuenta.html">Eliminar cuenta</a>
+      <a href="/estandares-seguridad-ninos.html">Seguridad infantil</a>
       <a href="/agente-dmca.html">Agente DMCA</a>
-      <a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a>
-    </div>
-    <p class="legal">© 2026 AQUIMATCH SpA · Santiago, Chile</p>
+    </nav>
   </div>
 </footer>
 
