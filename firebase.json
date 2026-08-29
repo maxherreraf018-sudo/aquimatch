@@ -10,7 +10,7 @@
           {
             "comment": "Lista blanca de lo único que estas páginas pueden cargar. Se verificó que NINGUNA de las seis tiene JavaScript, así que script-src 'none' no rompe nada y cierra la puerta a que alguien logre inyectar código. 'unsafe-inline' en los estilos hace falta porque el CSS va dentro del propio archivo. Las fuentes de Google son el único origen externo permitido. frame-ancestors impide que metan estas páginas en un iframe de un sitio falso para engañar a quien las visita (clickjacking); X-Frame-Options queda por navegadores viejos.",
             "key": "Content-Security-Policy",
-            "value": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+            "value": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src https://static.cloudflareinsights.com; connect-src https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
           },
           { "key": "X-Frame-Options", "value": "DENY" },
           {
