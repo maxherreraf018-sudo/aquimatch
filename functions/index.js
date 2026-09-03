@@ -1,6 +1,9 @@
 const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
+// node:crypto, no el `crypto` global. El global es WebCrypto y NO tiene
+// createHash — fallaría recién al ejecutarse, no al compilar.
+const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 const { RekognitionClient, CompareFacesCommand } = require("@aws-sdk/client-rekognition");
 
@@ -462,8 +465,7 @@ const RADIO_CONSULTA_METROS = 200;
  * una transacción, Firestore detecta el choque y reintenta la segunda, así que
  * el conteo queda bien.
  */
-async function contarUso(uid, campoConteo, campoVentana, maximo, mensaje) {
-  const ref = admin.firestore().doc(`limites/${uid}`);
+async function contarUso(ref, campoConteo, campoVentana, maximo, mensaje) {
   const ahoraMs = Date.now();
   await admin.firestore().runTransaction(async (transaccion) => {
     const datos = (await transaccion.get(ref)).data() || {};
@@ -587,7 +589,7 @@ exports.buscarLugares = onCall(
     // tope es más alto que el de activarEnLugar.
     const ahoraMs = Date.now();
     await contarUso(
-      uid,
+      admin.firestore().doc(`limites/${uid}`),
       "busquedas",
       "ventanaBusquedasEn",
       MAX_BUSQUEDAS_POR_VENTANA,
@@ -669,7 +671,7 @@ exports.activarEnLugar = onCall(
     // por hora es holgadísimo para el uso real y mata el abuso.
     const ahoraMs = Date.now();
     await contarUso(
-      uid,
+      admin.firestore().doc(`limites/${uid}`),
       "intentos",
       "ventanaIniciadaEn",
       MAX_ACTIVACIONES_POR_VENTANA,
@@ -1019,3 +1021,155 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     minimoParaMostrar: MINIMO_PARA_MOSTRAR,
   };
 });
+
+// ---------------------------------------------------------------------------
+// Correos de autenticación, enviados desde aquimatch.cl
+//
+// Firebase mandaba estos correos desde noreply@mi-app-conexion.firebaseapp.com,
+// un dominio compartido por decenas de miles de apps. Comprobado el 2026-09-03:
+// caían en spam TANTO en Gmail como en Hotmail, y Gmail además DESACTIVA los
+// enlaces de los mensajes marcados como spam — así que ni encontrándolo se
+// podía completar el registro. Con la app ya publicada, eso dejaba afuera a
+// todo el que se registrara con correo y contraseña.
+//
+// Ahora el enlace lo genera el Admin SDK (mismo flujo de siempre) pero el
+// correo lo envía Resend desde noreply@aquimatch.cl, dominio propio con SPF,
+// DKIM y DMARC verificados.
+// ---------------------------------------------------------------------------
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
+
+const REMITENTE = "AquíMatch <noreply@aquimatch.cl>";
+
+// Tope de correos por dirección y por hora. Sin esto, la función de
+// restablecer contraseña —que por fuerza es pública, porque quien olvidó su
+// clave no tiene sesión— se podría usar para bombardear el buzón de alguien.
+const MAX_CORREOS_POR_VENTANA = 3;
+
+function plantilla({ titulo, texto, textoBoton, enlace, cierre }) {
+  return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f2f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px">
+    <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#16121f;margin-bottom:28px">AquíMatch</div>
+    <div style="background:#ffffff;border-radius:16px;padding:32px 28px">
+      <h1 style="margin:0 0 16px;font-size:21px;line-height:1.25;color:#16121f">${titulo}</h1>
+      <p style="margin:0 0 26px;font-size:15.5px;line-height:1.6;color:#4a4458">${texto}</p>
+      <a href="${enlace}" style="display:inline-block;background:#FF3D9A;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:999px">${textoBoton}</a>
+      <p style="margin:26px 0 0;font-size:13px;line-height:1.6;color:#7a7091">Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="color:#4a4458;word-break:break-all">${enlace}</span></p>
+    </div>
+    <p style="margin:22px 0 0;font-size:12.5px;line-height:1.6;color:#7a7091">${cierre}</p>
+    <p style="margin:14px 0 0;font-size:12.5px;color:#9a92ad">AquíMatch · Santiago, Chile · contacto@aquimatch.cl</p>
+  </div>
+</body></html>`;
+}
+
+async function enviarCorreo(para, asunto, html) {
+  const respuesta = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY.value()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: REMITENTE, to: [para], subject: asunto, html }),
+  });
+  if (!respuesta.ok) {
+    const detalle = await respuesta.text();
+    throw new Error(`Resend respondió ${respuesta.status}: ${detalle}`);
+  }
+}
+
+/**
+ * Correo de verificación, al registrarse o al pedir que lo reenvíen.
+ * Requiere sesión: solo se le puede mandar a la propia dirección.
+ */
+exports.enviarVerificacionCorreo = onCall(
+  { secrets: [RESEND_API_KEY], timeoutSeconds: 30 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+    const correo = request.auth.token.email;
+    if (!correo) {
+      throw new HttpsError("failed-precondition", "Tu cuenta no tiene correo.");
+    }
+    await contarUso(
+      admin.firestore().doc(`limites/${request.auth.uid}`),
+      "correosVerificacion",
+      "ventanaCorreosEn",
+      MAX_CORREOS_POR_VENTANA,
+      "Ya te enviamos varios correos. Espera un rato antes de pedir otro."
+    );
+
+    const enlace = await admin.auth().generateEmailVerificationLink(correo);
+    await enviarCorreo(
+      correo,
+      "Confirma tu correo en AquíMatch",
+      plantilla({
+        titulo: "Confirma tu correo",
+        texto:
+          "Toca el botón para confirmar que esta dirección es tuya. Después vas a poder volver a la aplicación y seguir.",
+        textoBoton: "Confirmar mi correo",
+        enlace,
+        cierre: "Si no creaste una cuenta en AquíMatch, puedes ignorar este mensaje.",
+      })
+    );
+    return { ok: true };
+  }
+);
+
+/**
+ * Correo para restablecer la contraseña.
+ *
+ * NO puede exigir sesión: quien olvidó su clave justamente no puede entrar.
+ * Por eso lleva dos protecciones:
+ *  - un tope por dirección y por hora, con el correo guardado como hash para
+ *    no dejar un listado de direcciones en la base;
+ *  - y responde lo mismo exista o no la cuenta. Si contestara distinto, se
+ *    podría usar para averiguar quién está registrado en AquíMatch, que en una
+ *    app de este tipo es información sensible.
+ */
+exports.enviarRestablecerContrasena = onCall(
+  { secrets: [RESEND_API_KEY], timeoutSeconds: 30 },
+  async (request) => {
+    const correo = String(request.data?.correo || "").trim().toLowerCase();
+    if (!correo || !correo.includes("@")) {
+      throw new HttpsError("invalid-argument", "Falta el correo.");
+    }
+
+    const hash = crypto.createHash("sha256").update(correo).digest("hex");
+    await contarUso(
+      admin.firestore().doc(`limitesCorreo/${hash}`),
+      "restablecer",
+      "ventanaEn",
+      MAX_CORREOS_POR_VENTANA,
+      "Ya enviamos varios correos a esa dirección. Espera un rato."
+    );
+
+    try {
+      const enlace = await admin.auth().generatePasswordResetLink(correo);
+      await enviarCorreo(
+        correo,
+        "Restablece tu contraseña de AquíMatch",
+        plantilla({
+          titulo: "Restablece tu contraseña",
+          texto:
+            "Toca el botón para elegir una contraseña nueva. El enlace sirve una sola vez.",
+          textoBoton: "Crear una contraseña nueva",
+          enlace,
+          cierre:
+            "Si no pediste cambiar tu contraseña, puedes ignorar este mensaje: tu cuenta sigue como está.",
+        })
+      );
+    } catch (error) {
+      // Cuenta inexistente: se responde igual que si existiera, a propósito.
+      if (error?.code === "auth/user-not-found") {
+        console.log("[enviarRestablecerContrasena] dirección sin cuenta");
+        return { ok: true };
+      }
+      console.error("[enviarRestablecerContrasena]", error);
+      throw new HttpsError("internal", "No pudimos enviar el correo. Intenta de nuevo.");
+    }
+    return { ok: true };
+  }
+);

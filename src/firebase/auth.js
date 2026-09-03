@@ -7,8 +7,6 @@ import {
   OAuthProvider,
   signOut,
   onAuthStateChanged,
-  sendEmailVerification,
-  sendPasswordResetEmail,
 } from 'firebase/auth'
 import {
   doc,
@@ -18,7 +16,14 @@ import {
   serverTimestamp,
   deleteField,
 } from 'firebase/firestore'
-import { auth, db, googleProvider } from './config'
+import { httpsCallable } from 'firebase/functions'
+import { auth, db, googleProvider, functions } from './config'
+
+// Los correos de autenticación ya no los manda Firebase: salían desde su
+// dominio compartido y caían en spam en Gmail y en Hotmail, con el enlace
+// desactivado. Ahora los envía una función propia desde noreply@aquimatch.cl.
+const pedirCorreoVerificacion = httpsCallable(functions, 'enviarVerificacionCorreo')
+const pedirRestablecerContrasena = httpsCallable(functions, 'enviarRestablecerContrasena')
 
 // Versión de los Términos/Política vigente. Cámbiala cada vez que el texto
 // legal tenga un cambio relevante, así queda registrado con qué versión
@@ -29,7 +34,7 @@ const VERSION_TERMINOS = '2026-08-17'
 export async function registrarConCorreo(correo, contrasena) {
   const cred = await createUserWithEmailAndPassword(auth, correo, contrasena)
   await crearDocumentoUsuario(cred.user.uid, { correo: cred.user.email })
-  await sendEmailVerification(cred.user)
+  await pedirCorreoVerificacion()
   return cred.user
 }
 // Iniciar sesión con correo y contraseña
@@ -97,7 +102,7 @@ export function escucharEstadoAuth(callback) {
 // Reenvía el correo de verificación a la cuenta actualmente logueada.
 export async function reenviarVerificacionCorreo() {
   if (auth.currentUser) {
-    await sendEmailVerification(auth.currentUser)
+    await pedirCorreoVerificacion()
   }
 }
 // Vuelve a consultarle a Firebase si el correo ya fue verificado.
@@ -108,7 +113,7 @@ export async function recargarUsuarioActual() {
 }
 // Manda un correo con un enlace para crear una contraseña nueva.
 export async function recuperarContrasena(correo) {
-  await sendPasswordResetEmail(auth, correo)
+  await pedirRestablecerContrasena({ correo })
 }
 // Crea el documento del usuario en Firestore si no existe todavía. Como
 // esta función solo escribe datos la PRIMERA vez (cuenta recién creada),
