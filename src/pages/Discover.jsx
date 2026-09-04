@@ -450,13 +450,7 @@ export default function Discover() {
       )}
 
       {!actual ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 16 }}>👀</div>
-          <h1 style={{ marginBottom: 10 }}>Por ahora es todo</h1>
-          <p style={{ marginBottom: 24 }}>
-            Ya viste a todas las personas activas en este lugar. Vuelve a intentarlo en un rato.
-          </p>
-        </div>
+        <PantallaVacia nadieEnElLugar={personas.length === 0} activacion={miActivacion} />
       ) : (
         <>
           {/* La tarjeta se ADAPTA al espacio que sobra, en vez de imponer una
@@ -712,6 +706,88 @@ export default function Discover() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Lo que se ve cuando no hay ninguna tarjeta para mostrar.
+ *
+ * Antes era un solo mensaje —"Ya viste a todas las personas activas en este
+ * lugar"— para dos situaciones muy distintas, y en una de ellas MENTÍA: a
+ * quien llegaba a un lugar donde no había nadie le decía que ya las había
+ * visto a todas. Es, además, la pantalla que vio el revisor de Apple las dos
+ * veces que rechazó la app: sin nadie alrededor, lo único que quedaba a la
+ * vista era el registro, que se parece al de cualquier app de citas.
+ *
+ * Ahora se separan los dos casos, y cuando no hay nadie se muestra lo que
+ * hace distinta a la app: el local donde estás, confirmado, y el cero dicho
+ * de frente. Es información que solo puede dar algo que verificó dónde estás.
+ */
+function PantallaVacia({ nadieEnElLugar, activacion }) {
+  if (!nadieEnElLugar) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>👀</div>
+        <h1 style={{ marginBottom: 10 }}>Por ahora es todo</h1>
+        <p style={{ marginBottom: 24 }}>
+          Ya viste a todas las personas que están aquí ahora. Vuelve a intentarlo en un rato.
+        </p>
+      </div>
+    )
+  }
+
+  const distancia = activacion?.distanciaMetros
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '26px 22px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>
+          Estás en
+        </div>
+        <h1 style={{ fontSize: 24, margin: '6px 0 0' }}>{activacion?.placeName || 'este lugar'}</h1>
+
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 10,
+            fontSize: 12,
+            color: 'var(--success)',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <path d="m5 13 4 4L19 7" />
+          </svg>
+          Ubicación confirmada
+          {/* Solo se muestra si el servidor la guardó: las activaciones
+              anteriores a este cambio no tienen el dato. */}
+          {typeof distancia === 'number' ? ` · a ${distancia} m` : ''}
+        </div>
+
+        <div style={{ height: 1, background: 'var(--border)', margin: '20px 0' }} />
+
+        <div style={{ fontSize: 38, fontWeight: 800, lineHeight: 1 }}>0</div>
+        <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.45 }}>
+          personas activadas aquí
+          <br />
+          ahora mismo
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--text-faint)', lineHeight: 1.6, marginTop: 18 }}>
+          AquíMatch solo muestra a quienes están en este lugar, en este momento. Por eso a veces
+          está vacío — y por eso, cuando aparece alguien, está a unos metros.
+        </p>
+      </div>
     </div>
   )
 }

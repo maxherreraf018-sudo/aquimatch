@@ -172,10 +172,30 @@ export async function cancelarPausa(uid) {
  * Obtiene la activación actual del usuario (para saber en qué lugar está).
  */
 export async function obtenerActivacionPropia(uid) {
-  const { getDoc } = await import('firebase/firestore')
+  const { getDoc, updateDoc } = await import('firebase/firestore')
   const ref = doc(db, 'activaciones', uid)
   const snap = await getDoc(ref)
-  return snap.exists() ? snap.data() : null
+  if (!snap.exists()) return null
+  const activacion = snap.data()
+
+  // La MISMA regla de frescura que se les aplica a los demás tiene que
+  // aplicarse a uno mismo. Antes acá solo se miraba `activa`, y como nada
+  // apaga esa bandera si cerrás la app sin tocar "salir de este lugar" (la
+  // vigilancia por GPS solo corre con la app abierta), abrirla días después
+  // te depositaba en el bar de la última vez.
+  //
+  // Y lo peor era la asimetría: los demás SÍ te filtraban por frescura
+  // (esRecienteYActiva, en escucharPersonasEnElLugar), así que quedabas en
+  // estado fantasma — pasando perfiles convencido de que participabas, y
+  // sin que te viera nadie.
+  if (!esRecienteYActiva(activacion, Date.now())) {
+    // Se apaga la bandera para que el estado deje de mentir. Si falla —sin
+    // red, por ejemplo— no importa: igual devolvemos null y la app manda a
+    // elegir lugar.
+    if (activacion.activa) await updateDoc(ref, { activa: false }).catch(() => {})
+    return null
+  }
+  return activacion
 }
 
 // ¿Esta activación se "renovó" hace poco, o ya se puede considerar

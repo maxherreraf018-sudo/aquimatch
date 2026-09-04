@@ -804,6 +804,10 @@ exports.activarEnLugar = onCall(
       lat: lugar.lat,
       lng: lugar.lng,
       tipos: lugar.tipos,
+      // Se guarda para poder mostrarla en la app ("ubicación confirmada, a 40
+      // metros"). El servidor ya la calculó para decidir si dejaba activarse;
+      // no tiene sentido que el teléfono la vuelva a calcular por su cuenta.
+      distanciaMetros: Math.round(distancia),
       activa: true,
       modo: null,
       pausadoHasta: null,
