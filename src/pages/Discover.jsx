@@ -112,6 +112,9 @@ export default function Discover() {
   const [mostrarContacto, setMostrarContacto] = useState(false)
   const [personas, setPersonas] = useState([])
   const [perfilesCompletos, setPerfilesCompletos] = useState({})
+  // Personas escondidas PARA SIEMPRE en esta visita: con las que ya tienes
+  // match, las que bloqueaste, y a las que le diste "me interesa". De acá no
+  // sale nadie — por eso un "más tarde", que dura 10 minutos, no puede entrar.
   const [ocultos, setOcultos] = useState(() => new Set())
   const [misLikes, setMisLikes] = useState(() => new Set())
   const [misPases, setMisPases] = useState(() => new Map())
@@ -272,8 +275,18 @@ export default function Discover() {
     setError('')
     try {
       await marcarMasTarde(uid, actual.uid, placeId)
+      // Basta con anotar el "más tarde": el filtro de disponibles ya esconde a
+      // quien tenga uno de menos de 10 minutos, y como el reloj `ahora` avanza
+      // cada segundo, la persona reaparece sola al cumplirse el plazo.
+      //
+      // NO se agrega a `ocultos`. Eso hacía antes, y de esa lista no sale
+      // nadie: era para quienes ya tienes match o bloqueaste, que sí es para
+      // siempre. Metiendo ahí a un "más tarde", los 10 minutos no servían de
+      // nada — la persona quedaba escondida hasta que salieras de Descubrir y
+      // volvieras a entrar. Max lo notó esperando más de una hora a que
+      // reapareciera un perfil.
       setMisPases((prev) => new Map(prev).set(actual.uid, Date.now()))
-      avanzarQuitando(actual.uid)
+      setIndice(0)
     } catch (err) {
       setError('No pudimos registrar tu elección. Intenta de nuevo.')
     } finally {
