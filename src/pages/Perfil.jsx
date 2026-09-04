@@ -44,6 +44,7 @@ export default function Perfil() {
   const [mostrarGestorFotos, setMostrarGestorFotos] = useState(false)
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [errorFoto, setErrorFoto] = useState('')
+  const [cambiandoPrincipal, setCambiandoPrincipal] = useState(false)
   const [intereses, setIntereses] = useState([])
   const [editandoIntereses, setEditandoIntereses] = useState(false)
   const [guardandoIntereses, setGuardandoIntereses] = useState(false)
@@ -136,6 +137,40 @@ export default function Perfil() {
       setErrorFoto('No pudimos subir tu foto. Intenta de nuevo.')
     } finally {
       setSubiendoFoto(false)
+    }
+  }
+
+  // Convierte la foto 2 o la 3 en la foto de perfil, intercambiándola con la
+  // que estaba de principal (nadie pierde una foto por reordenar).
+  //
+  // Solo se intercambian las URL guardadas en el perfil: los archivos en
+  // Storage se quedan con el nombre que tenían. No importa — todo, incluida
+  // la verificación por selfie, trabaja con la URL y no con la ruta.
+  //
+  // No se vuelve a pedir verificación. Fue una decisión explícita: la selfie
+  // se pide una sola vez, al crear la cuenta, y las 3 fotos ya son del mismo
+  // dueño de la cuenta. Obligar a re-verificar por reordenar castigaría algo
+  // que no tiene nada de sospechoso.
+  async function manejarHacerPrincipal(indiceAdicional) {
+    if (cambiandoPrincipal || subiendoFoto) return false
+    const existentes = usuario?.fotosAdicionales || []
+    const nueva = existentes[indiceAdicional]
+    if (!nueva) return false
+
+    setErrorFoto('')
+    setCambiandoPrincipal(true)
+    try {
+      const fotosAdicionales = [existentes[0] ?? null, existentes[1] ?? null]
+      fotosAdicionales[indiceAdicional] = usuario?.fotoPrincipal || null
+      const cambios = { fotoPrincipal: nueva, fotosAdicionales }
+      await actualizarUsuario(uid, cambios)
+      setUsuario((prev) => ({ ...(prev || {}), ...cambios }))
+      return true
+    } catch (err) {
+      setErrorFoto('No pudimos cambiar tu foto de perfil. Intenta de nuevo.')
+      return false
+    } finally {
+      setCambiandoPrincipal(false)
     }
   }
 
@@ -276,6 +311,8 @@ export default function Perfil() {
           usuario={usuario}
           onCerrar={() => setMostrarGestorFotos(false)}
           manejarSeleccionarFoto={manejarSeleccionarFoto}
+          manejarHacerPrincipal={manejarHacerPrincipal}
+          cambiandoPrincipal={cambiandoPrincipal}
           subiendoFoto={subiendoFoto}
           errorFoto={errorFoto}
         />
@@ -521,6 +558,13 @@ export default function Perfil() {
       </div>
 
       <EtiquetaSeccion texto="Cuenta" />
+      <button
+        className="btn btn-secondary"
+        onClick={() => navigate('/cuenta')}
+        style={{ marginBottom: 10 }}
+      >
+        Configuración de la cuenta
+      </button>
       <button className="btn btn-secondary" onClick={manejarCerrarSesion} style={{ marginBottom: 10 }}>
         Cerrar sesión
       </button>
@@ -712,11 +756,28 @@ const ETIQUETAS_SLOT = ['Foto de perfil', 'Foto 2', 'Foto 3']
 // Visor de las 3 fotos del perfil propio (a diferencia de FotoCarrusel, acá
 // SÍ se muestran los slots vacíos — con un botón para agregar — porque es
 // para gestionar tus propias fotos, no para ver las de otra persona.
-function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto, errorFoto }) {
+function GestorFotos({
+  usuario,
+  onCerrar,
+  manejarSeleccionarFoto,
+  manejarHacerPrincipal,
+  cambiandoPrincipal,
+  subiendoFoto,
+  errorFoto,
+}) {
   const [indice, setIndice] = useState(0)
   const slots = [usuario?.fotoPrincipal || null, usuario?.fotosAdicionales?.[0] || null, usuario?.fotosAdicionales?.[1] || null]
   const slotKeys = ['principal', 0, 1]
   const fotoActual = slots[indice]
+  const ocupado = subiendoFoto || cambiandoPrincipal
+
+  // Al hacer principal la 2 o la 3, las fotos se intercambian bajo los pies:
+  // quedarse en el mismo slot mostraría la foto vieja y parecería que no pasó
+  // nada. Se salta a la 1, que es donde está ahora la foto elegida.
+  async function hacerPrincipal() {
+    const ok = await manejarHacerPrincipal(slotKeys[indice])
+    if (ok) setIndice(0)
+  }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
@@ -809,23 +870,51 @@ function GestorFotos({ usuario, onCerrar, manejarSeleccionarFoto, subiendoFoto, 
         }}
       >
         <p style={{ color: 'white', fontSize: 13, marginBottom: 10 }}>{ETIQUETAS_SLOT[indice]}</p>
-        <label
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.1)',
-            color: 'white',
-            fontSize: 13,
-            cursor: subiendoFoto ? 'default' : 'pointer',
-          }}
-          onClick={subiendoFoto ? undefined : manejarSeleccionarFoto(slotKeys[indice])}
-        >
-          <IconLapiz size={14} />
-          {subiendoFoto ? 'Subiendo...' : fotoActual ? 'Cambiar esta foto' : 'Agregar esta foto'}
-        </label>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              borderRadius: 14,
+              background: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              fontSize: 13,
+              cursor: ocupado ? 'default' : 'pointer',
+            }}
+            onClick={ocupado ? undefined : manejarSeleccionarFoto(slotKeys[indice])}
+          >
+            <IconLapiz size={14} />
+            {subiendoFoto ? 'Subiendo...' : fotoActual ? 'Cambiar esta foto' : 'Agregar esta foto'}
+          </label>
+
+          {/* Solo en la 2 y la 3, y solo si tienen foto: en la 1 no tendría
+              sentido, ya es la principal. */}
+          {indice > 0 && fotoActual && (
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={hacerPrincipal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 20px',
+                borderRadius: 14,
+                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'transparent',
+                color: 'white',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                cursor: ocupado ? 'default' : 'pointer',
+                opacity: ocupado ? 0.6 : 1,
+              }}
+            >
+              {cambiandoPrincipal ? 'Cambiando...' : 'Usar como foto de perfil'}
+            </button>
+          )}
+        </div>
         {errorFoto && (
           <p className="error-text" style={{ marginTop: 10 }}>
             {errorFoto}

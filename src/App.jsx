@@ -22,6 +22,7 @@ const Chat = lazy(() => import('./pages/Chat'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Perfil = lazy(() => import('./pages/Perfil'))
 const Gold = lazy(() => import('./pages/Gold'))
+const ConfiguracionCuenta = lazy(() => import('./pages/ConfiguracionCuenta'))
 const Terminos = lazy(() => import('./pages/Terminos'))
 const Privacidad = lazy(() => import('./pages/Privacidad'))
 
@@ -116,6 +117,17 @@ export default function App() {
             element={
               <RequireAuth>
                 <Perfil />
+              </RequireAuth>
+            }
+          />
+          {/* Sin RequireVerificacion a propósito: alguien trabado en la
+              verificación tiene que poder llegar igual a sus términos, a su
+              privacidad y a cambiar su contraseña. */}
+          <Route
+            path="/cuenta"
+            element={
+              <RequireAuth>
+                <ConfiguracionCuenta />
               </RequireAuth>
             }
           />

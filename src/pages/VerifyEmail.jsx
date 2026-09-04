@@ -120,8 +120,12 @@ export default function VerifyEmail() {
           vuelve aquí: esta pantalla avanza sola.
         </span>
       </div>
+      {/* Decir de quién viene sirve más que "revisa el spam": con el remitente
+          se puede buscar en el buscador del correo, que es lo que encuentra un
+          mensaje mal clasificado sin ponerse a revisar carpeta por carpeta. */}
       <p style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 20 }}>
-        ¿No lo ves? Revisa tu carpeta de spam o no deseado.
+        ¿No lo ves? Llega de <strong style={{ color: 'var(--text-dim)' }}>noreply@aquimatch.cl</strong>.
+        Búscalo así, y revisa tu carpeta de spam o no deseado.
       </p>
       {error && (
         <p className="error-text" style={{ marginBottom: 12 }}>

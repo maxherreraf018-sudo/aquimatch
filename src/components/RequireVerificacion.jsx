@@ -9,10 +9,10 @@ import { elegirFoto, CameraSource, CameraDirection } from '../services/fotos'
 import { registrarEvento } from '../firebase/analytics'
 import { IconAlerta, IconPendiente } from '../components/Icons'
 
-// Bloquea el paso a Activación/Descubrir mientras la selfie de verificación
-// está "pendiente" (esperando a la Cloud Function) o llegó "rechazado" /
-// "error_verificacion". Usuarios sin este campo (cuentas previas a esta
-// función) o con "aprobado" pasan directo. Escucha en tiempo real, así que
+// Bloquea el paso a Activación/Descubrir hasta que la verificación por selfie
+// esté "aprobado". Cualquier otro estado —"pendiente", "rechazado",
+// "error_verificacion", "falta_foto", o directamente sin el campo— se queda
+// afuera, cada uno con su propia pantalla. Escucha en tiempo real, así que
 // apenas la Cloud Function resuelve el estado, esta pantalla avanza sola.
 export default function RequireVerificacion({ children }) {
   const uid = getAuth().currentUser?.uid
@@ -88,7 +88,18 @@ export default function RequireVerificacion({ children }) {
     return <VerificacionRechazada uid={uid} tardando />
   }
 
-  return children
+  // Lista blanca: SOLO pasa "aprobado". Antes esto era al revés — se
+  // enumeraban los estados malos y todo lo demás pasaba —, así que un perfil
+  // sin el campo, o con un valor que no esperábamos, entraba sin verificar.
+  //
+  // Ya no sirve de nada igual: desde la auditoría de agosto, el servidor
+  // exige "aprobado" para activarse en un lugar. Con la lista negra, esa
+  // persona pasaba esta pantalla y chocaba después contra un error del
+  // servidor sin entender por qué. Mejor decírselo acá, donde hay algo que
+  // puede hacer al respecto.
+  if (estado === 'aprobado') return children
+
+  return <VerificacionRechazada uid={uid} sinSelfie />
 }
 
 // Pantalla para quien completó el perfil sin foto. El problema no es su
@@ -126,7 +137,7 @@ function FaltaFotoPerfil() {
   )
 }
 
-function VerificacionRechazada({ uid, tardando }) {
+function VerificacionRechazada({ uid, tardando, sinSelfie }) {
   const navigate = useNavigate()
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState('')
@@ -172,14 +183,20 @@ function VerificacionRechazada({ uid, tardando }) {
         {tardando ? <IconPendiente size={26} /> : <IconAlerta size={26} />}
       </div>
       <h1 style={{ marginBottom: 10 }}>
-        {tardando ? 'Esto está tardando más de lo normal' : 'No pudimos verificar tu selfie'}
+        {tardando
+          ? 'Esto está tardando más de lo normal'
+          : sinSelfie
+            ? 'Falta verificar tu cuenta'
+            : 'No pudimos verificar tu selfie'}
       </h1>
-      <p style={{ marginBottom: tardando ? 20 : 10 }}>
+      <p style={{ marginBottom: tardando || sinSelfie ? 20 : 10 }}>
         {tardando
           ? 'Puede haber sido un problema de conexión. Vuelve a tomarte la selfie para intentarlo de nuevo.'
-          : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
+          : sinSelfie
+            ? 'Antes de entrar a un lugar necesitamos una selfie para confirmar que eres tú. Se compara con tu foto de perfil y no la ve nadie más.'
+            : 'Tu selfie no coincidió con tu foto de perfil, o no detectamos bien tu cara en alguna de las dos. Por tu seguridad y la de otros usuarios, necesitamos volver a verificarte.'}
       </p>
-      {!tardando && (
+      {!tardando && !sinSelfie && (
         <p
           style={{
             fontSize: 12,
@@ -207,26 +224,33 @@ function VerificacionRechazada({ uid, tardando }) {
         )}
       </label>
       <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginBottom: 20 }}>
-        Toca el círculo para tomar tu selfie de nuevo
+        {sinSelfie ? 'Toca el círculo para tomarte la selfie' : 'Toca el círculo para tomar tu selfie de nuevo'}
       </p>
       {error && (
         <p className="error-text" style={{ marginBottom: 8 }}>
           {error}
         </p>
       )}
-      <div className="divider" style={{ width: '100%' }}>
-        o
-      </div>
-      <p style={{ fontSize: 12.5, marginBottom: 12 }}>
-        ¿Tu foto de perfil no se ve clara? Puede ser la causa.
-      </p>
-      <button
-        className="btn btn-secondary"
-        onClick={() => navigate('/perfil')}
-        disabled={subiendo}
-      >
-        Cambiar mi foto de perfil
-      </button>
+      {/* Esta salida solo tiene sentido cuando la selfie ya falló: ahí la foto
+          de perfil es sospechosa. A quien todavía no se ha tomado ninguna no
+          hay por qué mandarlo a cambiar su foto. */}
+      {!sinSelfie && (
+        <>
+          <div className="divider" style={{ width: '100%' }}>
+            o
+          </div>
+          <p style={{ fontSize: 12.5, marginBottom: 12 }}>
+            ¿Tu foto de perfil no se ve clara? Puede ser la causa.
+          </p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate('/perfil')}
+            disabled={subiendo}
+          >
+            Cambiar mi foto de perfil
+          </button>
+        </>
+      )}
       <p className="legal-note">Tu información siempre estará protegida.</p>
     </div>
   )
