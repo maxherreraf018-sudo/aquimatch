@@ -13,8 +13,8 @@ android {
         applicationId "com.aquimatch.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 24
-        versionName "1.22"
+        versionCode 25
+        versionName "1.23"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -34,7 +34,15 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // Encendido el 2026-09-04. Google Play marcó la app por tener la
+            // optimización de código por debajo de su umbral (ofuscación 1%),
+            // con fecha límite en febrero de 2027; por debajo del 25% afecta
+            // la visibilidad de la app en la tienda.
+            //
+            // Se deja `shrinkResources` apagado a propósito: la advertencia de
+            // Play es solo por el código, y encender las dos cosas juntas deja
+            // sin saber cuál rompió qué si algo falla en el teléfono.
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }

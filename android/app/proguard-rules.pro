@@ -1,21 +1,32 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# Reglas de R8 para el build de release.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 achica la app borrando el código que no ve usado y renombrando el resto.
+# El problema es que "no lo ve usado" y "no se usa" no son lo mismo: lo que se
+# llama por reflexión —los plugins de Capacitor, que el puente JavaScript busca
+# por nombre— parece muerto y se borra. Y eso no se nota al compilar, solo al
+# ejecutar en el teléfono.
+#
+# La mayor parte ya viene resuelta sin que hagamos nada: @capacitor/android y
+# @capgo/capacitor-social-login traen sus propias reglas (consumerProguardFiles)
+# y se aplican solas. Cubren los plugins, el login con Google y con Apple,
+# OkHttp y las credenciales. Acá va solo lo que falta.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Que las fallas se puedan leer.
+#
+# Sin esto, un reporte de Crashlytics o de Play llega con los nombres
+# destrozados y no sirve para nada. Con esto y el archivo mapping.txt subido a
+# Play, las fallas se leen igual que antes. El mapping.txt de cada versión
+# queda en android/app/build/outputs/mapping/release/ y HAY QUE SUBIRLO en la
+# misma versión de Play, porque es el único que la traduce.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Los nombres de las excepciones, que Crashlytics necesita para agrupar fallas
+# distintas en vez de mezclarlas todas.
+-keepattributes Signature,*Annotation*,Exceptions,InnerClasses,EnclosingMethod
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Firebase avisa de clases opcionales que no incluimos (proveedores de
+# autenticación que no usamos, por ejemplo). No es un problema: son advertencias
+# de algo que la app nunca va a llamar.
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**

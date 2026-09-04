@@ -10,8 +10,12 @@
 // lo peor que pasa es que un reporte de soporte apunte a la versión equivocada
 // — molesto, pero no rompe nada.
 //
-// Hoy los dos números NO coinciden entre tiendas: Android va en 1.22 (24) e
+// Hoy los dos números NO coinciden entre tiendas: Android va en 1.23 (25) e
 // iOS sigue en 1.0 (22), esperando la primera aprobación de Apple. Este
 // archivo sigue el de Android; hay que corregirlo al armar el paquete de iOS.
-export const VERSION_NOMBRE = '1.22'
-export const VERSION_BUILD = 24
+//
+// La 24 ya se publicó en Play el 2026-09-04, así que ese número está quemado:
+// Play no acepta dos veces el mismo, aunque el paquete anterior no se haya
+// publicado. Ya costó builds perdidos antes.
+export const VERSION_NOMBRE = '1.23'
+export const VERSION_BUILD = 25
