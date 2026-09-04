@@ -27,7 +27,14 @@ export default function FotoCarrusel({ fotos, alto, children }) {
         <img
           src={actual}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          // objectPosition al 20% por lo mismo que en los círculos del perfil:
+          // la tarjeta de Descubrir es menos alargada que la foto que entrega
+          // la cámara (9:16), así que se recorta arriba y abajo, y centrado
+          // eso corta la cabeza. Max lo vio en su propia tarjeta: la foto le
+          // empezaba en la boca. En el perfil a pantalla completa del chat no
+          // cambia nada — ahí la pantalla es MÁS alargada que la foto, así que
+          // lo que se recorta son los costados.
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 20%' }}
         />
       )}
 

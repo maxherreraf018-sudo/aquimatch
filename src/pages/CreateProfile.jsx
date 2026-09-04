@@ -41,6 +41,7 @@ export default function CreateProfile() {
   const [genero, setGenero] = useState('')
   const [foto, setFoto] = useState(null)
   const [fotoPreview, setFotoPreview] = useState(null)
+  const [mostrarFotoGrande, setMostrarFotoGrande] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -115,14 +116,82 @@ export default function CreateProfile() {
       </div>
       <h1 style={{ marginBottom: 6 }}>Cuéntanos de ti</h1>
       <p style={{ marginBottom: 20 }}>Solo te tomará 2 minutos.</p>
-      <label className="avatar-upload" onClick={manejarFoto}>
+      {/* Con foto puesta, tocar el círculo la muestra grande en vez de abrir
+          la cámara otra vez. El círculo es chico y recorta: sin poder verla
+          entera, uno sube una foto sin saber realmente cómo quedó — que es
+          justo lo que Max encontró probando. Para cambiarla queda el enlace
+          de abajo. */}
+      <label
+        className="avatar-upload"
+        onClick={fotoPreview ? () => setMostrarFotoGrande(true) : manejarFoto}
+      >
         {fotoPreview ? (
           <img src={fotoPreview} alt="Foto principal" />
         ) : (
           <IconAgregar size={28} style={{ color: 'var(--text-faint)' }} />
         )}
       </label>
-      <p style={{ textAlign: 'center', fontSize: 13, marginBottom: 20 }}>Foto principal</p>
+      <p style={{ textAlign: 'center', fontSize: 13, marginBottom: fotoPreview ? 6 : 20 }}>
+        {fotoPreview ? 'Foto principal — toca para verla completa' : 'Foto principal'}
+      </p>
+      {fotoPreview && (
+        <p style={{ textAlign: 'center', fontSize: 13, marginBottom: 20 }}>
+          <span className="link" onClick={manejarFoto}>
+            Cambiar foto
+          </span>
+        </p>
+      )}
+
+      {mostrarFotoGrande && fotoPreview && (
+        <div
+          onClick={() => setMostrarFotoGrande(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#000',
+            zIndex: 200,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <img
+            src={fotoPreview}
+            alt=""
+            style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'contain' }}
+          />
+          <div
+            style={{
+              padding: '16px 20px calc(16px + env(safe-area-inset-bottom))',
+              textAlign: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, marginBottom: 12 }}>
+              Así se ve completa. En la app se muestra recortada en un círculo.
+            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setMostrarFotoGrande(false)
+                manejarFoto()
+              }}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 14,
+                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'transparent',
+                color: 'white',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+              }}
+            >
+              Cambiar foto
+            </button>
+          </div>
+        </div>
+      )}
       <form onSubmit={manejarContinuar} className="stack">
         <div className="field">
           <label>Nombre</label>

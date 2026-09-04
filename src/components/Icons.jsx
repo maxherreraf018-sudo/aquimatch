@@ -38,6 +38,45 @@ export function IconMenu(props) {
   )
 }
 
+// Los mismos tres puntos, pero en vertical. Es la convención para el menú de
+// acciones en la esquina de una foto; el horizontal se usa para otra cosa.
+export function IconMenuVertical(props) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="5" r="2" fill="currentColor" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <circle cx="12" cy="19" r="2" fill="currentColor" />
+    </Base>
+  )
+}
+
+export function IconBasurero(props) {
+  return (
+    <Base {...props}>
+      <path
+        d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6M14 11v6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Base>
+  )
+}
+
+export function IconEstrella(props) {
+  return (
+    <Base {...props}>
+      <path
+        d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </Base>
+  )
+}
+
 export function IconEnviar(props) {
   return (
     <Base {...props}>

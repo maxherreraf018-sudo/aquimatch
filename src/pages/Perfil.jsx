@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAuth, signOut } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { storage } from '../firebase/config'
 import { obtenerUsuarioPropio, actualizarUsuario, guardarDatosPrivados } from '../firebase/auth'
 import { elegirFoto } from '../services/fotos'
@@ -9,7 +9,7 @@ import { obtenerActivacionPropia, actualizarPlan, actualizarPreferenciaGeneroAct
 import { eliminarCuenta } from '../services/cuenta'
 import { GOLD_OCULTO } from '../services/plataforma'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
-import { IconAgregar, IconCerrar, IconLapiz } from '../components/Icons'
+import { IconAgregar, IconCerrar, IconLapiz, IconMenuVertical, IconBasurero, IconEstrella } from '../components/Icons'
 import BottomNav from '../components/BottomNav'
 
 const OPCIONES_PLAN = [
@@ -22,6 +22,50 @@ const OPCIONES_PLAN = [
 ]
 
 const MAPA_INTERESES = Object.fromEntries(OPCIONES_INTERES.map((op) => [op.valor, op]))
+
+// Los tres únicos nombres de archivo que las reglas de Storage aceptan.
+const NOMBRES_FOTO = ['principal.jpg', 'adicional-0.jpg', 'adicional-1.jpg']
+
+// De la URL guardada al archivo real que hay detrás.
+//
+// POR QUÉ EXISTE ESTO: el nombre del archivo dejó de decir en qué lugar del
+// perfil está la foto. "Usar como foto de perfil" intercambia las URL pero no
+// mueve los archivos, así que después de un intercambio la foto de perfil vive
+// en `adicional-0.jpg`. Subir la foto 2 a "su" nombre pisaba ese archivo, y la
+// foto de perfil quedaba apuntando a algo que ya no existía: foto rota. Le
+// pasó a Max probando la versión 24.
+function rutaDeFoto(url) {
+  if (!url) return null
+  try {
+    return ref(storage, url).fullPath
+  } catch (err) {
+    // Una URL que no sea de este bucket (no debería pasar) no rompe nada:
+    // simplemente no cuenta como ocupante de ningún archivo.
+    return null
+  }
+}
+
+// Dónde subir la foto de un lugar del perfil, sin pisar la de otro.
+//
+// Se reutiliza el archivo que ese lugar ya tiene — salvo que lo comparta con
+// otro lugar, que es el estado roto que dejó el bug de arriba. En ese caso se
+// trata como vacío y se toma un nombre libre, lo que deshace la colisión sola
+// en cuanto la persona vuelve a subir esa foto.
+function rutaParaSubir(usuario, uid, slot) {
+  const urls = [usuario?.fotoPrincipal || null, usuario?.fotosAdicionales?.[0] || null, usuario?.fotosAdicionales?.[1] || null]
+  const rutas = urls.map(rutaDeFoto)
+  const indice = slot === 'principal' ? 0 : slot + 1
+  const propia = rutas[indice]
+  const compartida = propia && rutas.filter((r) => r === propia).length > 1
+
+  if (propia && !compartida) return propia
+
+  const ocupadas = new Set(rutas.filter(Boolean))
+  const libre = NOMBRES_FOTO.find((n) => !ocupadas.has(`fotos-perfil/${uid}/${n}`))
+  // Con 3 nombres y 3 lugares, si hay una colisión siempre sobra un nombre.
+  // El respaldo es por si acaso, para no subir a `undefined`.
+  return `fotos-perfil/${uid}/${libre || NOMBRES_FOTO[indice]}`
+}
 
 const OPCIONES_PREFERENCIA_GENERO = [
   { valor: 'mujeres', etiqueta: 'Mujeres' },
@@ -45,6 +89,7 @@ export default function Perfil() {
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [errorFoto, setErrorFoto] = useState('')
   const [cambiandoPrincipal, setCambiandoPrincipal] = useState(false)
+  const [eliminandoFoto, setEliminandoFoto] = useState(false)
   const [intereses, setIntereses] = useState([])
   const [editandoIntereses, setEditandoIntereses] = useState(false)
   const [guardandoIntereses, setGuardandoIntereses] = useState(false)
@@ -108,8 +153,7 @@ export default function Perfil() {
     setErrorFoto('')
     setSubiendoFoto(true)
     try {
-      const nombreArchivo = slotFotoPendiente === 'principal' ? 'principal' : `adicional-${slotFotoPendiente}`
-      const storageRef = ref(storage, `fotos-perfil/${uid}/${nombreArchivo}.jpg`)
+      const storageRef = ref(storage, rutaParaSubir(usuario, uid, slotFotoPendiente))
       await uploadBytes(storageRef, fotoPendiente)
       const fotoURL = await getDownloadURL(storageRef)
       if (slotFotoPendiente === 'principal') {
@@ -171,6 +215,59 @@ export default function Perfil() {
       return false
     } finally {
       setCambiandoPrincipal(false)
+    }
+  }
+
+  // Elimina la foto 2 o la 3. La foto de perfil no se puede eliminar: sin ella
+  // la verificación por selfie no tiene contra qué comparar, y esa es
+  // exactamente la trampa que dejaba gente atrapada antes (ver el estado
+  // 'falta_foto').
+  //
+  // OJO CON LA RUTA: se borra por la URL guardada, NO por
+  // `fotos-perfil/{uid}/adicional-N.jpg`. Al usar "usar como foto de perfil"
+  // se intercambian las URL pero los archivos se quedan con el nombre que
+  // tenían, así que después de un intercambio `adicional-0.jpg` puede ser
+  // justamente la foto de perfil. Borrar por ruta dejaría el perfil apuntando
+  // a un archivo que ya no existe.
+  async function manejarEliminarFoto(indiceAdicional) {
+    if (eliminandoFoto || subiendoFoto || cambiandoPrincipal) return false
+    const existentes = usuario?.fotosAdicionales || []
+    const url = existentes[indiceAdicional]
+    if (!url) return false
+
+    setErrorFoto('')
+    setEliminandoFoto(true)
+    try {
+      // Si otro lugar del perfil apunta al MISMO archivo —el estado roto que
+      // dejó el bug del intercambio—, borrarlo dejaría a esa otra foto sin
+      // archivo. En ese caso solo se suelta la referencia y el archivo queda,
+      // porque sigue siendo la foto de alguien.
+      const ruta = rutaDeFoto(url)
+      const otras = [usuario?.fotoPrincipal, ...(usuario?.fotosAdicionales || [])]
+        .filter((u, i) => u && i !== indiceAdicional + 1)
+        .map(rutaDeFoto)
+      const compartida = ruta && otras.includes(ruta)
+
+      if (!compartida) {
+        try {
+          await deleteObject(ref(storage, url))
+        } catch (err) {
+          // Si el archivo ya no estaba, el objetivo igual se cumplió. Cualquier
+          // otro error sí se propaga: no queremos decirle a alguien que su foto
+          // se borró mientras sigue descargable con su enlace.
+          if (err?.code !== 'storage/object-not-found') throw err
+        }
+      }
+      const fotosAdicionales = [existentes[0] ?? null, existentes[1] ?? null]
+      fotosAdicionales[indiceAdicional] = null
+      await actualizarUsuario(uid, { fotosAdicionales })
+      setUsuario((prev) => ({ ...(prev || {}), fotosAdicionales }))
+      return true
+    } catch (err) {
+      setErrorFoto('No pudimos eliminar la foto. Intenta de nuevo.')
+      return false
+    } finally {
+      setEliminandoFoto(false)
     }
   }
 
@@ -313,6 +410,8 @@ export default function Perfil() {
           manejarSeleccionarFoto={manejarSeleccionarFoto}
           manejarHacerPrincipal={manejarHacerPrincipal}
           cambiandoPrincipal={cambiandoPrincipal}
+          manejarEliminarFoto={manejarEliminarFoto}
+          eliminandoFoto={eliminandoFoto}
           subiendoFoto={subiendoFoto}
           errorFoto={errorFoto}
         />
@@ -753,6 +852,35 @@ function EtiquetaSeccion({ texto }) {
 
 const ETIQUETAS_SLOT = ['Foto de perfil', 'Foto 2', 'Foto 3']
 
+function OpcionMenu({ icono, texto, onClick, deshabilitado, peligro, ultima }) {
+  return (
+    <button
+      type="button"
+      disabled={deshabilitado}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        padding: '12px 14px',
+        background: 'transparent',
+        border: 'none',
+        borderBottom: ultima ? 'none' : '1px solid rgba(255,255,255,0.08)',
+        color: peligro ? 'var(--danger)' : 'white',
+        fontSize: 13,
+        fontFamily: 'inherit',
+        textAlign: 'left',
+        cursor: deshabilitado ? 'default' : 'pointer',
+        opacity: deshabilitado ? 0.5 : 1,
+      }}
+    >
+      {icono}
+      {texto}
+    </button>
+  )
+}
+
 // Visor de las 3 fotos del perfil propio (a diferencia de FotoCarrusel, acá
 // SÍ se muestran los slots vacíos — con un botón para agregar — porque es
 // para gestionar tus propias fotos, no para ver las de otra persona.
@@ -762,21 +890,49 @@ function GestorFotos({
   manejarSeleccionarFoto,
   manejarHacerPrincipal,
   cambiandoPrincipal,
+  manejarEliminarFoto,
+  eliminandoFoto,
   subiendoFoto,
   errorFoto,
 }) {
   const [indice, setIndice] = useState(0)
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const [confirmandoBorrar, setConfirmandoBorrar] = useState(false)
   const slots = [usuario?.fotoPrincipal || null, usuario?.fotosAdicionales?.[0] || null, usuario?.fotosAdicionales?.[1] || null]
   const slotKeys = ['principal', 0, 1]
   const fotoActual = slots[indice]
-  const ocupado = subiendoFoto || cambiandoPrincipal
+  const ocupado = subiendoFoto || cambiandoPrincipal || eliminandoFoto
+  // En la foto de perfil el menú queda con una sola opción ("cambiar"), y así
+  // se deja: las otras dos no aplican —ya es la principal, y borrarla dejaría
+  // la verificación sin con qué comparar—. Hacer que el botón aparezca y
+  // desaparezca al pasar de foto confunde más que un menú corto.
+  const esPrincipal = indice === 0
 
   // Al hacer principal la 2 o la 3, las fotos se intercambian bajo los pies:
   // quedarse en el mismo slot mostraría la foto vieja y parecería que no pasó
   // nada. Se salta a la 1, que es donde está ahora la foto elegida.
   async function hacerPrincipal() {
+    setMenuAbierto(false)
     const ok = await manejarHacerPrincipal(slotKeys[indice])
-    if (ok) setIndice(0)
+    if (ok) irASlot(0)
+  }
+
+  async function eliminar() {
+    const ok = await manejarEliminarFoto(slotKeys[indice])
+    if (ok) {
+      setConfirmandoBorrar(false)
+      // Queda un espacio vacío donde estaba la foto. Se vuelve a la primera,
+      // que siempre tiene algo, en vez de dejar a la persona mirando un hueco.
+      irASlot(0)
+    }
+  }
+
+  function irASlot(i) {
+    // Ni el menú ni la confirmación de borrado pueden sobrevivir a un cambio
+    // de foto: si no, se pregunta por una y se borra otra.
+    setMenuAbierto(false)
+    setConfirmandoBorrar(false)
+    setIndice(i)
   }
 
   return (
@@ -816,7 +972,7 @@ function GestorFotos({
           {slots.map((_, i) => (
             <div
               key={i}
-              onClick={() => setIndice(i)}
+              onClick={() => irASlot(i)}
               style={{
                 flex: 1,
                 height: 3,
@@ -843,20 +999,179 @@ function GestorFotos({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
+            zIndex: 3,
           }}
         >
           <IconCerrar size={16} />
         </div>
 
+        {/* Los tres puntos solo con foto: en un espacio vacío no hay nada que
+            hacerle, y ahí manda el "Agregar foto" del centro. */}
+        {fotoActual && (
+          <div
+            onClick={() => !ocupado && setMenuAbierto((v) => !v)}
+            style={{
+              position: 'absolute',
+              top: 'calc(12px + env(safe-area-inset-top))',
+              right: 52,
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+              background: menuAbierto ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.45)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: ocupado ? 'default' : 'pointer',
+              zIndex: 3,
+            }}
+          >
+            <IconMenuVertical size={17} />
+          </div>
+        )}
+
+        {/* Capa que oscurece y cierra al tocar afuera. Va por debajo del menú
+            pero por encima de las zonas de pasar foto, para que el primer
+            toque cierre el menú en vez de cambiar de foto sin querer. */}
+        {menuAbierto && (
+          <div
+            onClick={() => setMenuAbierto(false)}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2 }}
+          />
+        )}
+
+        {menuAbierto && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(50px + env(safe-area-inset-top))',
+              right: 14,
+              minWidth: 210,
+              background: '#1c1926',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 14,
+              overflow: 'hidden',
+              zIndex: 4,
+            }}
+          >
+            <OpcionMenu
+              icono={<IconLapiz size={15} />}
+              texto={subiendoFoto ? 'Subiendo...' : 'Cambiar esta foto'}
+              onClick={() => {
+                setMenuAbierto(false)
+                manejarSeleccionarFoto(slotKeys[indice])()
+              }}
+              deshabilitado={ocupado}
+              ultima={esPrincipal}
+            />
+            {!esPrincipal && (
+              <OpcionMenu
+                icono={<IconEstrella size={15} />}
+                texto={cambiandoPrincipal ? 'Cambiando...' : 'Usar como foto de perfil'}
+                onClick={hacerPrincipal}
+                deshabilitado={ocupado}
+              />
+            )}
+            {!esPrincipal && (
+              <OpcionMenu
+                icono={<IconBasurero size={15} />}
+                texto="Eliminar esta foto"
+                onClick={() => {
+                  setMenuAbierto(false)
+                  setConfirmandoBorrar(true)
+                }}
+                deshabilitado={ocupado}
+                peligro
+                ultima
+              />
+            )}
+          </div>
+        )}
+
+        {/* Confirmación en el centro, encima de la foto. Antes vivía abajo,
+            junto a los botones; ahora que los botones se fueron al menú, tiene
+            que pedirse donde la persona está mirando. */}
+        {confirmandoBorrar && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.62)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+              zIndex: 5,
+            }}
+          >
+            <div
+              style={{
+                background: '#1c1926',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 16,
+                padding: '20px 18px',
+                textAlign: 'center',
+                width: '100%',
+                maxWidth: 300,
+              }}
+            >
+              <p style={{ color: 'white', fontSize: 14.5, marginBottom: 4 }}>¿Eliminar esta foto?</p>
+              <p style={{ color: 'var(--text-faint)', fontSize: 12.5, marginBottom: 16 }}>
+                No se puede deshacer.
+              </p>
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={eliminar}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '11px 0',
+                  marginBottom: 8,
+                  borderRadius: 13,
+                  border: '1px solid var(--danger)',
+                  background: 'transparent',
+                  color: 'var(--danger)',
+                  fontSize: 13.5,
+                  fontFamily: 'inherit',
+                  cursor: ocupado ? 'default' : 'pointer',
+                  opacity: ocupado ? 0.6 : 1,
+                }}
+              >
+                {eliminandoFoto ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={() => setConfirmandoBorrar(false)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '11px 0',
+                  borderRadius: 13,
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  background: 'transparent',
+                  color: 'white',
+                  fontSize: 13.5,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {indice > 0 && (
           <div
-            onClick={() => setIndice((i) => i - 1)}
+            onClick={() => irASlot(indice - 1)}
             style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', cursor: 'pointer' }}
           />
         )}
         {indice < 2 && (
           <div
-            onClick={() => setIndice((i) => i + 1)}
+            onClick={() => irASlot(indice + 1)}
             style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '30%', cursor: 'pointer' }}
           />
         )}
@@ -869,52 +1184,13 @@ function GestorFotos({
           flexShrink: 0,
         }}
       >
-        <p style={{ color: 'white', fontSize: 13, marginBottom: 10 }}>{ETIQUETAS_SLOT[indice]}</p>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 20px',
-              borderRadius: 14,
-              background: 'rgba(255,255,255,0.1)',
-              color: 'white',
-              fontSize: 13,
-              cursor: ocupado ? 'default' : 'pointer',
-            }}
-            onClick={ocupado ? undefined : manejarSeleccionarFoto(slotKeys[indice])}
-          >
-            <IconLapiz size={14} />
-            {subiendoFoto ? 'Subiendo...' : fotoActual ? 'Cambiar esta foto' : 'Agregar esta foto'}
-          </label>
+        <p style={{ color: 'white', fontSize: 13 }}>{ETIQUETAS_SLOT[indice]}</p>
+        {fotoActual && (
+          <p style={{ color: 'var(--text-faint)', fontSize: 11.5, marginTop: 4 }}>
+            Toca los tres puntos de arriba para cambiarla o eliminarla
+          </p>
+        )}
 
-          {/* Solo en la 2 y la 3, y solo si tienen foto: en la 1 no tendría
-              sentido, ya es la principal. */}
-          {indice > 0 && fotoActual && (
-            <button
-              type="button"
-              disabled={ocupado}
-              onClick={hacerPrincipal}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 20px',
-                borderRadius: 14,
-                border: '1px solid rgba(255,255,255,0.25)',
-                background: 'transparent',
-                color: 'white',
-                fontSize: 13,
-                fontFamily: 'inherit',
-                cursor: ocupado ? 'default' : 'pointer',
-                opacity: ocupado ? 0.6 : 1,
-              }}
-            >
-              {cambiandoPrincipal ? 'Cambiando...' : 'Usar como foto de perfil'}
-            </button>
-          )}
-        </div>
         {errorFoto && (
           <p className="error-text" style={{ marginTop: 10 }}>
             {errorFoto}
