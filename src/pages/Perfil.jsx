@@ -289,7 +289,7 @@ export default function Perfil() {
             <img
               src={usuario.fotoPrincipal}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              className="foto-persona"
             />
           )}
         </div>
@@ -622,7 +622,7 @@ export default function Perfil() {
               <img
                 src={fotoPendientePreview}
                 alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                className="foto-persona"
               />
             </div>
             <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600, textAlign: 'center', marginBottom: 18 }}>

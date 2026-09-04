@@ -100,7 +100,7 @@ export default function ChatsList() {
                       <img
                         src={perfil.fotoPrincipal}
                         alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        className="foto-persona"
                       />
                     )}
                   </div>

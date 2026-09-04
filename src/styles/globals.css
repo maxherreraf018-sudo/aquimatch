@@ -302,6 +302,24 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 20%;
+}
+
+/* La foto de una persona dentro de un círculo.
+   `object-fit: cover` recorta la foto y la centra. Como la cámara del
+   teléfono entrega una foto vertical (9:16) y el círculo es cuadrado, se
+   recorta más de un cuarto por arriba y otro tanto por abajo — y el centro
+   de una foto vertical de una persona cae en el pecho, así que lo que se
+   pierde arriba es la cabeza. Max lo vio en su propio perfil: el círculo le
+   empezaba en las cejas.
+   Correr el encuadre al 20% deja casi todo el recorte abajo, que es donde
+   no hay nada que mirar. */
+.foto-persona {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  display: block;
 }
 
 .chip-group {

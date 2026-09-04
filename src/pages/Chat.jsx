@@ -229,7 +229,7 @@ export default function Chat() {
             <img
               src={otroPerfil.fotoPrincipal}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              className="foto-persona"
             />
           )}
         </div>

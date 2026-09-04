@@ -358,7 +358,7 @@ export default function Auth() {
             <img
               src={usuarioPendiente.photoURL}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              className="foto-persona"
             />
           )}
         </div>

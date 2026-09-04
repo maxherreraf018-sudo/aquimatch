@@ -205,7 +205,7 @@ function Avatar({ url }) {
         <img
           src={url}
           alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          className="foto-persona"
         />
       )}
     </div>
