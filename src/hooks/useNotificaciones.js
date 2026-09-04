@@ -4,11 +4,13 @@ import { Capacitor } from '@capacitor/core'
 import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 import { FirebaseCrashlytics } from '@capacitor-firebase/crashlytics'
 import { getAuth } from 'firebase/auth'
-import { actualizarUsuario } from '../firebase/auth'
+import { guardarDatosPrivados } from '../firebase/auth'
 
 /**
  * Pide permiso de notificaciones push (si todavía no se preguntó) y guarda
- * el token del dispositivo en usuarios/{uid}.fcmToken, para que las Cloud
+ * el token del dispositivo en usuarios/{uid}/privado/datos.fcmToken — identifica
+ * tu teléfono, así que no puede vivir en el documento público, que lo lee
+ * cualquiera que conozca tu uid —, para que las Cloud
  * Functions (notificarMensajeNuevo, notificarMatchNuevo) sepan a quién
  * avisarle. Si la persona rechaza el permiso, o algo falla (ej. Google
  * Play Services no disponible), la app sigue funcionando normal, solo sin
@@ -36,7 +38,7 @@ export default function useNotificaciones() {
         if (estado !== 'granted' || cancelado) return
         const { token } = await FirebaseMessaging.getToken()
         if (token && !cancelado) {
-          await actualizarUsuario(uid, { fcmToken: token })
+          await guardarDatosPrivados(uid, { fcmToken: token })
         }
       } catch (err) {
         // Sin notificaciones, pero la app sigue funcionando igual. Se manda
@@ -52,7 +54,7 @@ export default function useNotificaciones() {
     activar()
 
     const listenerToken = FirebaseMessaging.addListener('tokenReceived', ({ token }) => {
-      if (token) actualizarUsuario(uid, { fcmToken: token })
+      if (token) guardarDatosPrivados(uid, { fcmToken: token })
     })
 
     const listenerTap = FirebaseMessaging.addListener('notificationActionPerformed', (event) => {

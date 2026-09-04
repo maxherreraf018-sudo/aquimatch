@@ -179,7 +179,42 @@ export async function actualizarUsuario(uid, datos) {
 // ---------------------------------------------------------------------------
 
 // Campos que NUNCA deben quedar en el documento público.
-export const CAMPOS_PRIVADOS = ['correo', 'selfieVerificacion', 'contactoConfianza']
+// Campos que NO pueden vivir en el documento público, porque ese documento lo
+// puede leer cualquiera que conozca el uid — y el uid queda a la vista de
+// todos los que estén activados en el mismo lugar que tú.
+//
+// Los tres últimos se agregaron el 2026-09-04:
+//   - fechaNacimiento: la fecha exacta es un dato de identidad que sirve para
+//     suplantar a alguien. A los demás les basta la edad, que se publica
+//     aparte en `edad`.
+//   - fcmToken: identifica tu teléfono. Con él, cualquiera que lo leyera
+//     podría intentar mandarte notificaciones directamente.
+//   - bloqueados: dice con quién tuviste un problema. No le incumbe a nadie
+//     más, y menos a la persona bloqueada.
+export const CAMPOS_PRIVADOS = [
+  'correo',
+  'selfieVerificacion',
+  'contactoConfianza',
+  'fechaNacimiento',
+  'fcmToken',
+  'bloqueados',
+]
+
+/**
+ * Guarda la fecha de nacimiento, que va SOLO a los datos privados.
+ *
+ * La edad que ven los demás (`edad`, en el documento público) NO se escribe
+ * desde acá: la calcula y la guarda el servidor, en activarEnLugar. Si la
+ * escribiera el cliente, cualquiera se pondría la edad que quisiera, y hasta
+ * ahora eso no se podía — las reglas congelan la fecha al terminar el registro.
+ *
+ * Que la escriba el servidor al activarse tampoco deja huecos: solo aparecés
+ * ante otras personas estando activo, así que para cuando alguien te ve, la
+ * edad ya está puesta y al día.
+ */
+export async function guardarFechaNacimiento(uid, fechaNacimiento) {
+  await guardarDatosPrivados(uid, { fechaNacimiento })
+}
 
 function refDatosPrivados(uid) {
   return doc(db, 'usuarios', uid, 'privado', 'datos')

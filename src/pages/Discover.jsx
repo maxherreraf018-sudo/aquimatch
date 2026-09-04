@@ -15,7 +15,7 @@ import { obtenerUsuario, obtenerUsuarioPropio } from '../firebase/auth'
 import {
   marcarMeInteresa,
   marcarMasTarde,
-  calcularEdad,
+  edadDePerfil,
   obtenerUidsYaConectados,
   obtenerUidsConMiInteres,
   obtenerPasesConFecha,
@@ -508,8 +508,8 @@ export default function Discover() {
               >
                 <h2 style={{ color: 'white', fontSize: 22, marginBottom: 3 }}>
                   {actual.nombre}
-                  {perfilesCompletos[actual.uid]
-                    ? `, ${calcularEdad(perfilesCompletos[actual.uid].fechaNacimiento)}`
+                  {edadDePerfil(perfilesCompletos[actual.uid])
+                    ? `, ${edadDePerfil(perfilesCompletos[actual.uid])}`
                     : ''}
                 </h2>
                 <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 8 }}>

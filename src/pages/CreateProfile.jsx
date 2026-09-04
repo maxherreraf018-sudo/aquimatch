@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../firebase/config'
-import { actualizarUsuario } from '../firebase/auth'
+import { actualizarUsuario, guardarFechaNacimiento } from '../firebase/auth'
 import { elegirFoto } from '../services/fotos'
 import { IconAgregar } from '../components/Icons'
 
@@ -92,9 +92,12 @@ export default function CreateProfile() {
         await uploadBytes(storageRef, foto)
         fotoURL = await getDownloadURL(storageRef)
       }
+      // La fecha exacta va a los datos privados y en el perfil público queda
+      // solo la edad: a los demás les basta con eso, y una fecha de nacimiento
+      // exacta es justo lo que se usa para suplantar a alguien.
+      await guardarFechaNacimiento(uid, fechaNacimiento)
       await actualizarUsuario(uid, {
         nombre: nombre.trim(),
-        fechaNacimiento,
         genero,
         fotoPrincipal: fotoURL,
       })

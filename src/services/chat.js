@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   onSnapshot,
   query,
@@ -82,10 +83,15 @@ export function escucharMensajes(conexionId, callback, ocultarAntesDe = null) {
  * Bloquea a otro usuario. Nunca más se mostrarán entre sí (en ningún lugar).
  */
 export async function bloquearUsuario(uidPropio, uidBloqueado) {
-  const ref = doc(db, 'usuarios', uidPropio)
-  await updateDoc(ref, {
-    bloqueados: arrayUnion(uidBloqueado),
-  })
+  // Va a los datos privados: la lista dice con quién tuviste un problema, y el
+  // documento público lo puede leer cualquiera que conozca tu uid — incluida
+  // la persona que acabas de bloquear.
+  //
+  // Las reglas de Firestore miran las dos ubicaciones mientras dure la
+  // mudanza, así que el bloqueo se sigue haciendo cumplir en el servidor
+  // aunque la otra persona tenga una versión vieja de la app.
+  const ref = doc(db, 'usuarios', uidPropio, 'privado', 'datos')
+  await setDoc(ref, { bloqueados: arrayUnion(uidBloqueado) }, { merge: true })
 }
 
 /**

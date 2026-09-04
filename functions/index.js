@@ -178,11 +178,12 @@ exports.notificarMensajeNuevo = onDocumentCreated(
     );
     if (!destinatarioUid) return;
 
-    const [destinatarioSnap, autorSnap] = await Promise.all([
+    const [destinatarioSnap, autorSnap, destinatarioPrivado] = await Promise.all([
       admin.firestore().doc(`usuarios/${destinatarioUid}`).get(),
       admin.firestore().doc(`usuarios/${mensaje.autorUid}`).get(),
+      datosPrivados(destinatarioUid),
     ]);
-    const token = destinatarioSnap.data()?.fcmToken;
+    const token = conRespaldo(destinatarioPrivado, destinatarioSnap.data() || {}, "fcmToken");
     if (!token) return;
 
     try {
@@ -228,10 +229,11 @@ exports.notificarMatchNuevo = onDocumentWritten(
       usuarios.map((uid) => admin.firestore().doc(`usuarios/${uid}`).get())
     );
     const datos = snaps.map((s) => s.data() || {});
+    const privados = await Promise.all(usuarios.map((uid) => datosPrivados(uid)));
 
     await Promise.all(
       usuarios.map(async (uid, i) => {
-        const token = datos[i].fcmToken;
+        const token = conRespaldo(privados[i], datos[i], "fcmToken");
         if (!token) return;
         const otroNombre = datos[1 - i].nombre || "Alguien";
         try {
@@ -368,14 +370,12 @@ function bucketHorario(fecha) {
   return { dia, hora, diaSemana };
 }
 
-function rangoEdad(fechaNacimiento) {
-  if (!fechaNacimiento) return null;
-  const nacimiento = new Date(fechaNacimiento);
-  if (Number.isNaN(nacimiento.getTime())) return null;
-  const hoy = new Date();
-  let edad = hoy.getUTCFullYear() - nacimiento.getUTCFullYear();
-  const m = hoy.getUTCMonth() - nacimiento.getUTCMonth();
-  if (m < 0 || (m === 0 && hoy.getUTCDate() < nacimiento.getUTCDate())) edad--;
+// Recibe la edad ya calculada, no la fecha. Antes la calculaba de nuevo desde
+// `perfil.fechaNacimiento`, que desde el 2026-09-04 ya no vive en el documento
+// público: habría quedado siempre en null y las estadísticas del local se
+// habrían quedado sin el corte por edad, en silencio y sin que nadie lo note.
+function rangoEdad(edad) {
+  if (typeof edad !== "number") return null;
   if (edad < 18) return null;
   if (edad <= 24) return "18-24";
   if (edad <= 34) return "25-34";
@@ -390,7 +390,7 @@ function rangoEdad(fechaNacimiento) {
  * `activacionPrevia` sirve para no contar dos veces a la misma persona: si ya
  * estaba activa en este mismo local dentro de esta misma hora, no se suma.
  */
-async function registrarEstadistica(placeId, placeName, perfil, activacionPrevia) {
+async function registrarEstadistica(placeId, placeName, edad, activacionPrevia) {
   try {
     const ahora = new Date();
     const { dia, hora, diaSemana } = bucketHorario(ahora);
@@ -400,7 +400,7 @@ async function registrarEstadistica(placeId, placeName, perfil, activacionPrevia
       if (previa.dia === dia && previa.hora === hora) return;
     }
 
-    const rango = rangoEdad(perfil.fechaNacimiento);
+    const rango = rangoEdad(edad);
     const incremento = admin.firestore.FieldValue.increment(1);
     const datos = {
       placeId,
@@ -490,6 +490,38 @@ async function contarUso(ref, campoConteo, campoVentana, maximo, mensaje) {
 // el día pueden venir sin cero adelante). Devuelve null si no se puede
 // calcular, y quien llama tiene que tratar eso como NO elegible: sin una fecha
 // válida no hay forma de saber si es mayor de edad, y en la duda no se pasa.
+/**
+ * Lee los datos privados de un usuario (usuarios/{uid}/privado/datos).
+ *
+ * Desde el 2026-09-04 ahí viven la fecha de nacimiento, el token de
+ * notificaciones y la lista de bloqueados: el documento público lo puede leer
+ * cualquiera que conozca el uid, y el uid queda a la vista de todos los que
+ * estén activados en el mismo lugar.
+ *
+ * Devuelve {} si el documento no existe todavía, que es el caso de las cuentas
+ * que aún no pasaron por la mudanza.
+ */
+async function datosPrivados(uid) {
+  const snap = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
+  return snap.exists ? snap.data() || {} : {};
+}
+
+/**
+ * Un campo que se está mudando: primero se busca donde va a vivir, y si
+ * todavía no está ahí, donde vivía.
+ *
+ * El respaldo NO es opcional. Las Cloud Functions se despliegan al instante
+ * para todos, pero la mudanza de cada cuenta ocurre recién la primera vez que
+ * esa persona abre la app nueva. Sin respaldo, entre una cosa y la otra
+ * quedarían sin notificaciones y —peor— sin poder activarse, porque el control
+ * de los 18 años no encontraría la fecha y bloquearía a todo el mundo.
+ *
+ * Cuando ya no queden cuentas sin mudar, se puede borrar el respaldo.
+ */
+function conRespaldo(privados, publico, campo) {
+  return privados[campo] !== undefined ? privados[campo] : publico[campo];
+}
+
 function calcularEdad(fechaNacimiento) {
   if (typeof fechaNacimiento !== "string") return null;
   const partes = fechaNacimiento.split("-").map(Number);
@@ -788,9 +820,26 @@ exports.activarEnLugar = onCall(
     // en el cliente: quien escribiera su perfil por fuera de la app se lo
     // saltaba entero. Acá se recalcula contra la fecha guardada, y sin fecha
     // válida no se activa nadie.
-    const edad = calcularEdad(perfil.fechaNacimiento);
+    //
+    // La fecha se mudó a los datos privados el 2026-09-04. Se lee de los dos
+    // lados mientras dure la mudanza: si solo se mirara el nuevo, todas las
+    // cuentas que aún no se mudaron se quedarían sin poder activarse.
+    const privadoPropio = await datosPrivados(uid);
+    const edad = calcularEdad(conRespaldo(privadoPropio, perfil, "fechaNacimiento"));
     if (edad === null || edad < 18) {
       throw new HttpsError("failed-precondition", "AquiMatch es solo para mayores de 18 años.");
+    }
+
+    // La edad que ven los demás en las tarjetas. Se publica desde acá, y no
+    // desde la app, porque las reglas no dejan que el cliente la escriba: si
+    // pudiera, cualquiera se pondría la edad que quisiera.
+    //
+    // Este es el momento correcto para hacerlo: solo aparecés ante otras
+    // personas estando activo, así que para cuando alguien te ve, el número ya
+    // está puesto y al día. Se escribe solo si cambió, para no gastar una
+    // escritura en cada activación.
+    if (perfil.edad !== edad) {
+      await perfilSnap.ref.update({ edad });
     }
 
     await admin.firestore().doc(`activaciones/${uid}`).set({

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
-import { obtenerConexion, obtenerPerfilBasico, calcularEdad } from '../services/discover'
+import { obtenerConexion, obtenerPerfilBasico, edadDePerfil } from '../services/discover'
 import { obtenerEstadoConexion } from '../services/chatsList'
 import {
   enviarMensaje,
@@ -493,7 +493,7 @@ export default function Chat() {
             >
               <h2 style={{ color: 'white', fontSize: 24, marginBottom: otroPerfil?.intereses?.length ? 10 : 0 }}>
                 {otroPerfil?.nombre || 'Alguien'}
-                {otroPerfil?.fechaNacimiento ? `, ${calcularEdad(otroPerfil.fechaNacimiento)}` : ''}
+                {edadDePerfil(otroPerfil) ? `, ${edadDePerfil(otroPerfil)}` : ''}
               </h2>
               {otroPerfil?.intereses?.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

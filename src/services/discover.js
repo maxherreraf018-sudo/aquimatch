@@ -192,6 +192,24 @@ export async function obtenerPasesConFecha(uid, placeId) {
 /**
  * Calcula la edad a partir de una fecha de nacimiento (YYYY-MM-DD).
  */
+/**
+ * La edad que se le muestra a los demás.
+ *
+ * Se lee del campo `edad`, que es lo único que queda en el perfil público
+ * desde el 2026-09-04: la fecha exacta de nacimiento se mudó a los datos
+ * privados, porque es un dato de identidad que sirve para suplantar a alguien
+ * y a los demás les basta con el número.
+ *
+ * El respaldo por `fechaNacimiento` es para las cuentas que todavía no pasaron
+ * por la mudanza (ocurre sola la primera vez que cada persona abre la app).
+ * Cuando ya no quede ninguna, se puede borrar esa mitad.
+ */
+export function edadDePerfil(perfil) {
+  if (!perfil) return null
+  if (typeof perfil.edad === 'number') return perfil.edad
+  return calcularEdad(perfil.fechaNacimiento)
+}
+
 export function calcularEdad(fechaNacimiento) {
   if (!fechaNacimiento) return null
   const nacimiento = new Date(fechaNacimiento)
