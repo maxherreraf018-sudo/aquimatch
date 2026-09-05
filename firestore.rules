@@ -61,6 +61,19 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/usuarios/$(otroUid)/privado/datos) &&
           request.auth.uid in privadoDe(otroUid).get('bloqueados', []));
     }
+    // Y al revés: tampoco puedes escribirle a quien TÚ bloqueaste.
+    //
+    // Faltaba, y Max lo encontró probando: bloqueó a alguien, esa persona no
+    // pudo responderle, pero él sí le siguió mandando mensajes y le llegaban.
+    // O sea que "bloquear" servía para silenciar a alguien mientras uno le
+    // seguía escribiendo, que es casi lo contrario de lo que la palabra
+    // promete — y en una app donde la otra persona está a tres mesas, la
+    // diferencia importa.
+    function yoBloquee(otroUid) {
+      return otroUid in perfilDe(request.auth.uid).get('bloqueados', []) ||
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)/privado/datos) &&
+          otroUid in privadoDe(request.auth.uid).get('bloqueados', []));
+    }
     function otroDeLaConexion(conexionId) {
       let usuarios = get(/databases/$(database)/documents/conexiones/$(conexionId)).data.usuarios;
       return usuarios[0] == request.auth.uid ? usuarios[1] : usuarios[0];
@@ -237,7 +250,8 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.desde &&
         request.resource.data.keys().hasOnly(['desde', 'hacia', 'placeId', 'creadoEn']) &&
         !estaSuspendido(request.auth.uid) &&
-        !meBloqueo(request.resource.data.hacia);
+        !meBloqueo(request.resource.data.hacia) &&
+        !yoBloquee(request.resource.data.hacia);
       allow delete: if false;
     }
     match /pases/{paseId} {
@@ -330,7 +344,8 @@ service cloud.firestore {
           request.resource.data.texto.size() > 0 &&
           request.resource.data.texto.size() <= 2000 &&
           !estaSuspendido(request.auth.uid) &&
-          !meBloqueo(otroDeLaConexion(conexionId));
+          !meBloqueo(otroDeLaConexion(conexionId)) &&
+          !yoBloquee(otroDeLaConexion(conexionId));
         allow update, delete: if false;
       }
     }

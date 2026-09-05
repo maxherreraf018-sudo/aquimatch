@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   deleteField,
   arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
@@ -92,6 +93,32 @@ export async function bloquearUsuario(uidPropio, uidBloqueado) {
   // aunque la otra persona tenga una versión vieja de la app.
   const ref = doc(db, 'usuarios', uidPropio, 'privado', 'datos')
   await setDoc(ref, { bloqueados: arrayUnion(uidBloqueado) }, { merge: true })
+}
+
+/**
+ * Deshace un bloqueo. No existía: bloquear era un camino sin vuelta, y ni
+ * siquiera había forma de saber a quién habías bloqueado. Max lo encontró
+ * probando, intentando deshacer un bloqueo que había hecho para probar.
+ *
+ * Saca el uid de LOS DOS lugares. La lista se está mudando a los datos
+ * privados, y un bloqueo hecho con una versión anterior de la app quedó
+ * anotado en el documento público: si solo se limpiara el lugar nuevo, la
+ * persona seguiría bloqueada y el botón parecería no hacer nada.
+ */
+export async function desbloquearUsuario(uidPropio, uidBloqueado) {
+  await Promise.all([
+    setDoc(
+      doc(db, 'usuarios', uidPropio, 'privado', 'datos'),
+      { bloqueados: arrayRemove(uidBloqueado) },
+      { merge: true }
+    ),
+    updateDoc(doc(db, 'usuarios', uidPropio), {
+      bloqueados: arrayRemove(uidBloqueado),
+    }).catch(() => {
+      // Si el campo viejo ya no existe, updateDoc falla y da igual: significa
+      // que esta cuenta ya se mudó y no hay nada que limpiar ahí.
+    }),
+  ])
 }
 
 /**

@@ -3,10 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { obtenerConexion, obtenerPerfilBasico, edadDePerfil } from '../services/discover'
 import { obtenerEstadoConexion } from '../services/chatsList'
+import { obtenerUsuarioPropio } from '../firebase/auth'
 import {
   enviarMensaje,
   escucharMensajes,
   bloquearUsuario,
+  desbloquearUsuario,
   reportarUsuario,
   deshacerMatch,
   marcarChatLeido,
@@ -69,6 +71,8 @@ export default function Chat() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [mostrarReporte, setMostrarReporte] = useState(false)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  const [loBloquee, setLoBloquee] = useState(false)
+  const [cambiandoBloqueo, setCambiandoBloqueo] = useState(false)
   const [mostrarConfirmarEliminar, setMostrarConfirmarEliminar] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -90,14 +94,19 @@ export default function Chat() {
           return
         }
         const otroUid = conexionData.usuarios.find((u) => u !== uid)
-        const [perfilOtro, estadoConexion] = await Promise.all([
+        const [perfilOtro, estadoConexion, miPerfil] = await Promise.all([
           obtenerPerfilBasico(otroUid),
           obtenerEstadoConexion(otroUid),
+          // Para saber si a esta persona la bloqueaste tú. obtenerUsuarioPropio
+          // combina el documento público con los datos privados, así que sirve
+          // igual antes y después de la mudanza de la lista de bloqueados.
+          obtenerUsuarioPropio(uid),
         ])
         if (!activo) return
         setConexion({ ...conexionData, otroUid })
         setOtroPerfil(perfilOtro)
         setOtroEstadoConexion(estadoConexion)
+        setLoBloquee((miPerfil?.bloqueados || []).includes(otroUid))
         setCargando(false)
 
         // Si esta conexión ya se había eliminado antes y se rehizo el
@@ -140,9 +149,32 @@ export default function Chat() {
     }
   }
 
+  // Bloquear ya no saca de la pantalla. Antes mandaba a Descubrir, y con eso
+  // el bloqueo desaparecía de la vista: no quedaba en ningún lado la marca de
+  // que esa persona estaba bloqueada, ni forma de deshacerlo. Quedarse acá
+  // muestra el estado nuevo y deja el "Desbloquear" a mano.
   async function manejarBloquear() {
-    await bloquearUsuario(uid, conexion.otroUid)
-    navigate('/descubrir')
+    if (cambiandoBloqueo) return
+    setCambiandoBloqueo(true)
+    try {
+      await bloquearUsuario(uid, conexion.otroUid)
+      setLoBloquee(true)
+      setMenuAbierto(false)
+    } finally {
+      setCambiandoBloqueo(false)
+    }
+  }
+
+  async function manejarDesbloquear() {
+    if (cambiandoBloqueo) return
+    setCambiandoBloqueo(true)
+    try {
+      await desbloquearUsuario(uid, conexion.otroUid)
+      setLoBloquee(false)
+      setMenuAbierto(false)
+    } finally {
+      setCambiandoBloqueo(false)
+    }
   }
 
   async function manejarReportar(motivo) {
@@ -277,7 +309,11 @@ export default function Chat() {
                 }}
               />
               <MenuItem texto="Reportar" onClick={() => setMostrarReporte(true)} />
-              <MenuItem texto="Bloquear" onClick={manejarBloquear} peligro />
+              {loBloquee ? (
+                <MenuItem texto="Desbloquear" onClick={manejarDesbloquear} />
+              ) : (
+                <MenuItem texto="Bloquear" onClick={manejarBloquear} peligro />
+              )}
             </div>
           )}
         </div>
@@ -375,7 +411,25 @@ export default function Chat() {
         <div ref={finRef} />
       </div>
 
-      {/* Input */}
+      {/* Bloqueado: en vez del campo de escribir, se dice qué pasa y cómo
+          deshacerlo. Antes acá no había nada — el campo seguía igual, se podía
+          escribir, y el mensaje incluso llegaba (la regla del servidor solo
+          frenaba a la otra persona). O sea que la palabra "bloquear" prometía
+          una cosa y hacía otra. */}
+      {loBloquee ? (
+        <div style={{ padding: '12px 20px 0', textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
+            Bloqueaste a {otroPerfil?.nombre || 'esta persona'}. No pueden escribirse.
+          </p>
+          <button
+            className="btn btn-secondary"
+            onClick={manejarDesbloquear}
+            disabled={cambiandoBloqueo}
+          >
+            {cambiandoBloqueo ? 'Desbloqueando...' : 'Desbloquear'}
+          </button>
+        </div>
+      ) : (
       <div style={{ display: 'flex', gap: 10, padding: '12px 20px 0' }}>
         <input
           className="input"
@@ -399,6 +453,7 @@ export default function Chat() {
           <IconEnviar size={18} />
         </button>
       </div>
+      )}
 
       {/* Confirmación antes de deshacer el match — borra la conversación para las dos personas */}
       {mostrarConfirmarEliminar && (
