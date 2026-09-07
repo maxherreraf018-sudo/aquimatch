@@ -15,16 +15,25 @@ export async function elegirFoto({
 } = {}) {
   try {
     const foto = await Camera.getPhoto({
-      // Recortador nativo del teléfono. Se activa solo para las fotos de
-      // perfil, no para la selfie de verificación: ahí la persona no tiene que
-      // encuadrar nada, y un paso extra en el registro es un paso donde se cae
-      // gente.
+      // Recortador nativo del teléfono.
       //
-      // Es el arreglo de raíz del recorte que cortaba cabezas. Hoy la app
-      // corrige el encuadre al 20% para que el círculo no se coma la cara,
-      // pero eso es una aproximación que le queda bien a casi cualquier foto y
-      // mal a las demás. Recortando al subir, cada uno encuadra la suya y el
-      // círculo muestra exactamente eso.
+      // APAGADO EN TODAS PARTES desde el 2026-09-05, el mismo día que se
+      // encendió. En Android no es una pantalla nuestra: es la que traiga el
+      // teléfono, y en el Galaxy de Max apareció como un recuadro chico y
+      // pobre que dice "Editar foto". En iPhone se ve bastante mejor, pero eso
+      // no arregla lo que ve la mayoría de la gente, que está en Android.
+      //
+      // El problema que venía a resolver sigue existiendo: el círculo del
+      // perfil recorta, y hoy se compensa con un encuadre fijo al 20% que le
+      // queda bien a casi cualquier foto de una persona parada y mal a las
+      // demás. La solución buena es un recortador propio, dentro de la app,
+      // igual en las dos plataformas — medio día de trabajo, y no valía la
+      // pena trabar el paquete 25 por esto.
+      //
+      // El parámetro se deja puesto para poder volver a probarlo sin rehacer
+      // nada. Nunca en la selfie de verificación: ahí no hay nada que
+      // encuadrar, y un paso extra en el registro es un paso donde se cae
+      // gente.
       allowEditing: recortar,
       // Las fotos 2 y 3 se piden más chicas (720 en vez de 1080).
       //

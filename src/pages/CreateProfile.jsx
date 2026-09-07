@@ -47,7 +47,7 @@ export default function CreateProfile() {
 
   async function manejarFoto() {
     try {
-      const blob = await elegirFoto({ recortar: true })
+      const blob = await elegirFoto()
       if (!blob) return
       setError('')
       setFoto(blob)

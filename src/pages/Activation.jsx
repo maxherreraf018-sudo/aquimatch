@@ -301,7 +301,7 @@ export default function Activation() {
           Asegúrate de estar dentro de un bar, café, restaurante o pub para activar tu
           participación.
         </p>
-        <button className="btn btn-primary" onClick={solicitarUbicacionYBuscar}>
+        <button className="btn btn-primary" onClick={() => solicitarUbicacionYBuscar()}>
           Intentar de nuevo
         </button>
         <BottomNav />
@@ -643,7 +643,7 @@ export default function Activation() {
         <p style={{ marginBottom: 24 }}>
           Saliste de tu lugar activo. Cuando quieras, busca dónde estás para volver a participar.
         </p>
-        <button className="btn btn-primary" onClick={solicitarUbicacionYBuscar}>
+        <button className="btn btn-primary" onClick={() => solicitarUbicacionYBuscar()}>
           Buscar lugar de nuevo
         </button>
         <div className="spacer" />
@@ -658,7 +658,7 @@ export default function Activation() {
       <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
       <h1 style={{ marginBottom: 10 }}>Algo no salió bien</h1>
       <p style={{ marginBottom: 24 }}>{mensajeError}</p>
-      <button className="btn btn-primary" onClick={solicitarUbicacionYBuscar}>
+      <button className="btn btn-primary" onClick={() => solicitarUbicacionYBuscar()}>
         Intentar de nuevo
       </button>
       <BottomNav />

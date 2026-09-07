@@ -7,6 +7,7 @@ import { obtenerUsuarioPropio, actualizarUsuario, guardarDatosPrivados } from '.
 import { elegirFoto } from '../services/fotos'
 import { obtenerActivacionPropia, actualizarPlan, actualizarPreferenciaGeneroActivacion } from '../services/activation'
 import { eliminarCuenta } from '../services/cuenta'
+import { ADMIN_UID } from '../services/admin'
 import { GOLD_OCULTO } from '../services/plataforma'
 import { OPCIONES_INTERES, MAX_INTERESES } from '../data/intereses'
 import { IconAgregar, IconCerrar, IconLapiz, IconMenuVertical, IconBasurero, IconEstrella } from '../components/Icons'
@@ -131,7 +132,7 @@ export default function Perfil() {
       try {
         // Las fotos 2 y 3 se piden más livianas: solo se miran. La principal
         // no, porque es contra la que se compara la selfie de verificación.
-        const blob = await elegirFoto({ secundaria: slot !== 'principal', recortar: true })
+        const blob = await elegirFoto({ secundaria: slot !== 'principal' })
         if (!blob) return
         setErrorFoto('')
         setSlotFotoPendiente(slot)
@@ -657,6 +658,24 @@ export default function Perfil() {
           </p>
         )}
       </div>
+
+      {/* Entrada al panel de moderación, solo para la cuenta de administrador.
+          Faltaba: la pantalla y la ruta existían desde siempre, pero no había
+          ningún enlace hacia ellas en toda la app — o sea que la única forma de
+          entrar era escribir la dirección, y dentro de la app no hay barra de
+          direcciones. Max no podía llegar a su propio panel. */}
+      {uid === ADMIN_UID && (
+        <>
+          <EtiquetaSeccion texto="Moderación" />
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate('/admin')}
+            style={{ marginBottom: 10 }}
+          >
+            Panel de moderación
+          </button>
+        </>
+      )}
 
       <EtiquetaSeccion texto="Cuenta" />
       <button
