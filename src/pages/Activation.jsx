@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { getAuth } from 'firebase/auth'
 import { obtenerUsuario } from '../firebase/auth'
-import { buscarLugaresCercanos } from '../services/places'
+import {
+  buscarLugaresCercanos,
+  calcularDistanciaMetros,
+  RADIO_ACTIVACION_METROS,
+  MAX_LUGARES_MOSTRADOS,
+} from '../services/places'
+import { lugaresCercaDe, recordarLugar } from '../services/misLugares'
 import { obtenerPosicion, hayUbicacionDisponible } from '../services/ubicacion'
 import {
   activarEnLugar,
@@ -23,6 +29,7 @@ import BottomNav from '../components/BottomNav'
 const ESTADOS = {
   PIDIENDO_UBICACION: 'pidiendo_ubicacion',
   BUSCANDO_LUGAR: 'buscando_lugar',
+  ELEGIR_CONOCIDO: 'elegir_conocido',
   ELEGIR_LUGAR: 'elegir_lugar',
   SIN_LUGARES: 'sin_lugares',
   ACTIVANDO: 'activando',
@@ -47,6 +54,9 @@ export default function Activation() {
   const location = useLocation()
   const [estado, setEstado] = useState(ESTADOS.PIDIENDO_UBICACION)
   const [lugares, setLugares] = useState([])
+  // Tus lugares que están al alcance ahora mismo. Salen del almacenamiento
+  // local del teléfono, no del servidor: ver services/misLugares.js.
+  const [misLugaresCerca, setMisLugaresCerca] = useState([])
   const [lugarActivo, setLugarActivo] = useState(null)
   // Coordenadas reales del teléfono en el momento de buscar. El servidor las
   // usa para confirmar que el lugar elegido está de verdad al lado.
@@ -123,7 +133,7 @@ export default function Activation() {
     solicitarUbicacionYBuscar()
   }
 
-  async function solicitarUbicacionYBuscar() {
+  async function solicitarUbicacionYBuscar(forzarBusqueda = false) {
     setEstado(ESTADOS.PIDIENDO_UBICACION)
 
     if (!hayUbicacionDisponible()) {
@@ -148,6 +158,22 @@ export default function Activation() {
     // lugar: es él quien comprueba que el lugar elegido esté realmente cerca
     // de donde está el teléfono.
     setMisCoords(coords)
+
+    // Antes de preguntarle nada a Google: ¿estás cerca de alguno de tus
+    // lugares? Esa lista vive solo en este teléfono, así que la comprobación
+    // es local, instantánea y no cuesta una consulta.
+    //
+    // El radio es el MISMO con el que el servidor autoriza la activación. Si
+    // fuera mayor, la app ofrecería un atajo que el servidor va a rechazar, y
+    // la persona se llevaría un "estás demasiado lejos" después de tocar un
+    // botón que le pusimos adelante.
+    const conocidos = lugaresCercaDe(coords.lat, coords.lng, RADIO_ACTIVACION_METROS, calcularDistanciaMetros)
+    if (conocidos.length > 0 && !forzarBusqueda) {
+      setMisLugaresCerca(conocidos.slice(0, MAX_LUGARES_MOSTRADOS))
+      setEstado(ESTADOS.ELEGIR_CONOCIDO)
+      return
+    }
+
     try {
       const encontrados = await buscarLugaresCercanos(coords.lat, coords.lng)
       if (encontrados.length === 0) {
@@ -162,7 +188,7 @@ export default function Activation() {
     }
   }
 
-  async function confirmarLugar(lugar) {
+  async function confirmarLugar(lugar, vieneDeAtajo = false) {
     if (!misCoords) {
       setMensajeError('Perdimos tu ubicación. Vuelve a buscar el lugar.')
       setEstado(ESTADOS.ERROR)
@@ -180,11 +206,30 @@ export default function Activation() {
         lng: verificado.lng,
         tipos: verificado.tipos,
       }
+      // Se recuerda para la próxima vez, con los datos que confirmó el
+      // servidor y no con los que traía la app. Queda solo en este teléfono.
+      recordarLugar({
+        placeId: lugarConfirmado.placeId,
+        nombre: lugarConfirmado.nombre,
+        lat: lugarConfirmado.lat,
+        lng: lugarConfirmado.lng,
+      })
       setLugarActivo(lugarConfirmado)
       escucharPersonasEnElLugar(lugarConfirmado.placeId, uid, setPersonasActivas)
       setModoSeleccionado('participar')
       setEstado(ESTADOS.ELEGIR_MODO)
     } catch (err) {
+      // Si el rechazo vino de un atajo, se cae de vuelta a la búsqueda normal
+      // en vez de dejar a la persona en una pantalla de error.
+      //
+      // Puede pasar legítimamente: el local se mudó, cerró, o las coordenadas
+      // que guardamos quedaron un poco corridas. Mandarla a "algo no salió
+      // bien" cuando está parada dentro del bar sería absurdo — y el atajo fue
+      // idea nuestra, no de ella.
+      if (vieneDeAtajo) {
+        solicitarUbicacionYBuscar(true)
+        return
+      }
       // Cuando el servidor rechaza la activación manda un motivo entendible
       // ("estás demasiado lejos", "no pudimos confirmar que estés ahí"); vale
       // mucho más mostrarlo que un mensaje genérico.
@@ -258,6 +303,47 @@ export default function Activation() {
         </p>
         <button className="btn btn-primary" onClick={solicitarUbicacionYBuscar}>
           Intentar de nuevo
+        </button>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  // Atajo: estás cerca de un lugar donde ya estuviste. No se le preguntó nada
+  // a Google para llegar acá — la lista salió del propio teléfono.
+  if (estado === ESTADOS.ELEGIR_CONOCIDO) {
+    return (
+      <div className="screen screen-with-nav">
+        <h1 style={{ marginBottom: 6 }}>¿Dónde estás?</h1>
+        <p style={{ marginBottom: 20 }}>Estás cerca de un lugar donde ya estuviste.</p>
+        <div className="stack">
+          {misLugaresCerca.map((lugar, i) => (
+            <div
+              key={lugar.placeId}
+              className="chip"
+              style={{
+                textAlign: 'left',
+                padding: '16px 18px',
+                cursor: 'pointer',
+                // El más cercano va destacado: casi siempre es el correcto, y
+                // así no hay que leer dos tarjetas iguales para elegir.
+                border: i === 0 ? '1px solid var(--magenta)' : undefined,
+              }}
+              onClick={() => confirmarLugar(lugar, true)}
+            >
+              <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+                {lugar.nombre}
+              </div>
+              <div style={{ fontSize: 13 }}>Estás a {Math.round(lugar.distanciaMetros)} m</div>
+            </div>
+          ))}
+        </div>
+        <button
+          className="btn btn-secondary"
+          style={{ marginTop: 16 }}
+          onClick={() => solicitarUbicacionYBuscar(true)}
+        >
+          Estoy en otro lugar
         </button>
         <BottomNav />
       </div>

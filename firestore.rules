@@ -437,5 +437,19 @@ service cloud.firestore {
       // opcional y consulta a Google igual.
       allow read, write: if false;
     }
+    // Ficha guardada de cada local (nombre y coordenadas), para no volver a
+    // preguntarle a Google cada vez que alguien se activa en el mismo lugar.
+    //
+    // Cerrada igual que el caché de zonas, y por el mismo motivo, pero acá es
+    // más grave: contra estas coordenadas se mide si alguien está de verdad a
+    // menos de 120 metros del local. Si el cliente pudiera escribirlas, se
+    // pondría "Fortunato queda justo donde estoy yo" y se activaría desde su
+    // casa — que es exactamente lo que la app promete que no se puede hacer.
+    //
+    // No contiene datos de ninguna persona: es información de un bar. El
+    // historial de quién va a dónde vive solo en el teléfono de cada uno.
+    match /lugaresConocidos/{placeId} {
+      allow read, write: if false;
+    }
   }
 }

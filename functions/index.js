@@ -611,6 +611,12 @@ function idZonaCache(lat, lng) {
  * igual de bien a cualquiera de esa zona. El límite real de 120 metros se
  * aplica después, contra las coordenadas exactas de cada persona.
  */
+// Cuánto vale la ficha guardada de un local antes de volver a preguntarle a
+// Google. Los términos de Google permiten guardar el identificador del lugar
+// para siempre, pero no su nombre ni su ubicación: eso hay que refrescarlo. Un
+// mes es el plazo habitual, y un bar no se muda en ese tiempo.
+const VIGENCIA_LUGAR_MS = 30 * 24 * 60 * 60 * 1000;
+
 // Cuánto se conservan los registros de "me interesa" y "más tarde".
 const DIAS_RETENCION_ENCUENTROS = 90;
 // Tope por colección y por corrida, para que una limpieza atrasada no se
@@ -854,6 +860,32 @@ exports.activarEnLugar = onCall(
         };
       }
     }
+    // Segundo intento antes de gastar una consulta: la ficha del local que ya
+    // guardamos la primera vez que alguien se activó ahí.
+    //
+    // Esto es lo que hace posible el atajo "¿estás en Fortunato otra vez?": si
+    // el servidor no tuviera su propia copia de las coordenadas, tendría que
+    // creerle al teléfono — y un teléfono modificado diría "estoy en Fortunato
+    // y Fortunato queda justo donde estoy yo". La comprobación de los 120
+    // metros solo vale si las coordenadas del local las pone el servidor.
+    //
+    // Se refresca cada 30 días porque los términos de Google permiten guardar
+    // el identificador del lugar para siempre, pero no su nombre ni su
+    // ubicación. Un bar tampoco se muda en un mes.
+    if (!lugar) {
+      const conocido = (
+        await admin.firestore().doc(`lugaresConocidos/${placeId}`).get()
+      ).data();
+      if (conocido?.actualizadoEnMs && ahoraMs - conocido.actualizadoEnMs < VIGENCIA_LUGAR_MS) {
+        lugar = {
+          nombre: conocido.nombre || "",
+          lat: conocido.lat,
+          lng: conocido.lng,
+          tipos: conocido.tipos || [],
+        };
+      }
+    }
+
     if (!lugar) {
       let lugares = [];
       try {
@@ -890,6 +922,30 @@ exports.activarEnLugar = onCall(
         "Estás demasiado lejos de ese lugar para activarte."
       );
     }
+
+    // Se guarda la ficha del local para las próximas veces, de cualquiera.
+    //
+    // Es información de un bar —nombre y coordenadas—, no de ninguna persona:
+    // por eso puede ser compartida. El historial de quién va a dónde NO se
+    // guarda acá ni en ningún lado; esa lista vive solo en el teléfono de cada
+    // uno. Ver el atajo de lugares en la app.
+    //
+    // No se espera a que termine: si falla, lo único que pasa es que la próxima
+    // activación en ese local gasta una consulta a Google.
+    admin
+      .firestore()
+      .doc(`lugaresConocidos/${placeId}`)
+      .set(
+        {
+          nombre: lugar.nombre || "",
+          lat: lugar.lat,
+          lng: lugar.lng,
+          tipos: lugar.tipos || [],
+          actualizadoEnMs: ahoraMs,
+        },
+        { merge: true }
+      )
+      .catch(() => {});
 
     // 4. Los datos propios se leen del perfil guardado, nunca de lo que mande
     //    el cliente: si no, cualquiera podría activarse con el nombre y la

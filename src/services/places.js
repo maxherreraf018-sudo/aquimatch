@@ -20,6 +20,25 @@ import { functions } from '../firebase/config'
  * Cada elemento trae: placeId, nombre, direccion, tipos, lat, lng y
  * distanciaMetros.
  */
+/**
+ * Radio dentro del cual el SERVIDOR autoriza activarse en un lugar.
+ *
+ * Está duplicado a propósito: el que manda es `RADIO_ACTIVACION_METROS` en
+ * functions/index.js, y esta copia existe solo para que el atajo de "tus
+ * lugares" no le ofrezca a nadie un botón que el servidor va a rechazar.
+ * SI SE CAMBIA UNO, HAY QUE CAMBIAR EL OTRO.
+ *
+ * ⚠️ Y ojo con subirlo: la consulta a Google se hace desde el centro de una
+ * zona de ~110×90 m con un radio de 200 m, y una persona puede estar a ~72 m
+ * de ese centro. 72 + 120 = 192, o sea que entra por 8 metros. Subir este
+ * número haría que algunos locales desaparecieran de la lista sin dar ningún
+ * error.
+ */
+export const RADIO_ACTIVACION_METROS = 120
+
+/** Cuántos lugares se le ofrecen a la persona. Igual que en el servidor. */
+export const MAX_LUGARES_MOSTRADOS = 2
+
 export async function buscarLugaresCercanos(lat, lng) {
   const llamar = httpsCallable(functions, 'buscarLugares')
   const { data } = await llamar({ lat, lng })
