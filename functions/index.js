@@ -676,16 +676,26 @@ exports.limpiarEncuentrosViejos = onSchedule(
 );
 
 /**
- * Enlace temporal para que el panel de moderación pueda VER una selfie.
+ * Devuelve la selfie de alguien para que el panel de moderación pueda verla.
  *
- * Ahora que la selfie no tiene token de descarga, no hay forma de mostrarla en
- * una pantalla salvo pidiendo un enlace firmado, que se vence solo. 15 minutos
- * alcanzan de sobra para revisar una tanda de perfiles, y si el enlace se
- * filtra deja de servir enseguida — a diferencia del token permanente de antes,
- * que quedaba abierto para siempre.
+ * La manda como imagen incrustada, no como una dirección.
+ *
+ * POR QUÉ ASÍ Y NO CON UN ENLACE FIRMADO, que fue el primer intento: la cuenta
+ * con la que corren estas funciones no tiene permiso para firmar enlaces
+ * (`iam.serviceAccounts.signBlob` denied, medido en los registros el
+ * 2026-09-07). Concederlo obliga a tocar permisos en la consola de Google
+ * Cloud, que es justo el tipo de paso manual que después nadie recuerda haber
+ * hecho cuando algo se rompe.
+ *
+ * Y mandarla incrustada es además MÁS seguro: no llega a existir ninguna
+ * dirección descargable de un dato biométrico, ni siquiera una que se venza.
+ * La imagen viaja dentro de la respuesta, solo para el administrador que la
+ * pidió, y desaparece al cerrar la pantalla.
+ *
+ * El costo es el tamaño: una selfie ronda los 200 KB y va en texto, que pesa un
+ * tercio más. Para una pantalla que muestra unos pocos perfiles a la vez, es
+ * irrelevante.
  */
-const MINUTOS_ENLACE_SELFIE = 15;
-
 exports.urlSelfieModeracion = onCall(async (request) => {
   if (!request.auth || request.auth.uid !== ADMIN_UID) {
     throw new HttpsError("permission-denied", "Solo el panel de moderación.");
@@ -702,15 +712,15 @@ exports.urlSelfieModeracion = onCall(async (request) => {
   // guardada; esa se devuelve tal cual, porque su archivo sí tiene token.
   if (!datos.selfieRuta) return { url: datos.selfieVerificacion || null };
 
-  const [url] = await admin
-    .storage()
-    .bucket()
-    .file(datos.selfieRuta)
-    .getSignedUrl({
-      action: "read",
-      expires: Date.now() + MINUTOS_ENLACE_SELFIE * 60 * 1000,
-    });
-  return { url };
+  try {
+    const bytes = await leerArchivoDelBucket(datos.selfieRuta);
+    return { url: `data:image/jpeg;base64,${bytes.toString("base64")}` };
+  } catch (error) {
+    // Si el archivo ya no está (cuenta borrada a medias, por ejemplo), el
+    // panel muestra el recuadro vacío en vez de romperse entero.
+    console.error("[urlSelfieModeracion] no se pudo leer la selfie:", error);
+    return { url: null };
+  }
 });
 
 exports.buscarLugares = onCall(

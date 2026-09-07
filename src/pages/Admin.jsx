@@ -145,7 +145,15 @@ export default function Admin() {
                       : undefined,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    background: perfil.selfieVerificacion ? undefined : 'var(--bg)',
+                    // Va `backgroundColor`, nunca `background`.
+                    //
+                    // `background` es la propiedad resumen, y engloba a la
+                    // imagen de arriba. React no ignora un `undefined`: escribe
+                    // la propiedad vacía para limpiarla, y al limpiar el resumen
+                    // se lleva puesta la imagen. Este panel llevaba meses sin
+                    // mostrar ninguna foto por eso, y nadie lo notó porque hasta
+                    // el 2026-09-06 no existía forma de entrar acá.
+                    backgroundColor: 'var(--bg)',
                     flexShrink: 0,
                   }}
                 />
@@ -206,7 +214,7 @@ export default function Admin() {
                       backgroundImage: perfil.fotoPrincipal ? `url(${perfil.fotoPrincipal})` : undefined,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
-                      background: perfil.fotoPrincipal ? undefined : 'var(--bg)',
+                      backgroundColor: 'var(--bg)',
                       marginBottom: 4,
                     }}
                   />
@@ -221,7 +229,7 @@ export default function Admin() {
                       backgroundImage: perfil.selfieVerificacion ? `url(${perfil.selfieVerificacion})` : undefined,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
-                      background: perfil.selfieVerificacion ? undefined : 'var(--bg)',
+                      backgroundColor: 'var(--bg)',
                       marginBottom: 4,
                     }}
                   />
