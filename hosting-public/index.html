@@ -124,6 +124,11 @@ a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radiu
 .cierre h2{font-size:clamp(32px,5.4vw,58px);max-width:17ch;margin:0 auto}
 .nota{margin-top:20px;font-size:14.5px;color:var(--tenue)}
 
+/* Los enlaces dentro de un párrafo salían con el azul por defecto del
+   navegador, que en un fondo oscuro se ve como un error. Se acota a `p a`
+   para no tocar los botones, que son <a> con su propio estilo. */
+.sec p a{color:var(--magenta);text-decoration:underline;text-underline-offset:3px}
+.sec p a:hover{color:var(--texto)}
 .pie{border-top:1px solid var(--linea);padding:44px 0;font-size:14.5px;color:var(--tenue)}
 .pie .env{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between}
 .pie nav{display:flex;flex-wrap:wrap;gap:20px}
@@ -278,6 +283,46 @@ a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radiu
     </div>
   </section>
 
+  <!-- Sección para dueños de locales.
+       Describe SOLO lo que ya está funcionando: el contador de ahora y los
+       patrones de actividad. Las otras cuatro funciones del panel (noche
+       temática, avisos, reporte de resultados, plan) están en maqueta y NO se
+       nombran acá a propósito: esta página la puede abrir Apple para
+       comprobar lo que decimos en la apelación, y su regla 2.1 castiga
+       justamente lo que se anuncia y todavía no existe. -->
+  <section class="sec" id="locales">
+    <div class="env">
+      <p class="eti">Para locales</p>
+      <h2>Si tienes un bar, un pub, una discoteca o un restorán</h2>
+      <p>También cafés y restobares. AquíMatch tiene un panel web para el local: no es la misma app, es una pantalla aparte pensada para quien atiende el negocio.</p>
+      <div class="tarjetas">
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+          <h3>Cuánta gente hay ahora</h3><p>Personas con AquíMatch activo en tu local, en este momento.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <h3>Tus mejores horas</h3><p>Qué días y a qué horas se mueve de verdad tu local, con semanas de historia.</p>
+        </div>
+        <div class="tj">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>
+          <h3>Quién pasa por tu barrio</h3><p>El movimiento por rango de edad, para decidir con datos y no con corazonadas.</p>
+        </div>
+      </div>
+
+      <div class="honesta" style="margin-top:26px">
+        <h3 style="margin-bottom:6px">Nunca vas a ver quiénes son</h3>
+        <p>El panel entrega conteos, jamás identidades ni fotos. Y cuando hay muy poca gente, ni siquiera muestra el número exacto: dice "menos de 5", para que nadie pueda ser identificado mirando alrededor.</p>
+        <p style="margin-top:10px">Esa es justamente la razón por la que tus clientes usan la app dentro de tu local. Si el negocio pudiera ver quién está buscando conocer gente, nadie la abriría.</p>
+      </div>
+
+      <p style="margin-top:26px">Las cuentas de local se crean a mano, después de verificar que administras el establecimiento. Escríbenos a <a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a> y lo vemos.</p>
+      <div class="acciones" style="margin-top:18px">
+        <a class="boton" href="https://aquimatch-panel.web.app">Entrar al panel de locales</a>
+      </div>
+    </div>
+  </section>
+
   <section class="cierre" id="descargar">
     <div class="env">
       <h2>La próxima vez que salgas, ya sabrás quién está.</h2>
@@ -297,6 +342,7 @@ a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radiu
       <p>© 2026 AQUIMATCH SpA · Santiago, Chile<br><a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a></p>
     </div>
     <nav aria-label="Enlaces legales">
+      <a href="/#locales">Para locales</a>
       <a href="/terminos.html">Términos</a>
       <a href="/privacidad.html">Privacidad</a>
       <a href="/eliminar-cuenta.html">Eliminar cuenta</a>

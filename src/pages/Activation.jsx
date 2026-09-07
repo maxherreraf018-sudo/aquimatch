@@ -57,6 +57,8 @@ export default function Activation() {
   // Tus lugares que están al alcance ahora mismo. Salen del almacenamiento
   // local del teléfono, no del servidor: ver services/misLugares.js.
   const [misLugaresCerca, setMisLugaresCerca] = useState([])
+  // Se reinicia en cada búsqueda: no puede quedar abierto de la vez anterior.
+  const [verTodosLosLugares, setVerTodosLosLugares] = useState(false)
   const [lugarActivo, setLugarActivo] = useState(null)
   // Coordenadas reales del teléfono en el momento de buscar. El servidor las
   // usa para confirmar que el lugar elegido está de verdad al lado.
@@ -154,6 +156,7 @@ export default function Activation() {
     }
 
     setEstado(ESTADOS.BUSCANDO_LUGAR)
+    setVerTodosLosLugares(false)
     // Se guardan porque el servidor las necesita después, al confirmar el
     // lugar: es él quien comprueba que el lugar elegido esté realmente cerca
     // de donde está el teléfono.
@@ -356,7 +359,7 @@ export default function Activation() {
         <h1 style={{ marginBottom: 6 }}>¿Dónde estás?</h1>
         <p style={{ marginBottom: 20 }}>Elige el lugar en el que te encuentras ahora.</p>
         <div className="stack">
-          {lugares.map((lugar) => (
+          {(verTodosLosLugares ? lugares : lugares.slice(0, MAX_LUGARES_MOSTRADOS)).map((lugar) => (
             <div
               key={lugar.placeId}
               className="chip"
@@ -372,8 +375,28 @@ export default function Activation() {
             </div>
           ))}
         </div>
+
+        {/* La salida para los barrios densos.
+            Max fue a comer a Buenos Muchachos, en Bellavista, y la app le
+            ofreció otros dos locales pero no ese: el punto que Google tiene de
+            un local grande está en la entrada, así que estando adentro puedes
+            quedar más lejos de SU punto que de dos locales chicos de al lado.
+            Se siguen mostrando 2 para no llenar la pantalla en el caso normal,
+            pero el resto tiene que estar a un toque. */}
+        {!verTodosLosLugares && lugares.length > MAX_LUGARES_MOSTRADOS && (
+          <button
+            className="btn btn-secondary"
+            style={{ marginTop: 14 }}
+            onClick={() => setVerTodosLosLugares(true)}
+          >
+            No es ninguno de estos
+          </button>
+        )}
+
         <p className="legal-note" style={{ marginTop: 20 }}>
-          ¿No encuentras tu lugar? Vuelve a intentarlo estando más cerca de la entrada.
+          {verTodosLosLugares
+            ? '¿Sigue sin aparecer? Vuelve a intentarlo estando más cerca de la entrada.'
+            : '¿No encuentras tu lugar? Toca el botón de arriba para ver más.'}
         </p>
         <BottomNav />
       </div>

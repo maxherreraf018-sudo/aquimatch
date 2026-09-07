@@ -442,8 +442,24 @@ const RADIO_ACTIVACION_METROS = 120;
 const VENTANA_LIMITE_MS = 60 * 60 * 1000;
 const MAX_ACTIVACIONES_POR_VENTANA = 10;
 const MAX_BUSQUEDAS_POR_VENTANA = 30;
-// Máximo de lugares que se le ofrecen a la persona para elegir.
-const MAX_LUGARES_MOSTRADOS = 2;
+// Cuántos lugares cercanos se le mandan a la app.
+//
+// SUBIDO DE 2 A 8 EL 2026-09-07. Max fue a comer a Buenos Muchachos, en
+// Bellavista, y su propia app no le mostró el local donde estaba: le ofreció
+// otros dos.
+//
+// La causa: el punto que Google tiene de un local grande está en la entrada o
+// en el centro del recinto, así que estando adentro puedes quedar a 60 metros
+// de SU punto mientras dos locales chicos de al lado tienen el suyo a 20. Con
+// solo dos en la lista, el lugar donde de verdad estás no aparece. En un barrio
+// denso eso no es un caso raro, es lo normal — y Bellavista y Barrio Italia,
+// los dos elegidos para lanzar, son exactamente eso.
+//
+// Mandar 8 no cuesta ni una consulta más: la búsqueda a Google ya devuelve
+// hasta 20 y estábamos descartando 18 antes de mostrarlos. La app sigue
+// mostrando 2 y esconde el resto detrás de "No es ninguno de estos", para no
+// llenar la pantalla en el caso normal.
+const MAX_LUGARES_MOSTRADOS = 8;
 // Cuánto se reutiliza la respuesta de Google para la misma zona.
 //
 // Eran 5 minutos, y con eso cada tanda de gente que llegaba a un bar a lo largo

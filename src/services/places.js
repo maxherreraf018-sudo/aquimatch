@@ -36,7 +36,15 @@ import { functions } from '../firebase/config'
  */
 export const RADIO_ACTIVACION_METROS = 120
 
-/** Cuántos lugares se le ofrecen a la persona. Igual que en el servidor. */
+/**
+ * Cuántos lugares se muestran de entrada, antes de tocar "No es ninguno de
+ * estos". El servidor manda más (8); acá se decide cuántos se ven.
+ *
+ * Dos es el caso normal y se resuelve en un toque. El resto queda escondido
+ * porque llenar la pantalla de locales confunde a quien ya sabe dónde está —
+ * pero tiene que estar disponible: en un barrio denso, el lugar donde estás
+ * puede no ser uno de los dos más cercanos según el punto de Google.
+ */
 export const MAX_LUGARES_MOSTRADOS = 2
 
 export async function buscarLugaresCercanos(lat, lng) {
