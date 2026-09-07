@@ -195,25 +195,39 @@ export const CAMPOS_PRIVADOS = [
   'correo',
   'selfieVerificacion',
   'contactoConfianza',
-  'fechaNacimiento',
   'fcmToken',
   'bloqueados',
 ]
 
+// ⚠️ `fechaNacimiento` SALIÓ DE ESA LISTA A PROPÓSITO, y hay que volver a
+// meterla más adelante. Ver guardarFechaNacimiento acá abajo.
+
 /**
- * Guarda la fecha de nacimiento, que va SOLO a los datos privados.
+ * Guarda la fecha de nacimiento en los DOS lados, a propósito y por ahora.
  *
- * La edad que ven los demás (`edad`, en el documento público) NO se escribe
- * desde acá: la calcula y la guarda el servidor, en activarEnLugar. Si la
- * escribiera el cliente, cualquiera se pondría la edad que quisiera, y hasta
- * ahora eso no se podía — las reglas congelan la fecha al terminar el registro.
+ * POR QUÉ EL DUPLICADO, que no es descuido. Las versiones de la app anteriores
+ * a la 25 calculan la edad leyendo `fechaNacimiento` del documento público, sin
+ * comprobar que exista. Al sacarla de ahí, esas apps mostraban literalmente
+ * "Josefa, null" en las tarjetas de Descubrir. Max lo vio en su iPhone, que
+ * tiene el build de agosto, y les habría pasado igual a los 18 usuarios con la
+ * 24 publicada en cuanto alguien se registrara con la 25.
  *
- * Que la escriba el servidor al activarse tampoco deja huecos: solo aparecés
- * ante otras personas estando activo, así que para cuando alguien te ve, la
- * edad ya está puesta y al día.
+ * Es el mismo error de orden que ya nos costó antes: los datos cambian al
+ * instante para todos, las apps se actualizan de a poco. La versión nueva sí
+ * sabe leer las dos formas (ver edadDePerfil en services/discover.js).
+ *
+ * CÓMO SE TERMINA LA MUDANZA, cuando la 25 tenga adopción alta:
+ *   1. Volver a poner 'fechaNacimiento' en CAMPOS_PRIVADOS, arriba.
+ *   2. Borrar de acá la escritura al documento público.
+ * La migración automática se encarga sola del resto de las cuentas.
+ *
+ * La edad que ven los demás (`edad`) NO se escribe desde acá: la pone el
+ * servidor en activarEnLugar. Si la escribiera el cliente, cualquiera se
+ * pondría la edad que quisiera.
  */
 export async function guardarFechaNacimiento(uid, fechaNacimiento) {
   await guardarDatosPrivados(uid, { fechaNacimiento })
+  await actualizarUsuario(uid, { fechaNacimiento })
 }
 
 function refDatosPrivados(uid) {
