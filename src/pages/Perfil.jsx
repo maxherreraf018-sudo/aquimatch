@@ -371,18 +371,21 @@ export default function Perfil() {
     <div className="screen screen-with-nav">
       <h1 style={{ marginBottom: 24 }}>Tu perfil</h1>
 
-      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+      {/* La foto baja de 132 a 96 px y la instrucción larga se vuelve un
+          enlace corto. Esta pantalla tenía cuatro pantallas de scroll para muy
+          poca información, y el encabezado se llevaba media primera. */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div
           onClick={() => setMostrarGestorFotos(true)}
           style={{
-            width: 132,
-            height: 132,
+            width: 96,
+            height: 96,
             borderRadius: '50%',
             overflow: 'hidden',
             background: 'var(--gradient)',
-            boxShadow: '0 14px 36px -10px rgba(255, 45, 142, 0.55)',
+            boxShadow: '0 10px 26px -10px rgba(255, 45, 142, 0.5)',
             cursor: 'pointer',
-            margin: '0 auto 14px',
+            margin: '0 auto 12px',
           }}
         >
           {usuario?.fotoPrincipal && (
@@ -393,9 +396,12 @@ export default function Perfil() {
             />
           )}
         </div>
-        <h2 style={{ fontSize: 20 }}>{usuario?.nombre || 'Sin nombre'}</h2>
-        <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 4 }}>
-          Foto de perfil — toca para ver todas tus fotos
+        <h2 style={{ fontSize: 19 }}>{usuario?.nombre || 'Sin nombre'}</h2>
+        <p
+          onClick={() => setMostrarGestorFotos(true)}
+          style={{ fontSize: 12.5, color: 'var(--magenta)', marginTop: 5, cursor: 'pointer' }}
+        >
+          Ver mis fotos
         </p>
 
         {errorFoto && (
@@ -434,51 +440,9 @@ export default function Perfil() {
           En Android queda visible, que es donde va a haber usuarios primero.
           Se vuelve a activar en iOS en la primera actualización después de que
           Apple apruebe. */}
-      {!GOLD_OCULTO && (
-      <div
-        onClick={() => navigate('/gold')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '14px 16px',
-          borderRadius: 16,
-          background: 'rgba(255, 45, 142, 0.10)',
-          border: '1px solid rgba(255, 45, 142, 0.45)',
-          cursor: 'pointer',
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span
-              style={{
-                padding: '3px 9px',
-                borderRadius: 100,
-                background: 'var(--gradient)',
-                color: '#fff',
-                fontSize: 9.5,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-              }}
-            >
-              GOLD
-            </span>
-            <span style={{ color: 'var(--text)', fontSize: 13.5, fontWeight: 600 }}>
-              Muy pronto
-            </span>
-          </div>
-          <div style={{ fontSize: 12.5 }}>Mira quién te mostró interés, y más.</div>
-        </div>
-        <span style={{ color: 'var(--magenta)', fontSize: 18, flexShrink: 0 }}>›</span>
-      </div>
-      )}
-
-      <EtiquetaSeccion texto="Tu perfil" />
-      <div className="grupo-perfil" style={{ marginBottom: 24 }}>
+      <div className="grupo-perfil" style={{ marginBottom: 14 }}>
         <div style={{ padding: 14 }}>
-          <div style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 9 }}>Me gustaría conocer</div>
+          <RotuloCampo texto="Me gustaría conocer" />
           <div style={{ display: 'flex', gap: 8 }}>
             {OPCIONES_PREFERENCIA_GENERO.map((op) => {
               const seleccionado = usuario?.preferenciaGenero === op.valor
@@ -508,15 +472,14 @@ export default function Perfil() {
         <div className="separador-grupo" />
 
         <div style={{ padding: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editandoIntereses ? 4 : 10 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>Tus intereses</span>
-            <button
-              className="btn btn-ghost"
-              style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editandoIntereses ? 4 : 2 }}>
+            <RotuloCampo texto="Tus intereses" />
+            <span
               onClick={() => setEditandoIntereses((v) => !v)}
+              style={{ fontSize: 12.5, color: 'var(--magenta)', cursor: 'pointer', marginBottom: 9 }}
             >
               {editandoIntereses ? 'Listo' : 'Editar'}
-            </button>
+            </span>
           </div>
 
           {editandoIntereses && (
@@ -571,19 +534,20 @@ export default function Perfil() {
 
       {activacion?.activa && (
         <>
-          <EtiquetaSeccion texto="Ahora" />
-          <div className="grupo-perfil" style={{ marginBottom: 24, padding: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text)', fontWeight: 500 }}>
-                {planActual ? `${planActual.emoji} ${planActual.etiqueta}` : 'Sin definir'}
-              </span>
-              <button
-                className="btn btn-ghost"
-                style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }}
+          <div className="grupo-perfil" style={{ marginBottom: 14, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <RotuloCampo texto="Tu plan de hoy" />
+                <span style={{ color: 'var(--text)', fontWeight: 500 }}>
+                  {planActual ? `${planActual.emoji} ${planActual.etiqueta}` : 'Sin definir'}
+                </span>
+              </div>
+              <span
                 onClick={() => setMostrarSelectorPlan((v) => !v)}
+                style={{ fontSize: 12.5, color: 'var(--magenta)', cursor: 'pointer', flexShrink: 0 }}
               >
-                Cambiar
-              </button>
+                {mostrarSelectorPlan ? 'Listo' : 'Cambiar'}
+              </span>
             </div>
           </div>
 
@@ -605,96 +569,100 @@ export default function Perfil() {
         </>
       )}
 
-      <EtiquetaSeccion texto="Seguridad" />
-      <div className="grupo-perfil" style={{ marginBottom: 24, padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editandoContacto ? 12 : 4 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>Contacto de confianza</span>
-          <button
-            className="btn btn-ghost"
-            style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }}
-            onClick={() => setEditandoContacto((v) => !v)}
-          >
-            {editandoContacto ? 'Cerrar' : tieneContacto ? 'Editar' : 'Agregar'}
-          </button>
+      {/* Gold baja acá. Estaba arriba de todo, con borde magenta y fondo
+          propio, gritando más que el perfil de la persona — y es algo que
+          todavía no existe ("Muy pronto"). Ver el porqué de GOLD_OCULTO en
+          services/plataforma.js: en iOS ni siquiera se muestra. */}
+      {!GOLD_OCULTO && (
+        <div className="grupo-perfil" style={{ marginBottom: 14 }}>
+          <FilaLista
+            texto="AquíMatch Gold"
+            valor="Muy pronto"
+            onClick={() => navigate('/gold')}
+            ultima
+          />
         </div>
-
-        {editandoContacto ? (
-          <div className="stack">
-            <div className="field">
-              <label>Nombre</label>
-              <input
-                className="input"
-                value={contactoNombre}
-                onChange={(e) => setContactoNombre(e.target.value)}
-                placeholder="Ej: Camila (hermana)"
-              />
-            </div>
-            <div className="field">
-              <label>Teléfono (WhatsApp, con código de país)</label>
-              <input
-                className="input"
-                value={contactoTelefono}
-                onChange={(e) => setContactoTelefono(e.target.value)}
-                placeholder="+56 9 1234 5678"
-              />
-            </div>
-            <button
-              className="btn btn-primary"
-              style={{ padding: '10px 0', fontSize: 13 }}
-              onClick={manejarGuardarContacto}
-              disabled={guardandoContacto || !contactoNombre.trim() || !contactoTelefono.trim()}
-            >
-              {guardandoContacto ? 'Guardando...' : 'Guardar contacto'}
-            </button>
-          </div>
-        ) : tieneContacto ? (
-          <p style={{ fontSize: 13, color: 'var(--text)' }}>
-            {usuario.contactoConfianza.nombre} · {usuario.contactoConfianza.telefono}
-          </p>
-        ) : (
-          <p style={{ fontSize: 12.5 }}>
-            Agrega a alguien de confianza para poder avisarle en qué lugar estás cuando actives tu
-            participación.
-          </p>
-        )}
-      </div>
-
-      {/* Entrada al panel de moderación, solo para la cuenta de administrador.
-          Faltaba: la pantalla y la ruta existían desde siempre, pero no había
-          ningún enlace hacia ellas en toda la app — o sea que la única forma de
-          entrar era escribir la dirección, y dentro de la app no hay barra de
-          direcciones. Max no podía llegar a su propio panel. */}
-      {uid === ADMIN_UID && (
-        <>
-          <EtiquetaSeccion texto="Moderación" />
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate('/admin')}
-            style={{ marginBottom: 10 }}
-          >
-            Panel de moderación
-          </button>
-        </>
       )}
 
-      <EtiquetaSeccion texto="Cuenta" />
-      <button
-        className="btn btn-secondary"
-        onClick={() => navigate('/cuenta')}
-        style={{ marginBottom: 10 }}
-      >
-        Configuración de la cuenta
-      </button>
-      <button className="btn btn-secondary" onClick={manejarCerrarSesion} style={{ marginBottom: 10 }}>
-        Cerrar sesión
-      </button>
-      <button
-        className="btn btn-ghost"
-        style={{ color: 'var(--danger)', fontSize: 12.5 }}
+      {/* Todo lo que solo lleva a otra pantalla, en una sola lista.
+          Antes eran botones anchos y rellenos, uno debajo del otro, con el
+          aspecto de acciones importantes cuando en realidad solo navegan: era
+          lo que más ensuciaba la pantalla. */}
+      <div className="grupo-perfil" style={{ marginBottom: 14 }}>
+        <FilaLista
+          texto="Contacto de confianza"
+          valor={tieneContacto ? usuario.contactoConfianza.nombre : 'Agregar'}
+          onClick={() => setEditandoContacto((v) => !v)}
+          abierta={editandoContacto}
+        />
+
+        {editandoContacto && (
+          <div style={{ padding: '4px 14px 14px' }}>
+            {!tieneContacto && (
+              <p style={{ fontSize: 12.5, marginBottom: 12 }}>
+                Agrega a alguien de confianza para poder avisarle en qué lugar estás cuando actives
+                tu participación.
+              </p>
+            )}
+            <div className="stack">
+              <div className="field">
+                <label>Nombre</label>
+                <input
+                  className="input"
+                  value={contactoNombre}
+                  onChange={(e) => setContactoNombre(e.target.value)}
+                  placeholder="Ej: Camila (hermana)"
+                />
+              </div>
+              <div className="field">
+                <label>Teléfono (WhatsApp, con código de país)</label>
+                <input
+                  className="input"
+                  value={contactoTelefono}
+                  onChange={(e) => setContactoTelefono(e.target.value)}
+                  placeholder="+56 9 1234 5678"
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ padding: '10px 0', fontSize: 13 }}
+                onClick={manejarGuardarContacto}
+                disabled={guardandoContacto || !contactoNombre.trim() || !contactoTelefono.trim()}
+              >
+                {guardandoContacto ? 'Guardando...' : 'Guardar contacto'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Solo para la cuenta de administrador. La pantalla y la ruta /admin
+            existían desde siempre, pero no había ningún enlace hacia ellas en
+            toda la app: la única forma de entrar era escribir la dirección, y
+            dentro de la app no hay barra de direcciones. */}
+        {uid === ADMIN_UID && (
+          <FilaLista texto="Panel de moderación" onClick={() => navigate('/admin')} />
+        )}
+
+        <FilaLista texto="Configuración de la cuenta" onClick={() => navigate('/cuenta')} />
+        <FilaLista texto="Cerrar sesión" onClick={manejarCerrarSesion} ultima />
+      </div>
+
+      {/* Baja a un texto chico. Antes era un botón del mismo tamaño que elegir
+          tus intereses: una acción sin vuelta atrás no puede pesar lo mismo que
+          marcar "Música". */}
+      <p
         onClick={() => setMostrarEliminar(true)}
+        style={{
+          textAlign: 'center',
+          fontSize: 12,
+          color: 'var(--text-faint)',
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          marginTop: 8,
+        }}
       >
         Eliminar mi cuenta
-      </button>
+      </p>
 
       <div className="spacer" />
 
@@ -855,19 +823,60 @@ export default function Perfil() {
   )
 }
 
-function EtiquetaSeccion({ texto }) {
+// Rótulo chico de un campo, dentro de una tarjeta.
+function RotuloCampo({ texto }) {
   return (
     <p
       style={{
         fontSize: 10.5,
-        letterSpacing: '0.08em',
+        letterSpacing: '0.07em',
         textTransform: 'uppercase',
         color: 'var(--text-faint)',
-        marginBottom: 8,
+        marginBottom: 9,
       }}
     >
       {texto}
     </p>
+  )
+}
+
+// Una fila de lista: nombre a la izquierda, valor y flecha a la derecha.
+//
+// Es el patrón de ajustes que usa cualquier app del teléfono, y acá reemplaza
+// a los botones anchos que se apilaban al final del perfil. La diferencia no es
+// solo de espacio: un botón relleno dice "esto hace algo importante", y estas
+// filas solo llevan a otra pantalla.
+function FilaLista({ texto, valor, onClick, ultima, abierta }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '14px 15px',
+        cursor: 'pointer',
+        borderBottom: ultima ? 'none' : '1px solid var(--border)',
+      }}
+    >
+      <span style={{ fontSize: 13.5, color: 'var(--text)' }}>{texto}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {valor && <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>{valor}</span>}
+        <span
+          style={{
+            color: 'var(--text-faint)',
+            fontSize: 16,
+            // La flecha gira cuando la fila abre algo acá mismo, en vez de
+            // llevar a otra pantalla.
+            transform: abierta ? 'rotate(90deg)' : 'none',
+            display: 'inline-block',
+          }}
+        >
+          ›
+        </span>
+      </span>
+    </div>
   )
 }
 
