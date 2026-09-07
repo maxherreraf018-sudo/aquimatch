@@ -1,14 +1,14 @@
 import {
   collection,
   doc,
-  getDoc,
   query,
   where,
   orderBy,
   onSnapshot,
   updateDoc,
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { httpsCallable } from 'firebase/functions'
+import { db, functions } from '../firebase/config'
 
 // UID de la única cuenta con acceso al panel: maxherreraf018@gmail.com.
 // Si en el futuro hay más de una persona en el equipo de moderación, esto se
@@ -34,14 +34,23 @@ export const ADMIN_UID = 'SM1r3pWsTYU2soVHMUmOT1xzIfi2'
  * público.
  */
 async function conSelfies(perfiles) {
+  const pedirUrl = httpsCallable(functions, 'urlSelfieModeracion')
   return Promise.all(
     perfiles.map(async (p) => {
       try {
-        const snap = await getDoc(doc(db, 'usuarios', p.uid, 'privado', 'datos'))
-        const selfie = snap.exists() ? snap.data().selfieVerificacion : undefined
-        return { ...p, selfieVerificacion: selfie ?? p.selfieVerificacion }
+        // Se le pide al servidor un enlace firmado, que se vence en minutos.
+        //
+        // Ya no se puede leer la selfie directamente: desde el 2026-09-05 el
+        // archivo se sube SIN token de descarga, justamente para que un enlace
+        // filtrado no quede abierto para siempre. El servidor es el único que
+        // puede mirarlo, y firma un permiso temporal para esta pantalla.
+        //
+        // La función se hace cargo también de las cuentas viejas, que sí tienen
+        // una URL guardada: en ese caso devuelve esa.
+        const { data } = await pedirUrl({ uid: p.uid })
+        return { ...p, selfieVerificacion: data?.url ?? p.selfieVerificacion }
       } catch (err) {
-        // Si falla la lectura de una, se muestra igual el resto de la lista.
+        // Si falla una, se muestra igual el resto de la lista.
         return p
       }
     })

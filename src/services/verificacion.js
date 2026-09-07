@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref, uploadBytes } from 'firebase/storage'
 import { storage } from '../firebase/config'
 
 // Si una promesa no responde en X segundos, la damos por fallida en vez de
@@ -12,10 +12,23 @@ export function conLimiteDeTiempo(promesa, segundos, etiqueta) {
   ])
 }
 
-// Sube la selfie de verificación al Storage y devuelve su URL. Se usa tanto
-// al completar el perfil por primera vez como al reintentar tras un rechazo.
+/**
+ * Sube la selfie de verificación y devuelve su RUTA, no una URL.
+ *
+ * ANTES DEVOLVÍA UNA URL Y ESE ERA EL PROBLEMA. `getDownloadURL()` no solo
+ * arma una dirección: le pega al archivo un token permanente que lo vuelve
+ * descargable por cualquiera que tenga el enlace, sin necesidad de haber
+ * iniciado sesión. Y esto es una selfie — un dato biométrico. Un enlace
+ * filtrado en un registro, en una captura o en una copia de la base de datos
+ * quedaba abierto para siempre.
+ *
+ * Al no llamar nunca a getDownloadURL, el archivo no llega a tener token: solo
+ * se puede leer con sesión iniciada (las reglas lo limitan a su dueño) o desde
+ * el servidor. La verificación lo lee con permisos de servidor, y el panel de
+ * moderación pide un enlace firmado que se vence en minutos.
+ */
 export async function subirSelfieAlStorage(uid, archivo) {
-  const storageRef = ref(storage, `selfies-verificacion/${uid}/selfie.jpg`)
-  await conLimiteDeTiempo(uploadBytes(storageRef, archivo), 25, 'uploadBytes')
-  return conLimiteDeTiempo(getDownloadURL(storageRef), 25, 'getDownloadURL')
+  const ruta = `selfies-verificacion/${uid}/selfie.jpg`
+  await conLimiteDeTiempo(uploadBytes(ref(storage, ruta), archivo), 25, 'uploadBytes')
+  return ruta
 }

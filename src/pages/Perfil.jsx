@@ -131,7 +131,7 @@ export default function Perfil() {
       try {
         // Las fotos 2 y 3 se piden más livianas: solo se miran. La principal
         // no, porque es contra la que se compara la selfie de verificación.
-        const blob = await elegirFoto({ secundaria: slot !== 'principal' })
+        const blob = await elegirFoto({ secundaria: slot !== 'principal', recortar: true })
         if (!blob) return
         setErrorFoto('')
         setSlotFotoPendiente(slot)

@@ -1,5 +1,6 @@
 const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 // node:crypto, no el `crypto` global. El global es WebCrypto y NO tiene
 // createHash — fallaría recién al ejecutarse, no al compilar.
@@ -26,6 +27,13 @@ async function descargarImagenComoBytes(url) {
   }
   const arrayBuffer = await respuesta.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+
+// Lee un archivo del bucket con permisos de servidor, sin pasar por ninguna
+// URL pública. Es lo que permite que la selfie no tenga token de descarga.
+async function leerArchivoDelBucket(ruta) {
+  const [bytes] = await admin.storage().bucket().file(ruta).download();
+  return bytes;
 }
 
 /**
@@ -73,13 +81,17 @@ exports.verificarSelfie = onDocumentUpdated(
     const ref = admin.firestore().doc(`usuarios/${uid}`);
 
     const fotoPrincipal = despues.fotoPrincipal;
-    // Primero la del documento público (app antigua); si no está, la de la
-    // subcolección privada (app nueva).
-    let selfieVerificacion = despues.selfieVerificacion;
-    if (!selfieVerificacion) {
-      const snapPrivado = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
-      selfieVerificacion = snapPrivado.exists ? snapPrivado.data().selfieVerificacion : null;
-    }
+    // De dónde sale la selfie, en orden de antigüedad de la app que la subió:
+    //   1. `selfieRuta` en los datos privados — la forma nueva. Es una RUTA de
+    //      Storage, no una URL: el archivo no tiene token de descarga, así que
+    //      solo se puede leer desde el servidor. Es un dato biométrico.
+    //   2. `selfieVerificacion` en los datos privados — URL con token.
+    //   3. `selfieVerificacion` en el documento público — la más vieja de todas.
+    // Las dos últimas siguen atendidas mientras queden cuentas sin actualizar.
+    const snapPrivado = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
+    const privado = snapPrivado.exists ? snapPrivado.data() : {};
+    const selfieRuta = privado.selfieRuta;
+    const selfieVerificacion = privado.selfieVerificacion || despues.selfieVerificacion;
     // Sin foto de perfil no hay contra qué comparar la selfie. Antes esto era
     // un `return` silencioso y el resultado era una trampa: el estado se
     // quedaba en "pendiente" para siempre, a los 60 segundos la app mostraba
@@ -95,12 +107,14 @@ exports.verificarSelfie = onDocumentUpdated(
       await ref.update({ estadoVerificacion: "falta_foto" });
       return;
     }
-    if (!selfieVerificacion) return;
+    if (!selfieRuta && !selfieVerificacion) return;
 
     try {
       const [fotoBytes, selfieBytes] = await Promise.all([
         descargarImagenComoBytes(fotoPrincipal),
-        descargarImagenComoBytes(selfieVerificacion),
+        selfieRuta
+          ? leerArchivoDelBucket(selfieRuta)
+          : descargarImagenComoBytes(selfieVerificacion),
       ]);
 
       console.log(
@@ -597,6 +611,102 @@ function idZonaCache(lat, lng) {
  * igual de bien a cualquiera de esa zona. El límite real de 120 metros se
  * aplica después, contra las coordenadas exactas de cada persona.
  */
+// Cuánto se conservan los registros de "me interesa" y "más tarde".
+const DIAS_RETENCION_ENCUENTROS = 90;
+// Tope por colección y por corrida, para que una limpieza atrasada no se
+// quede sin tiempo ni dispare una factura de escrituras de golpe. Corre todos
+// los días: si un día no alcanza, al siguiente sigue donde quedó.
+const MAX_BORRADOS_POR_CORRIDA = 2000;
+
+/**
+ * Borra los registros de encuentro que ya no sirven para nada.
+ *
+ * POR QUÉ EXISTE. Cada documento de `intereses` y de `pases` dice "estas dos
+ * personas estuvieron en el mismo lugar este día". Guardados para siempre,
+ * juntos arman un mapa de quién se cruzó con quién y dónde — exactamente lo
+ * que la app promete no construir, y justo el tipo de dato que la Ley 21.719
+ * mira con lupa a partir de diciembre de 2026.
+ *
+ * Y no sirven pasado un tiempo: se usan para esconder a alguien 10 minutos
+ * después de un "más tarde", y para ordenar la lista de Descubrir. Un registro
+ * de hace tres meses no cumple ninguna de las dos cosas.
+ *
+ * QUÉ NO SE TOCA: `estadisticasLugar`. Ahí no hay ningún identificador de
+ * nadie —solo cuántas personas hubo en tal local a tal hora— y es la materia
+ * prima del panel para dueños de locales, que necesita meses de historia. Esa
+ * historia no se recupera después. No borrarla.
+ *
+ * Efecto secundario, y es el correcto: a alguien a quien pasaste hace tres
+ * meses vuelves a verlo como si fuera nuevo.
+ */
+exports.limpiarEncuentrosViejos = onSchedule(
+  { schedule: "every day 04:30", timeZone: "America/Santiago" },
+  async () => {
+    const corte = admin.firestore.Timestamp.fromMillis(
+      Date.now() - DIAS_RETENCION_ENCUENTROS * 24 * 60 * 60 * 1000
+    );
+
+    for (const coleccion of ["intereses", "pases"]) {
+      let borrados = 0;
+      // De a tandas: `limit` acota cada consulta y el bucle corta al llegar al
+      // tope o cuando ya no queda nada viejo.
+      while (borrados < MAX_BORRADOS_POR_CORRIDA) {
+        const tanda = await admin
+          .firestore()
+          .collection(coleccion)
+          .where("creadoEn", "<", corte)
+          .limit(400)
+          .get();
+        if (tanda.empty) break;
+
+        const lote = admin.firestore().batch();
+        tanda.docs.forEach((d) => lote.delete(d.ref));
+        await lote.commit();
+        borrados += tanda.size;
+      }
+      console.log(`[limpiarEncuentrosViejos] ${coleccion}: ${borrados} borrados`);
+    }
+  }
+);
+
+/**
+ * Enlace temporal para que el panel de moderación pueda VER una selfie.
+ *
+ * Ahora que la selfie no tiene token de descarga, no hay forma de mostrarla en
+ * una pantalla salvo pidiendo un enlace firmado, que se vence solo. 15 minutos
+ * alcanzan de sobra para revisar una tanda de perfiles, y si el enlace se
+ * filtra deja de servir enseguida — a diferencia del token permanente de antes,
+ * que quedaba abierto para siempre.
+ */
+const MINUTOS_ENLACE_SELFIE = 15;
+
+exports.urlSelfieModeracion = onCall(async (request) => {
+  if (!request.auth || request.auth.uid !== ADMIN_UID) {
+    throw new HttpsError("permission-denied", "Solo el panel de moderación.");
+  }
+  const uid = request.data?.uid;
+  if (typeof uid !== "string" || !uid) {
+    throw new HttpsError("invalid-argument", "Falta el uid.");
+  }
+
+  const snap = await admin.firestore().doc(`usuarios/${uid}/privado/datos`).get();
+  const datos = snap.exists ? snap.data() : {};
+
+  // Las cuentas que subieron su selfie con una app anterior tienen una URL
+  // guardada; esa se devuelve tal cual, porque su archivo sí tiene token.
+  if (!datos.selfieRuta) return { url: datos.selfieVerificacion || null };
+
+  const [url] = await admin
+    .storage()
+    .bucket()
+    .file(datos.selfieRuta)
+    .getSignedUrl({
+      action: "read",
+      expires: Date.now() + MINUTOS_ENLACE_SELFIE * 60 * 1000,
+    });
+  return { url };
+});
+
 exports.buscarLugares = onCall(
   { secrets: [GOOGLE_PLACES_API_KEY], timeoutSeconds: 30 },
   async (request) => {

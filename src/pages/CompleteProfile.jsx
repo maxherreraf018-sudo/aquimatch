@@ -50,12 +50,12 @@ export default function CompleteProfile() {
     try {
       const auth = getAuth()
       const uid = auth.currentUser.uid
-      const selfieURL = await subirSelfieAlStorage(uid, selfie)
+      const selfieRuta = await subirSelfieAlStorage(uid, selfie)
       // La selfie es un dato biométrico: va a la subcolección privada, que
       // solo pueden leer su dueño y el panel de moderación. Nunca al
       // documento público, que es legible por cualquiera con tu uid.
       await conLimiteDeTiempo(
-        guardarDatosPrivados(uid, { selfieVerificacion: selfieURL }),
+        guardarDatosPrivados(uid, { selfieRuta }),
         25,
         'guardarDatosPrivados'
       )

@@ -148,11 +148,11 @@ function VerificacionRechazada({ uid, tardando, sinSelfie }) {
     setError('')
     setSubiendo(true)
     try {
-      const selfieURL = await subirSelfieAlStorage(uid, blob)
+      const selfieRuta = await subirSelfieAlStorage(uid, blob)
       // La selfie va a la subcolección privada (dato biométrico); en el
       // documento público solo queda el estado y la marca de tiempo del
       // intento, que no dicen nada sensible.
-      await guardarDatosPrivados(uid, { selfieVerificacion: selfieURL })
+      await guardarDatosPrivados(uid, { selfieRuta })
       await actualizarUsuario(uid, {
         selfieActualizadaEn: Date.now(),
         estadoVerificacion: 'pendiente',

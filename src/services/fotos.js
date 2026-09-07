@@ -7,9 +7,25 @@ export { CameraSource, CameraDirection }
 // resultado nunca llega al <input>. El picker nativo del plugin no tiene ese
 // problema. Devuelve un Blob listo para subir a Storage, o null si la
 // persona cancela (no se trata como error).
-export async function elegirFoto({ source = CameraSource.Prompt, direction, secundaria = false } = {}) {
+export async function elegirFoto({
+  source = CameraSource.Prompt,
+  direction,
+  secundaria = false,
+  recortar = false,
+} = {}) {
   try {
     const foto = await Camera.getPhoto({
+      // Recortador nativo del teléfono. Se activa solo para las fotos de
+      // perfil, no para la selfie de verificación: ahí la persona no tiene que
+      // encuadrar nada, y un paso extra en el registro es un paso donde se cae
+      // gente.
+      //
+      // Es el arreglo de raíz del recorte que cortaba cabezas. Hoy la app
+      // corrige el encuadre al 20% para que el círculo no se coma la cara,
+      // pero eso es una aproximación que le queda bien a casi cualquier foto y
+      // mal a las demás. Recortando al subir, cada uno encuadra la suya y el
+      // círculo muestra exactamente eso.
+      allowEditing: recortar,
       // Las fotos 2 y 3 se piden más chicas (720 en vez de 1080).
       //
       // La principal se deja grande porque es contra la que se compara la
