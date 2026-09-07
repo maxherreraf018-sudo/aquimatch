@@ -2,11 +2,15 @@ import { useEffect } from 'react'
 import { serverTimestamp } from 'firebase/firestore'
 import { escucharEstadoAuth, actualizarUsuario } from '../firebase/auth'
 
-// Subido de 2 a 5 minutos el 2026-09-05. El punto verde de "en línea" usa una
-// ventana de 10 minutos (ver obtenerEstadoConexion), así que latir cada 2 era
-// cinco veces más seguido de lo necesario: con 5 minutos siguen entrando dos
-// latidos dentro de la ventana, que es el margen que hace falta para que un
-// latido perdido por mala señal no te apague el punto.
+// Subido de 2 a 5 minutos el 2026-09-05, junto con UMBRAL_ACTIVO_AHORA_MS en
+// services/chatsList.js, que pasó de 3 a 12 minutos.
+//
+// LOS DOS NÚMEROS ESTÁN ATADOS y hay que moverlos juntos: la ventana tiene que
+// dar para al menos dos latidos. Si no, un latido perdido por mala señal apaga
+// el punto verde de alguien que sí está ahí — y si la ventana queda MÁS CORTA
+// que el intervalo, el punto se apaga solo entre latido y latido, sin que pase
+// nada raro. Eso último estuvo a punto de irse así: se subió el intervalo
+// leyendo un comentario que decía 10 minutos cuando la constante real decía 3.
 const INTERVALO_LATIDO_CONEXION_MS = 5 * 60 * 1000
 
 // Cuánto esperar antes del PRIMER latido — tiene que ser mayor a cero (para

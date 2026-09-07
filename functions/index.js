@@ -872,17 +872,19 @@ exports.activarEnLugar = onCall(
     // Se refresca cada 30 días porque los términos de Google permiten guardar
     // el identificador del lugar para siempre, pero no su nombre ni su
     // ubicación. Un bar tampoco se muda en un mes.
+    let vinoDeFichaGuardada = false;
     if (!lugar) {
       const conocido = (
         await admin.firestore().doc(`lugaresConocidos/${placeId}`).get()
       ).data();
-      if (conocido?.actualizadoEnMs && ahoraMs - conocido.actualizadoEnMs < VIGENCIA_LUGAR_MS) {
+      if (conocido?.obtenidoDeGoogleEnMs && ahoraMs - conocido.obtenidoDeGoogleEnMs < VIGENCIA_LUGAR_MS) {
         lugar = {
           nombre: conocido.nombre || "",
           lat: conocido.lat,
           lng: conocido.lng,
           tipos: conocido.tipos || [],
         };
+        vinoDeFichaGuardada = true;
       }
     }
 
@@ -930,22 +932,31 @@ exports.activarEnLugar = onCall(
     // guarda acá ni en ningún lado; esa lista vive solo en el teléfono de cada
     // uno. Ver el atajo de lugares en la app.
     //
+    // SOLO SE ESCRIBE SI EL DATO VINO DE GOOGLE. Si vino de la ficha guardada,
+    // reescribirla renovaría su fecha, y un local visitado una vez al mes no
+    // caducaría NUNCA: los datos de Google quedarían guardados para siempre,
+    // que es justo lo que sus términos no permiten. El campo se llama
+    // `obtenidoDeGoogleEnMs` y no "actualizadoEn" para que quede dicho que mide
+    // la edad del dato, no la última vez que se usó.
+    //
     // No se espera a que termine: si falla, lo único que pasa es que la próxima
     // activación en ese local gasta una consulta a Google.
-    admin
-      .firestore()
-      .doc(`lugaresConocidos/${placeId}`)
-      .set(
-        {
-          nombre: lugar.nombre || "",
-          lat: lugar.lat,
-          lng: lugar.lng,
-          tipos: lugar.tipos || [],
-          actualizadoEnMs: ahoraMs,
-        },
-        { merge: true }
-      )
-      .catch(() => {});
+    if (!vinoDeFichaGuardada) {
+      admin
+        .firestore()
+        .doc(`lugaresConocidos/${placeId}`)
+        .set(
+          {
+            nombre: lugar.nombre || "",
+            lat: lugar.lat,
+            lng: lugar.lng,
+            tipos: lugar.tipos || [],
+            obtenidoDeGoogleEnMs: ahoraMs,
+          },
+          { merge: true }
+        )
+        .catch(() => {});
+    }
 
     // 4. Los datos propios se leen del perfil guardado, nunca de lo que mande
     //    el cliente: si no, cualquiera podría activarse con el nombre y la

@@ -7,7 +7,17 @@ import { db } from '../firebase/config'
 // propósito del umbral de Descubrir (3 horas) — acá representa "tiene la
 // app abierta", no "sigue presente en el lugar", que es una pregunta
 // distinta.
-const UMBRAL_ACTIVO_AHORA_MS = 3 * 60 * 1000
+// Cuánto vale un latido antes de dar a alguien por desconectado.
+//
+// SUBIDO DE 3 A 12 MINUTOS EL 2026-09-05, junto con el latido de conexión, que
+// pasó de 2 a 5 minutos. Con 3 minutos de ventana y un latido cada 5, el punto
+// verde se habría apagado 2 de cada 5 minutos: la persona aparecía y
+// desaparecía sola mientras miraba la pantalla.
+//
+// 12 minutos deja entrar DOS latidos completos. Eso importa: un solo latido
+// perdido —wifi malo de bar, que es el escenario normal de esta app— no tiene
+// que apagarle el punto a alguien que sí está ahí.
+const UMBRAL_ACTIVO_AHORA_MS = 12 * 60 * 1000
 
 // A partir de cuántos días sin conexión dejamos de mostrar el texto (se
 // vuelve poco útil / medio raro decir "activo hace 19 días").
