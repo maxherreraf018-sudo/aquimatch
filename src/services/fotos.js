@@ -7,17 +7,27 @@ export { CameraSource, CameraDirection }
 // resultado nunca llega al <input>. El picker nativo del plugin no tiene ese
 // problema. Devuelve un Blob listo para subir a Storage, o null si la
 // persona cancela (no se trata como error).
-export async function elegirFoto({ source = CameraSource.Prompt, direction } = {}) {
+export async function elegirFoto({ source = CameraSource.Prompt, direction, secundaria = false } = {}) {
   try {
     const foto = await Camera.getPhoto({
-      quality: 85,
+      // Las fotos 2 y 3 se piden más chicas (720 en vez de 1080).
+      //
+      // La principal se deja grande porque es contra la que se compara la
+      // selfie de verificación, y bajarle resolución le quitaría precisión a
+      // ese control. Las secundarias solo se miran, así que 720 alcanza de
+      // sobra en un teléfono y ocupan menos de la mitad.
+      //
+      // Importa para el espacio gratuito de Storage: son 5 GB, y a resolución
+      // completa las tres fotos de una persona pesan cerca de 1 MB — o sea que
+      // el techo estaba en unos 5.000 usuarios. Con esto se duplica.
+      quality: secundaria ? 80 : 85,
       resultType: CameraResultType.DataUrl,
       source,
       // Sin este límite, la cámara nativa entrega fotos a resolución
       // completa (varios MB) — eso fue lo que hizo que la verificación de
       // selfie se quedara pegada: la función en la nube tiene 120s para
       // bajar y comparar las dos fotos, y con fotos pesadas no alcanza.
-      width: 1080,
+      width: secundaria ? 720 : 1080,
       ...(direction ? { direction } : {}),
       promptLabelHeader: 'Foto',
       promptLabelPhoto: 'Desde galería',

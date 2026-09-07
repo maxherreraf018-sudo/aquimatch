@@ -42,7 +42,25 @@ export const UMBRAL_INACTIVIDAD_MS = 3 * 60 * 60 * 1000
 // Cada cuánto se debe "avisar" que uno sigue aquí, mientras está en las
 // pantallas de Estado o Descubrir. Tiene que ser bastante menor al umbral
 // de inactividad de arriba, para que nunca se pase de la raya por error.
-export const INTERVALO_LATIDO_MS = 5 * 60 * 1000
+//
+// SUBIDO DE 5 A 20 MINUTOS EL 2026-09-05. Cinco minutos era 36 veces más
+// seguido de lo necesario para un umbral de 3 horas, y el costo de eso no es
+// lineal: cuando late una persona, su documento cambia, y TODOS los que están
+// en ese mismo lugar lo están escuchando — así que cada latido se cobra como
+// una lectura por cada persona presente. El gasto crece con el cuadrado de la
+// gente que hay en el local:
+//
+//   10 personas →  ~1.000 lecturas/hora
+//   20 personas →  ~4.500 lecturas/hora
+//   50 personas → ~29.000 lecturas/hora
+//
+// Con 50.000 lecturas gratis por día, una sola noche buena en tres locales se
+// comía el día entero. A 20 minutos eso baja a la cuarta parte, y sigue
+// dejando 9 latidos de margen antes de las 3 horas.
+//
+// No es solo plata: son escrituras y datos móviles del teléfono de la persona,
+// en un bar donde la señal suele ser mala.
+export const INTERVALO_LATIDO_MS = 20 * 60 * 1000
 
 /**
  * Activa la participación del usuario en un lugar.
@@ -92,6 +110,15 @@ export async function desactivarParticipacion(uid) {
  * "persona fantasma" por error mientras sigue realmente ahí.
  */
 export async function renovarActividad(uid) {
+  // Con la app en segundo plano no se late. El latido dice "sigo acá", y
+  // mandarlo con el teléfono guardado gasta batería y datos de la persona,
+  // además de una lectura por cada uno de los que están en el mismo local.
+  //
+  // No hace falta compensarlo al volver: el umbral es de 3 horas, así que
+  // guardar el teléfono un rato largo no te saca del lugar. Y si de verdad
+  // pasaron 3 horas, que te saque es lo correcto.
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
   const ref = doc(db, 'activaciones', uid)
   try {
     await updateDoc(ref, { actualizadaEn: serverTimestamp() })
