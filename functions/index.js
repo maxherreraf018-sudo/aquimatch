@@ -455,11 +455,11 @@ const MAX_BUSQUEDAS_POR_VENTANA = 30;
 // denso eso no es un caso raro, es lo normal — y Bellavista y Barrio Italia,
 // los dos elegidos para lanzar, son exactamente eso.
 //
-// Mandar 8 no cuesta ni una consulta más: la búsqueda a Google ya devuelve
+// Mandar 6 no cuesta ni una consulta más: la búsqueda a Google ya devuelve
 // hasta 20 y estábamos descartando 18 antes de mostrarlos. La app sigue
 // mostrando 2 y esconde el resto detrás de "No es ninguno de estos", para no
 // llenar la pantalla en el caso normal.
-const MAX_LUGARES_MOSTRADOS = 8;
+const MAX_LUGARES_MOSTRADOS = 6;
 // Cuánto se reutiliza la respuesta de Google para la misma zona.
 //
 // Eran 5 minutos, y con eso cada tanda de gente que llegaba a un bar a lo largo
