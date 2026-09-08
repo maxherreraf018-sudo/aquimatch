@@ -472,7 +472,13 @@
       "Bash(node -e \"const c=require\\('./firebase.json'\\); console.log\\(JSON.stringify\\(c.firestore,null,2\\)\\)\")",
       "Bash(perl -0pi -e ' *)",
       "Bash(perl -0pi -e 's|<h2>Quién pasa por tu local</h2>|<h2>El público de tu local</h2>|' panel-public/index.html)",
-      "Bash(git commit -q -m 'El panel le mostraba al dueno dos numeros que no eran ciertos *)"
+      "Bash(git commit -q -m 'El panel le mostraba al dueno dos numeros que no eran ciertos *)",
+      "Bash(npx vite *)",
+      "Bash(sed -i 's/versionCode 25/versionCode 26/; s/versionName \"1.23\"/versionName \"1.24\"/' android/app/build.gradle)",
+      "Bash(timeout 60 node -e \"require\\('./index.js'\\); console.log\\('el modulo carga bien'\\)\")",
+      "Bash(git commit -q -m 'Paquete 26: la foto acostada, el encierro en verificacion y el correo sin tope *)",
+      "Bash('perfil. En los estados pendiente y sin' 'selfie no habia ninguna salida. *)",
+      "Bash(cat)"
     ]
   }
 }

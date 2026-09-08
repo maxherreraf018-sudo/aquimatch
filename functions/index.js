@@ -1428,6 +1428,12 @@ const REMITENTE = "AquíMatch <noreply@aquimatch.cl>";
 // restablecer contraseña —que por fuerza es pública, porque quien olvidó su
 // clave no tiene sesión— se podría usar para bombardear el buzón de alguien.
 const MAX_CORREOS_POR_VENTANA = 3;
+// Tope por origen (IP) y por hora, para que nadie use nuestro dominio de
+// remitente como máquina de spam pidiendo el restablecimiento de miles de
+// direcciones distintas. Más alto que el anterior a propósito: en un wifi de
+// bar o detrás del NAT de una operadora móvil, varias personas comparten IP, y
+// un tope estrecho dejaría afuera a gente legítima.
+const MAX_CORREOS_POR_ORIGEN = 15;
 
 function plantilla({ titulo, texto, textoBoton, enlace, cierre }) {
   return `<!DOCTYPE html>
@@ -1520,6 +1526,29 @@ exports.enviarRestablecerContrasena = onCall(
     if (!correo || !correo.includes("@")) {
       throw new HttpsError("invalid-argument", "Falta el correo.");
     }
+
+    // Dos topes distintos, porque protegen de dos ataques distintos.
+    //
+    // El de abajo, por destinatario, evita que a UNA persona le llenen el
+    // buzón. Pero no impide lo otro: pedir el restablecimiento de mil
+    // direcciones distintas, una vez cada una. Cada correo pasaría el filtro
+    // —van todos a destinatarios distintos— y el daño no lo sufriría ninguna
+    // de esas personas, sino nosotros: se agota la cuota de Resend y, mucho
+    // peor, aquimatch.cl empieza a figurar como origen de spam. Recuperar la
+    // reputación de un dominio quemado toma meses, y mientras tanto ni los
+    // correos de verificación llegan.
+    //
+    // Por eso primero se cuenta por origen. Es una función sin sesión —quien
+    // olvidó su clave no puede iniciarla—, así que lo único que identifica a
+    // quien llama es su IP.
+    const origen = request.rawRequest?.ip || "desconocido";
+    await contarUso(
+      admin.firestore().doc(`limitesCorreo/origen-${crypto.createHash("sha256").update(origen).digest("hex")}`),
+      "restablecer",
+      "ventanaEn",
+      MAX_CORREOS_POR_ORIGEN,
+      "Estás pidiendo demasiados correos. Espera un rato antes de volver a intentar."
+    );
 
     const hash = crypto.createHash("sha256").update(correo).digest("hex");
     await contarUso(

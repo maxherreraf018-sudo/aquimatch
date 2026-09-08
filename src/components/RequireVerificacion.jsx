@@ -70,6 +70,7 @@ export default function RequireVerificacion({ children }) {
         </div>
         <h1 style={{ marginBottom: 10 }}>Estamos revisando tu selfie</h1>
         <p>Esto no debería tardar más de un minuto. No hace falta que hagas nada.</p>
+        <SalidaDeEmergencia />
       </div>
     )
   }
@@ -133,7 +134,48 @@ function FaltaFotoPerfil() {
       <button className="btn btn-primary" onClick={() => navigate('/perfil')}>
         Agregar mi foto
       </button>
+      <SalidaDeEmergencia />
     </div>
+  )
+}
+
+/**
+ * La salida de todas las pantallas de verificación.
+ *
+ * Estas pantallas no tienen menú inferior —a propósito: no se puede ofrecer
+ * "Descubrir" a alguien que justamente no puede entrar ahí—, y hasta ahora eso
+ * dejaba encerrada a la gente. Cerrar sesión y eliminar la cuenta viven en
+ * /perfil, y desde acá solo se llegaba por un botón que decía "Cambiar mi foto
+ * de perfil": nadie iba a adivinar que detrás de eso estaba la puerta. En los
+ * estados "pendiente" y "sin selfie" directamente no había ninguna.
+ *
+ * Encerrar a alguien en su propia cuenta es feo por sí solo, pero además
+ * Apple exige (5.1.1(v)) que eliminar la cuenta se pueda hacer desde dentro de
+ * la app. Alguien trabado acá no podía, y tenemos una apelación abierta.
+ *
+ * Se deja como enlace discreto y no como botón: es una salida, no una
+ * invitación. Lo que queremos es que vuelva a intentar la selfie.
+ */
+function SalidaDeEmergencia() {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('/perfil')}
+      style={{
+        background: 'none',
+        border: 0,
+        padding: '14px 8px 0',
+        margin: '10px auto 0',
+        color: 'var(--text-dim)',
+        fontSize: 12.5,
+        textDecoration: 'underline',
+        textUnderlineOffset: 3,
+        cursor: 'pointer',
+      }}
+    >
+      Ir a mi perfil, cerrar sesión o eliminar mi cuenta
+    </button>
   )
 }
 
@@ -251,6 +293,9 @@ function VerificacionRechazada({ uid, tardando, sinSelfie }) {
           </button>
         </>
       )}
+      {/* Para quien todavía no subió ninguna selfie no hay botón de "cambiar
+          foto", así que sin esto la pantalla no tendría ninguna salida. */}
+      {sinSelfie && <SalidaDeEmergencia />}
       <p className="legal-note">Tu información siempre estará protegida.</p>
     </div>
   )
