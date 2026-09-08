@@ -78,6 +78,7 @@ export default function Chat() {
   const [enviando, setEnviando] = useState(false)
   const [intentos, setIntentos] = useState(0)
   const finRef = useRef(null)
+  const campoRef = useRef(null)
 
   useEffect(() => {
     let activo = true
@@ -140,6 +141,19 @@ export default function Chat() {
   async function manejarEnviar(textoAEnviar) {
     const contenido = (textoAEnviar ?? texto).trim()
     if (!contenido || enviando) return
+
+    // El teclado se cerraba en cada mensaje, y había que volver a tocar el
+    // campo para escribir el siguiente. Conversar así es insoportable.
+    //
+    // Son dos cosas distintas y las dos hay que atajarlas. La primera está en
+    // el botón (ver el onPointerDown de más abajo): tocarlo le quita el foco
+    // al campo, y cuando el campo pierde el foco el teléfono baja el teclado.
+    // La segunda es esta: si a pesar de todo el foco se perdió, hay que
+    // devolverlo ACÁ, antes del await. Después del await ya no sirve — el
+    // teléfono solo abre el teclado si el foco se pide durante el gesto de la
+    // persona, y esperar la respuesta del servidor nos saca de ese gesto.
+    campoRef.current?.focus()
+
     setEnviando(true)
     try {
       await enviarMensaje(id, uid, contenido)
@@ -432,6 +446,7 @@ export default function Chat() {
       ) : (
       <div style={{ display: 'flex', gap: 10, padding: '12px 20px 0' }}>
         <input
+          ref={campoRef}
           className="input"
           placeholder="Escribe un mensaje..."
           value={texto}
@@ -447,8 +462,17 @@ export default function Chat() {
         <button
           className="btn btn-primary"
           style={{ width: 50, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          // Esto es lo que mantiene abierto el teclado. Por defecto, tocar un
+          // botón le pasa el foco a él y se lo saca al campo de texto; el
+          // teléfono ve que ya nadie está escribiendo y baja el teclado.
+          // Cancelando el gesto acá, el foco no se mueve nunca y el teclado
+          // ni se entera. El toque sigue funcionando igual.
+          onPointerDown={(e) => e.preventDefault()}
           onClick={() => manejarEnviar()}
-          disabled={enviando}
+          // Sin `disabled` a propósito. Desactivar el botón que la persona
+          // acaba de tocar es otra forma de perder el foco, y no hace falta:
+          // manejarEnviar ya se niega a mandar dos veces mientras hay un envío
+          // en curso.
         >
           <IconEnviar size={18} />
         </button>
