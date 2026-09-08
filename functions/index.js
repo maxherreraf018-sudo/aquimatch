@@ -406,6 +406,13 @@ function rangoEdad(edad) {
  */
 async function registrarEstadistica(placeId, placeName, edad, activacionPrevia) {
   try {
+    // Este aviso existe porque ya pasó: se le mandó el objeto `perfil` entero
+    // en vez de la edad, y como acá abajo los errores se tragan a propósito,
+    // el fallo fue mudo durante días. Un contador que se equivoca en silencio
+    // es peor que uno que se cae.
+    if (typeof edad !== "number") {
+      console.error("[registrarEstadistica] edad no es un número:", typeof edad);
+    }
     const ahora = new Date();
     const { dia, hora, diaSemana } = bucketHorario(ahora);
 
@@ -1079,7 +1086,14 @@ exports.activarEnLugar = onCall(
     await registrarEstadistica(
       placeId,
       lugar.nombre,
-      perfil,
+      // `edad`, no `perfil`. Cuando rangoEdad() pasó a recibir la edad ya
+      // calculada en vez de la fecha de nacimiento, esta llamada se quedó
+      // mandando el objeto entero. rangoEdad() devuelve null ante cualquier
+      // cosa que no sea un número, y como registrarEstadistica se traga sus
+      // errores a propósito, no falló nada: simplemente NUNCA se guardó un
+      // solo rango de edad. El desglose del panel del dueño llevaba desde
+      // entonces leyendo un dato que no se estaba escribiendo.
+      edad,
       activacionPreviaSnap.exists ? activacionPreviaSnap.data() : null
     );
 

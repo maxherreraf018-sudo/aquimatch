@@ -248,6 +248,27 @@ service cloud.firestore {
       // dar "me interesa" a alguien que te bloqueó.
       allow write: if request.auth != null &&
         request.auth.uid == request.resource.data.desde &&
+        // EL NOMBRE DEL DOCUMENTO TIENE QUE CORRESPONDER CON SU CONTENIDO.
+        //
+        // Sin esta línea, el "match mutuo" se podía fabricar solo. La regla de
+        // arriba obliga a que el CAMPO `desde` seas vos, pero no miraba el
+        // nombre del documento — y quien comprueba el match mutuo
+        // (hayInteres, en /conexiones) solo pregunta si EXISTE un documento
+        // llamado `lugar_A_B`, sin abrirlo.
+        //
+        // O sea que yo podía guardar un documento llamado `lugar_TUUID_MIUID`
+        // con datos `{desde: MIUID, hacia: TUUID}`: pasaba la regla, porque el
+        // campo `desde` era yo, y desde afuera parecía tu "me interesa" hacia
+        // mí. Con eso me fabricaba un match con alguien que nunca me dio
+        // nada, y le abría un chat. En una app donde la otra persona está a
+        // tres mesas, eso no es un problema teórico.
+        //
+        // Encontrado en la auditoría del 2026-09-08. La app ya escribía el
+        // nombre así (idInteres, en src/services/discover.js), así que para el
+        // uso normal no cambia nada.
+        interesId == request.resource.data.placeId + '_' +
+                     request.resource.data.desde + '_' +
+                     request.resource.data.hacia &&
         request.resource.data.keys().hasOnly(['desde', 'hacia', 'placeId', 'creadoEn']) &&
         !estaSuspendido(request.auth.uid) &&
         !meBloqueo(request.resource.data.hacia) &&
@@ -259,6 +280,13 @@ service cloud.firestore {
         (resource == null || resource.data.desde == request.auth.uid || resource.data.hacia == request.auth.uid);
       allow write: if request.auth != null &&
         request.auth.uid == request.resource.data.desde &&
+        // Mismo amarre que en /intereses. Hoy ninguna regla decide nada
+        // mirando si existe un "pase", así que por sí solo no abre ninguna
+        // puerta — pero un documento cuyo nombre miente es una trampa
+        // esperando a que alguien, más adelante, lo use para comprobar algo.
+        paseId == request.resource.data.placeId + '_' +
+                  request.resource.data.desde + '_' +
+                  request.resource.data.hacia &&
         request.resource.data.keys().hasOnly(['desde', 'hacia', 'placeId', 'creadoEn']) &&
         !estaSuspendido(request.auth.uid);
       allow delete: if false;
@@ -286,8 +314,20 @@ service cloud.firestore {
       //     de verdad y no una declaración del cliente.
       // El id de un interés es `{placeId}_{desde}_{hacia}` (idInteres, en
       // discover.js).
+      // Ya no alcanza con que el documento EXISTA: hay que abrirlo y ver que
+      // diga lo que su nombre promete. La regla de /intereses ahora obliga a
+      // que el nombre corresponda con el contenido, así que un documento nuevo
+      // falso ya no se puede crear — pero uno plantado ANTES de ese arreglo
+      // seguiría contando. Abrirlo los neutraliza a todos, viejos y nuevos.
+      //
+      // No cuesta lecturas de más: exists() y get() se cobran igual, y esto
+      // solo corre al crear o reactivar una conexión, que pasa poquísimas
+      // veces comparado con cualquier otra cosa.
       function hayInteres(desde, hacia, placeId) {
-        return exists(/databases/$(database)/documents/intereses/$(placeId + '_' + desde + '_' + hacia));
+        let ruta = /databases/$(database)/documents/intereses/$(placeId + '_' + desde + '_' + hacia);
+        return exists(ruta) &&
+          get(ruta).data.desde == desde &&
+          get(ruta).data.hacia == hacia;
       }
       allow create: if request.auth != null &&
         request.resource.data.usuarios.size() == 2 &&
