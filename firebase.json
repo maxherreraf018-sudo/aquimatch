@@ -1,72 +1,99 @@
 {
-  "hosting": [{
-    "target": "sitio",
-    "public": "hosting-public",
-    "ignore": ["firebase.json", "**/.*"],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          {
-            "comment": "Lista blanca de lo único que estas páginas pueden cargar. Se verificó que NINGUNA de las seis tiene JavaScript, así que script-src 'none' no rompe nada y cierra la puerta a que alguien logre inyectar código. 'unsafe-inline' en los estilos hace falta porque el CSS va dentro del propio archivo. Las fuentes de Google son el único origen externo permitido. frame-ancestors impide que metan estas páginas en un iframe de un sitio falso para engañar a quien las visita (clickjacking); X-Frame-Options queda por navegadores viejos.",
-            "key": "Content-Security-Policy",
-            "value": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src https://static.cloudflareinsights.com; connect-src https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
-          },
-          { "key": "X-Frame-Options", "value": "DENY" },
-          {
-            "comment": "Obliga a que el navegador use siempre HTTPS con este dominio durante un año, incluso si alguien escribe http:// a mano.",
-            "key": "Strict-Transport-Security",
-            "value": "max-age=31536000; includeSubDomains"
-          },
-          {
-            "comment": "Impide que el navegador adivine el tipo de un archivo y lo trate como algo distinto de lo declarado.",
-            "key": "X-Content-Type-Options",
-            "value": "nosniff"
-          },
-          {
-            "comment": "No revela a otros sitios la dirección completa desde la que se llegó.",
-            "key": "Referrer-Policy",
-            "value": "strict-origin-when-cross-origin"
-          },
-          {
-            "comment": "Estas páginas son texto: no necesitan cámara, micrófono ni ubicación. Se apagan por si acaso.",
-            "key": "Permissions-Policy",
-            "value": "camera=(), microphone=(), geolocation=()"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "comment": "Panel para dueños de locales. Va como sitio aparte y no dentro de hosting-public a propósito: Hosting despliega el directorio completo, así que si compartieran carpeta, publicar el panel obligaría a publicar también la portada nueva y los documentos legales, que están esperando la aprobación de Apple.",
-    "target": "panel",
-    "public": "panel-public",
-    "ignore": ["firebase.json", "**/.*"],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
-          { "key": "X-Frame-Options", "value": "DENY" },
-          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-          {
-            "comment": "El panel muestra tablas y números: no necesita cámara, micrófono ni ubicación.",
-            "key": "Permissions-Policy",
-            "value": "camera=(), microphone=(), geolocation=()"
-          },
-          {
-            "comment": "Es un panel privado de cada local: que no lo indexe ningún buscador.",
-            "key": "X-Robots-Tag",
-            "value": "noindex, nofollow"
-          }
-        ]
-      }
-    ]
-  }],
+  "hosting": [
+    {
+      "target": "sitio",
+      "public": "hosting-public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "comment": "Lista blanca de lo único que estas páginas pueden cargar. Se verificó que NINGUNA de las seis tiene JavaScript, así que script-src 'none' no rompe nada y cierra la puerta a que alguien logre inyectar código. 'unsafe-inline' en los estilos hace falta porque el CSS va dentro del propio archivo. Las fuentes de Google son el único origen externo permitido. frame-ancestors impide que metan estas páginas en un iframe de un sitio falso para engañar a quien las visita (clickjacking); X-Frame-Options queda por navegadores viejos.",
+              "key": "Content-Security-Policy",
+              "value": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src https://static.cloudflareinsights.com; connect-src https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "comment": "Obliga a que el navegador use siempre HTTPS con este dominio durante un año, incluso si alguien escribe http:// a mano.",
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains"
+            },
+            {
+              "comment": "Impide que el navegador adivine el tipo de un archivo y lo trate como algo distinto de lo declarado.",
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "comment": "No revela a otros sitios la dirección completa desde la que se llegó.",
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            },
+            {
+              "comment": "Estas páginas son texto: no necesitan cámara, micrófono ni ubicación. Se apagan por si acaso.",
+              "key": "Permissions-Policy",
+              "value": "camera=(), microphone=(), geolocation=()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "comment": "Panel para dueños de locales. Va como sitio aparte y no dentro de hosting-public a propósito: Hosting despliega el directorio completo, así que si compartieran carpeta, publicar el panel obligaría a publicar también la portada nueva y los documentos legales, que están esperando la aprobación de Apple.",
+      "target": "panel",
+      "public": "panel-public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Content-Security-Policy",
+              "value": "frame-ancestors 'none'"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            },
+            {
+              "comment": "El panel muestra tablas y números: no necesita cámara, micrófono ni ubicación.",
+              "key": "Permissions-Policy",
+              "value": "camera=(), microphone=(), geolocation=()"
+            },
+            {
+              "comment": "Es un panel privado de cada local: que no lo indexe ningún buscador.",
+              "key": "X-Robots-Tag",
+              "value": "noindex, nofollow"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "storage": {
     "bucket": "mi-app-conexion.firebasestorage.app",

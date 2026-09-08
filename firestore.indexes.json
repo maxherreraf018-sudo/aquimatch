@@ -1,0 +1,24 @@
+{
+  "//": "Índices compuestos de Firestore. Firestore resuelve solo las consultas de un campo, pero en cuanto se filtra por uno y se ordena o se compara por otro, exige un índice declarado — y si falta, la consulta NO devuelve vacío: LANZA. Al usuario le llega un 'INTERNAL' y la pantalla queda en blanco. Por eso viven acá, en el repositorio, y no creados a mano desde la consola: creados a mano, nadie sabe que existen hasta que alguien borra uno.",
+  "indexes": [
+    {
+      "//": "estadisticasDelLocal: los contadores de un local dentro de un rango de fechas. Sin esto el panel del dueño no carga nada. Se descubrió el 2026-09-07, cuando Max creó la primera cuenta de local: la función llevaba un día desplegada pero nunca se había ejecutado de verdad, porque no había ningún local que consultar.",
+      "collectionGroup": "estadisticasLugar",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "placeId", "order": "ASCENDING" },
+        { "fieldPath": "dia", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "escucharAvisoDelLugar: los avisos de un local, del más nuevo al más viejo. Habría fallado igual que el de arriba en cuanto se probara.",
+      "collectionGroup": "avisos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "placeId", "order": "ASCENDING" },
+        { "fieldPath": "creadoEnMs", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -495,12 +495,12 @@ const RADIO_CONSULTA_METROS = 200;
  * una transacción, Firestore detecta el choque y reintenta la segunda, así que
  * el conteo queda bien.
  */
-async function contarUso(ref, campoConteo, campoVentana, maximo, mensaje) {
+async function contarUso(ref, campoConteo, campoVentana, maximo, mensaje, ventanaMs = VENTANA_LIMITE_MS) {
   const ahoraMs = Date.now();
   await admin.firestore().runTransaction(async (transaccion) => {
     const datos = (await transaccion.get(ref)).data() || {};
     const enVentana =
-      datos[campoVentana] && ahoraMs - datos[campoVentana] < VENTANA_LIMITE_MS;
+      datos[campoVentana] && ahoraMs - datos[campoVentana] < ventanaMs;
     const usados = enVentana ? datos[campoConteo] || 0 : 0;
     if (usados >= maximo) {
       throw new HttpsError("resource-exhausted", mensaje);
@@ -1182,10 +1182,18 @@ const MAX_LARGO_AVISO = 140;
 // local, así que a las 3 horas ya no significa nada — es el mismo plazo con el
 // que se considera que alguien se fue del lugar.
 const VIGENCIA_AVISO_MS = 3 * 60 * 60 * 1000;
-// Tope por local y por hora. Un dueño mandando avisos cada cinco minutos a
-// gente que está tomando algo en su bar es la forma más rápida de que
-// desinstalen la app — y el daño no lo paga él, lo pagamos nosotros.
-const MAX_AVISOS_POR_VENTANA = 3;
+// Tope por local: 4 avisos cada 6 horas, que en la práctica es "cuatro por
+// noche".
+//
+// EMPEZÓ EN 3 POR HORA Y ESTABA MAL CALIBRADO: en una noche de cinco horas eso
+// daba hasta 15 avisos. Quince mensajes a alguien que está tomando algo en un
+// bar es acoso, no promoción — y quien desinstala la app no lo hace por el bar,
+// lo hace por AquíMatch. El daño no lo paga el dueño.
+//
+// Cuatro alcanza de sobra para el uso real: el 2x1 al llegar, el aviso de la
+// última hora, y algo al cierre. De ahí para arriba, ya no está promocionando.
+const MAX_AVISOS_POR_VENTANA = 4;
+const VENTANA_AVISOS_MS = 6 * 60 * 60 * 1000;
 
 /**
  * El dueño de un local le manda un aviso corto a quienes están activados ahí
@@ -1230,7 +1238,8 @@ exports.mandarAviso = onCall(async (request) => {
     "avisos",
     "ventanaAvisos",
     MAX_AVISOS_POR_VENTANA,
-    "Ya mandaste varios avisos en la última hora. Espera un rato."
+    "Ya mandaste varios avisos hoy. Espera un rato antes del siguiente.",
+    VENTANA_AVISOS_MS
   );
 
   const ahoraMs = Date.now();
