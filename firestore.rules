@@ -451,5 +451,20 @@ service cloud.firestore {
     match /lugaresConocidos/{placeId} {
       allow read, write: if false;
     }
+    // Avisos que el dueño de un local le manda a quienes están ahí ahora.
+    //
+    // Los escribe SOLO el servidor (mandarAviso, con el Admin SDK): si los
+    // pudiera escribir el cliente, cualquiera con una cuenta podría hacer
+    // aparecer un cartel dentro de un bar que no es suyo.
+    //
+    // Leerlos sí puede cualquiera con sesión iniciada. No hay nada sensible
+    // adentro —es la promoción de un bar, del tipo que está escrito en una
+    // pizarra en la puerta— y filtrar por "estás activado en ese local"
+    // obligaría a una lectura extra por cada aviso. Quien decide qué mostrar
+    // es la app, que solo pide los del lugar donde estás.
+    match /avisos/{avisoId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

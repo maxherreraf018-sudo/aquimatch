@@ -1175,6 +1175,79 @@ exports.vincularCuentaLocal = onCall(async (request) => {
  * Devuelve solo conteos agregados — nunca perfiles, fotos ni nombres de las
  * personas que están en el local.
  */
+// Largo máximo de un aviso. Es un cartel, no un correo: si no cabe en dos
+// líneas de la pantalla de alguien que está conversando en un bar, no lo lee.
+const MAX_LARGO_AVISO = 140;
+// Cuánto tiempo sigue a la vista un aviso. Habla de lo que pasa AHORA en el
+// local, así que a las 3 horas ya no significa nada — es el mismo plazo con el
+// que se considera que alguien se fue del lugar.
+const VIGENCIA_AVISO_MS = 3 * 60 * 60 * 1000;
+// Tope por local y por hora. Un dueño mandando avisos cada cinco minutos a
+// gente que está tomando algo en su bar es la forma más rápida de que
+// desinstalen la app — y el daño no lo paga él, lo pagamos nosotros.
+const MAX_AVISOS_POR_VENTANA = 3;
+
+/**
+ * El dueño de un local le manda un aviso corto a quienes están activados ahí
+ * en ese momento: "2x1 en cervezas para los que estén conectados".
+ *
+ * Es la primera función del panel que sirve para ACTUAR y no solo para mirar,
+ * y Max la puso como la número uno por encima de los datos. Su razón, que es
+ * correcta: un dueño no compra un tablero, compra poder llenar un martes
+ * flojo. Y es también el mecanismo de crecimiento — el local le habla a su
+ * propia clientela, que es justo la gente que queremos.
+ *
+ * LÍMITE QUE HAY QUE DECIR DE FRENTE AL VENDER: llega solo a quien está
+ * activado en el local en ese momento. No es una notificación al que pasa por
+ * la calle, ni al que fue la semana pasada. Eso último necesita gente cerca y
+ * llega después.
+ */
+exports.mandarAviso = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Necesitas iniciar sesión.");
+
+  const texto = String(request.data?.texto || "").trim();
+  if (!texto) throw new HttpsError("invalid-argument", "Escribe el aviso.");
+  if (texto.length > MAX_LARGO_AVISO) {
+    throw new HttpsError("invalid-argument", `El aviso no puede pasar de ${MAX_LARGO_AVISO} caracteres.`);
+  }
+
+  const db = admin.firestore();
+  const locales = await db.collection("locales").where("responsableUid", "==", uid).limit(1).get();
+  if (locales.empty) {
+    throw new HttpsError("permission-denied", "Tu cuenta no administra ningún local.");
+  }
+  const local = { placeId: locales.docs[0].id, ...locales.docs[0].data() };
+  if (local.estado !== "verificado" || local.nivel !== "reforzado") {
+    throw new HttpsError(
+      "permission-denied",
+      "Tu cuenta todavía no tiene habilitado el envío de avisos."
+    );
+  }
+
+  await contarUso(
+    db.doc(`limites/local_${local.placeId}`),
+    "avisos",
+    "ventanaAvisos",
+    MAX_AVISOS_POR_VENTANA,
+    "Ya mandaste varios avisos en la última hora. Espera un rato."
+  );
+
+  const ahoraMs = Date.now();
+  const documento = await db.collection("avisos").add({
+    placeId: local.placeId,
+    nombreLocal: local.placeName || "",
+    texto,
+    // Se guarda quién lo mandó para poder rastrear un abuso hasta una cuenta
+    // concreta. No se le muestra a nadie.
+    autorUid: uid,
+    creadoEnMs: ahoraMs,
+    expiraEn: admin.firestore.Timestamp.fromMillis(ahoraMs + VIGENCIA_AVISO_MS),
+  });
+
+  return { id: documento.id };
+});
+
 exports.estadisticasDelLocal = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Necesitas iniciar sesión.");

@@ -9,6 +9,7 @@ import {
   MAX_LUGARES_MOSTRADOS,
 } from '../services/places'
 import { lugaresCercaDe, recordarLugar } from '../services/misLugares'
+import { escucharAvisoDelLugar, descartarAviso } from '../services/avisos'
 import { obtenerPosicion, hayUbicacionDisponible } from '../services/ubicacion'
 import {
   activarEnLugar,
@@ -24,6 +25,7 @@ import {
 import useVigilanciaSalida from '../hooks/useVigilanciaSalida'
 import useNotificaciones from '../hooks/useNotificaciones'
 import BottomNav from '../components/BottomNav'
+import { IconCerrar } from '../components/Icons'
 
 // Estados posibles de esta pantalla dinámica
 const ESTADOS = {
@@ -68,6 +70,8 @@ export default function Activation() {
   const [guardandoModo, setGuardandoModo] = useState(false)
   const [planSeleccionado, setPlanSeleccionado] = useState(null)
   const [mensajeError, setMensajeError] = useState('')
+  // Aviso vigente del local donde estás, si el dueño mandó alguno.
+  const [aviso, setAviso] = useState(null)
 
   const uid = getAuth().currentUser?.uid
 
@@ -89,6 +93,17 @@ export default function Activation() {
     }, INTERVALO_LATIDO_MS)
     return () => clearInterval(intervalo)
   }, [lugarActivo, uid])
+
+  // Escucha los avisos del local mientras estés ahí. Se corta solo al salir,
+  // así que un aviso nunca te sigue a otro lugar.
+  useEffect(() => {
+    if (!lugarActivo?.placeId) {
+      setAviso(null)
+      return
+    }
+    const detener = escucharAvisoDelLugar(lugarActivo.placeId, setAviso)
+    return () => detener()
+  }, [lugarActivo?.placeId])
 
   // Al entrar a esta pantalla, primero revisa si el usuario YA está
   // participando activamente en un lugar. Si es así, muestra directo la
@@ -553,6 +568,57 @@ export default function Activation() {
             ACTIVO AHORA
           </span>
         </div>
+
+        {/* Aviso del local. Lo manda el dueño desde su panel y solo lo ve quien
+            está activado acá en este momento. Es el equivalente a una pizarra
+            en la puerta, y por eso se puede cerrar: nadie quiere un cartel fijo
+            tapándole la pantalla mientras conversa. */}
+        {aviso && (
+          <div
+            style={{
+              position: 'relative',
+              textAlign: 'left',
+              background: 'rgba(255,45,142,0.10)',
+              border: '1px solid rgba(255,45,142,0.42)',
+              borderRadius: 16,
+              padding: '14px 40px 14px 16px',
+              marginBottom: 24,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: '#FF87BE',
+                marginBottom: 5,
+              }}
+            >
+              {aviso.nombreLocal || 'El local'} dice
+            </div>
+            <div style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.45 }}>{aviso.texto}</div>
+            <div
+              onClick={() => {
+                descartarAviso(aviso.id)
+                setAviso(null)
+              }}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                width: 26,
+                height: 26,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-faint)',
+                cursor: 'pointer',
+              }}
+            >
+              <IconCerrar size={14} />
+            </div>
+          </div>
+        )}
 
         <div
           style={{

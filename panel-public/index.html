@@ -120,6 +120,25 @@
       <button class="enlace" id="btn-salir">Cerrar sesión</button>
     </div>
 
+    <!-- Mandar un aviso.
+         Va PRIMERO, arriba de los datos, y es a propósito: un dueño no entra
+         acá a mirar un tablero, entra a hacer algo con su noche. Los números
+         están para decidir; esto es para actuar.
+         Solo aparece si el local tiene nivel "reforzado" — lo habilita Max
+         desde el panel de moderación. -->
+    <div class="tarjeta oculto" id="caja-aviso" style="margin-bottom:14px">
+      <div class="rotulo">Mandar un aviso</div>
+      <p class="nota" style="margin-top:0;margin-bottom:12px">
+        Les llega a las personas que están en tu local ahora mismo, con AquíMatch abierto.
+        No le llega a quien va pasando por la calle ni a quien vino ayer.
+      </p>
+      <div class="campo">
+        <input id="texto-aviso" type="text" maxlength="140" placeholder="Ej: 2x1 en cervezas hasta las 23:00" />
+      </div>
+      <button id="btn-aviso">Mandar aviso</button>
+      <p class="nota" id="estado-aviso"></p>
+    </div>
+
     <div class="rejilla">
       <div class="tarjeta">
         <div class="rotulo">Ahora en tu local</div>
@@ -244,9 +263,36 @@ async function cargarPanel(dias) {
   }
 }
 
+// Mandar un aviso a quienes están en el local ahora.
+$('btn-aviso').addEventListener('click', async () => {
+  const texto = $('texto-aviso').value.trim()
+  if (!texto) {
+    $('estado-aviso').textContent = 'Escribe el aviso antes de mandarlo.'
+    return
+  }
+  $('btn-aviso').disabled = true
+  $('estado-aviso').textContent = 'Mandando...'
+  try {
+    await httpsCallable(funciones, 'mandarAviso')({ texto })
+    $('texto-aviso').value = ''
+    $('estado-aviso').textContent = 'Listo. Lo están viendo las personas que están en tu local.'
+  } catch (error) {
+    // El servidor manda mensajes entendibles (sin permiso, demasiados seguidos,
+    // texto muy largo): se muestra ese y no uno genérico.
+    $('estado-aviso').textContent =
+      error?.message || 'No pudimos mandar el aviso. Intenta de nuevo.'
+  } finally {
+    $('btn-aviso').disabled = false
+  }
+})
+
 function pintar(d) {
   rangoElegido = d.dias
   $('nombre-local').textContent = d.local.placeName || ''
+  // El envío de avisos es del nivel "reforzado". Si el local no lo tiene, la
+  // caja no aparece: mostrar un botón que el servidor va a rechazar solo sirve
+  // para que el dueño crea que algo se rompió.
+  mostrar('caja-aviso', d.local.nivel === 'reforzado')
 
   // activosAhora llega en null cuando hay menos gente que el umbral. Se
   // muestra "menos de N" en vez del número: con una sola persona en el local,
