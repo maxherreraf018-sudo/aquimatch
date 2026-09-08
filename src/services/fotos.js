@@ -192,6 +192,11 @@ export async function elegirFoto({
   direction,
   secundaria = false,
   recortar = false,
+  // Se llama justo cuando la galería ya se cerró y empieza el trabajo nuestro,
+  // que dura unos segundos. Sirve para que la pantalla pueda avisar que está
+  // preparando la foto en vez de quedarse igual que antes, como si nada
+  // hubiera pasado. Si no se pasa, no cambia nada.
+  alEmpezarAPreparar,
 } = {}) {
   // Las fotos 2 y 3 se piden más chicas (720 en vez de 1080).
   //
@@ -245,6 +250,9 @@ export async function elegirFoto({
     })
     const ruta = foto.webPath || foto.path
     if (!ruta) throw new Error('la foto llegó sin ruta')
+    // Desde acá para abajo ya no hay ninguna pantalla del teléfono encima: la
+    // persona está mirando la nuestra, y le toca esperarnos.
+    alEmpezarAPreparar?.()
     const respuesta = await fetch(Capacitor.convertFileSrc(ruta))
     original = await respuesta.blob()
   } catch (err) {

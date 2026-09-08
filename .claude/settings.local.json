@@ -478,7 +478,9 @@
       "Bash(timeout 60 node -e \"require\\('./index.js'\\); console.log\\('el modulo carga bien'\\)\")",
       "Bash(git commit -q -m 'Paquete 26: la foto acostada, el encierro en verificacion y el correo sin tope *)",
       "Bash('perfil. En los estados pendiente y sin' 'selfie no habia ninguna salida. *)",
-      "Bash(cat)"
+      "Bash(cat)",
+      "Bash(./gradlew installDebug)",
+      "Bash(adb shell *)"
     ]
   }
 }

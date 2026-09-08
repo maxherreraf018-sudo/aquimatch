@@ -41,18 +41,24 @@ export default function CreateProfile() {
   const [genero, setGenero] = useState('')
   const [foto, setFoto] = useState(null)
   const [fotoPreview, setFotoPreview] = useState(null)
+  const [preparandoFoto, setPreparandoFoto] = useState(false)
   const [mostrarFotoGrande, setMostrarFotoGrande] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
   async function manejarFoto() {
     try {
-      const blob = await elegirFoto()
+      // Girar y achicar la foto lleva unos segundos, y esta pantalla es la del
+      // registro: si alguien cree que se colgó, no vuelve. Por eso avisa que
+      // está trabajando en vez de quedarse igual que antes.
+      const blob = await elegirFoto({ alEmpezarAPreparar: () => setPreparandoFoto(true) })
+      setPreparandoFoto(false)
       if (!blob) return
       setError('')
       setFoto(blob)
       setFotoPreview(URL.createObjectURL(blob))
     } catch (err) {
+      setPreparandoFoto(false)
       setError(`No pudimos abrir la cámara/galería. (${err?.code || err?.message || 'error desconocido'})`)
     }
   }
@@ -126,16 +132,22 @@ export default function CreateProfile() {
           de abajo. */}
       <label
         className="avatar-upload"
-        onClick={fotoPreview ? () => setMostrarFotoGrande(true) : manejarFoto}
+        onClick={preparandoFoto ? undefined : fotoPreview ? () => setMostrarFotoGrande(true) : manejarFoto}
       >
-        {fotoPreview ? (
+        {preparandoFoto ? (
+          <span style={{ fontSize: 22 }}>📷</span>
+        ) : fotoPreview ? (
           <img src={fotoPreview} alt="Foto principal" />
         ) : (
           <IconAgregar size={28} style={{ color: 'var(--text-faint)' }} />
         )}
       </label>
-      <p style={{ textAlign: 'center', fontSize: 13, marginBottom: fotoPreview ? 6 : 20 }}>
-        {fotoPreview ? 'Foto principal — toca para verla completa' : 'Foto principal'}
+      <p style={{ textAlign: 'center', fontSize: 13, marginBottom: fotoPreview && !preparandoFoto ? 6 : 20 }}>
+        {preparandoFoto
+          ? 'Preparando tu foto...'
+          : fotoPreview
+            ? 'Foto principal — toca para verla completa'
+            : 'Foto principal'}
       </p>
       {fotoPreview && (
         <p style={{ textAlign: 'center', fontSize: 13, marginBottom: 20 }}>

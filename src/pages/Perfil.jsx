@@ -86,6 +86,7 @@ export default function Perfil() {
   const [fotoPendiente, setFotoPendiente] = useState(null)
   const [fotoPendientePreview, setFotoPendientePreview] = useState(null)
   const [slotFotoPendiente, setSlotFotoPendiente] = useState(null) // 'principal' | 0 | 1
+  const [preparandoFoto, setPreparandoFoto] = useState(false)
   const [mostrarGestorFotos, setMostrarGestorFotos] = useState(false)
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [errorFoto, setErrorFoto] = useState('')
@@ -132,13 +133,24 @@ export default function Perfil() {
       try {
         // Las fotos 2 y 3 se piden más livianas: solo se miran. La principal
         // no, porque es contra la que se compara la selfie de verificación.
-        const blob = await elegirFoto({ secundaria: slot !== 'principal' })
+        const blob = await elegirFoto({
+          secundaria: slot !== 'principal',
+          // Girar y achicar la foto lleva unos segundos en un teléfono, y
+          // hasta ahora la pantalla no mostraba NADA mientras tanto: volvías
+          // de la galería al mismo perfil de antes, sin señal de que algo
+          // estuviera pasando. La espera se sentía como que la app se había
+          // colgado. El aviso se enciende cuando el picker ya se cerró, no
+          // antes, para que no aparezca por detrás de la galería.
+          alEmpezarAPreparar: () => setPreparandoFoto(true),
+        })
+        setPreparandoFoto(false)
         if (!blob) return
         setErrorFoto('')
         setSlotFotoPendiente(slot)
         setFotoPendiente(blob)
         setFotoPendientePreview(URL.createObjectURL(blob))
       } catch (err) {
+        setPreparandoFoto(false)
         setErrorFoto(`No pudimos abrir la cámara/galería. (${err?.code || err?.message || 'error desconocido'})`)
       }
     }
@@ -667,6 +679,41 @@ export default function Perfil() {
       <div className="spacer" />
 
       <BottomNav />
+
+      {/* Mientras se gira y se achica la foto. Va con el mismo fondo que la
+          tarjeta de confirmación que viene después, así que cuando la foto
+          está lista lo único que cambia es el contenido: no hay parpadeo. */}
+      {preparandoFoto && !fotoPendientePreview && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 300,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(18,0,34,0.97)',
+              border: '1px solid var(--border)',
+              borderRadius: 20,
+              padding: '22px 28px',
+              textAlign: 'center',
+            }}
+          >
+            <div className="radar" style={{ margin: '0 auto 14px' }}>
+              <div className="radar-core">📷</div>
+            </div>
+            <p style={{ margin: 0, fontSize: 14 }}>Preparando tu foto...</p>
+          </div>
+        </div>
+      )}
 
       {/* Confirmación antes de subir la foto — tarjeta flotante sobre el perfil desenfocado.
           zIndex más alto que GestorFotos, porque también puede abrirse desde ahí. */}
