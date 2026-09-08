@@ -1121,6 +1121,12 @@ const MINIMO_PARA_MOSTRAR = 5;
 // llevaría media colección por delante.
 const RANGOS_DIAS = [7, 14, 30, 60];
 const DIAS_POR_DEFECTO = 30;
+// Cuánto puede llevar una activación sin renovarse antes de darla por
+// abandonada. Tiene que ser el MISMO número que UMBRAL_INACTIVIDAD_MS en
+// src/services/activation.js: si el panel usara otro, el dueño vería una
+// cantidad de gente distinta de la que ve en la app cualquiera que esté ahí
+// parado. Si se cambia allá, hay que cambiarlo acá.
+const UMBRAL_INACTIVIDAD_MS = 3 * 60 * 60 * 1000;
 
 function fechaISOChile(fecha) {
   return bucketHorario(fecha).dia;
@@ -1279,9 +1285,32 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     .where("dia", ">=", fechaISOChile(desde))
     .get();
 
-  // Cuánta gente hay ahora: el bucket de la hora en curso.
-  const ahora = bucketHorario(new Date());
-  let activosAhora = 0;
+  // Cuánta gente hay AHORA en el local.
+  //
+  // Antes este número salía del bucket de la hora en curso de
+  // estadisticasLugar, y mentía de dos maneras distintas:
+  //
+  //   - Contaba activaciones, no presencia. Seis personas que activaron a las
+  //     22:05 y se fueron a las 22:20 seguían sumando a las 22:50.
+  //   - Se reiniciaba en cada hora en punto. A las 23:01 un local lleno
+  //     mostraba "menos de 5", porque el bucket de las 23 tenía un minuto de
+  //     vida.
+  //
+  // Ahora se cuenta exactamente lo mismo que cuenta la app para decidir quién
+  // está en la sala: activaciones vivas y renovadas hace menos de
+  // UMBRAL_INACTIVIDAD_MS. Los documentos traen nombre y foto, pero se leen y
+  // se descartan acá dentro: de la función sale un número y nada más.
+  const activaciones = await db
+    .collection("activaciones")
+    .where("placeId", "==", local.placeId)
+    .where("activa", "==", true)
+    .get();
+  const limiteFrescura = Date.now() - UMBRAL_INACTIVIDAD_MS;
+  const activosAhora = activaciones.docs.filter((documento) => {
+    const a = documento.data();
+    const referencia = a.actualizadaEn || a.iniciadaEn;
+    return referencia ? referencia.toMillis() >= limiteFrescura : false;
+  }).length;
 
   // Matriz día de la semana x hora, para encontrar la mejor franja.
   const porFranja = new Map();
@@ -1294,7 +1323,6 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     const total = b.total || 0;
     totalPeriodo += total;
     porDia.set(b.dia, (porDia.get(b.dia) || 0) + total);
-    if (b.dia === ahora.dia && b.hora === ahora.hora) activosAhora = total;
 
     const clave = `${b.diaSemana}-${b.hora}`;
     const franja = porFranja.get(clave) || { diaSemana: b.diaSemana, hora: b.hora, total: 0, veces: 0 };
@@ -1313,6 +1341,23 @@ exports.estadisticasDelLocal = onCall(async (request) => {
   const franjas = [...porFranja.values()]
     .map((f) => ({ ...f, promedio: f.total / f.veces }))
     .sort((a, b) => b.promedio - a.promedio);
+
+  // El umbral de anonimato hay que aplicarlo RANGO POR RANGO, no al total.
+  // Aplicado al total, un local con 5 personas —suficiente para pasar el
+  // filtro— podía mostrar "18-24: 4, 45+: 1", y ese 1 es una persona concreta
+  // a la que el dueño vio entrar. Lo que sale ahora es cero para los rangos
+  // flacos, y la suma de todos ellos junta en `ocultosPorRango`: "3 personas
+  // en rangos con muy poca gente" no señala a nadie.
+  const rangosPublicables = {};
+  let ocultosPorRango = 0;
+  Object.entries(porRango).forEach(([rango, cantidad]) => {
+    if (cantidad >= MINIMO_PARA_MOSTRAR) {
+      rangosPublicables[rango] = cantidad;
+    } else {
+      rangosPublicables[rango] = 0;
+      ocultosPorRango += cantidad;
+    }
+  });
 
   const mejor = franjas[0] || null;
   // Referencia para el "X veces más": el promedio de todas las franjas que
@@ -1340,7 +1385,8 @@ exports.estadisticasDelLocal = onCall(async (request) => {
       .sort((a, b) => (a.dia < b.dia ? -1 : 1)),
     // El desglose por edad solo tiene sentido con volumen suficiente. Con poca
     // gente, decir "3 personas de 45+" en un bar chico apunta a alguien.
-    porRango: totalPeriodo >= MINIMO_PARA_MOSTRAR ? porRango : null,
+    porRango: totalPeriodo >= MINIMO_PARA_MOSTRAR ? rangosPublicables : null,
+    ocultosPorRango,
     mejorFranja:
       mejor && mejor.promedio >= MINIMO_PARA_MOSTRAR
         ? {

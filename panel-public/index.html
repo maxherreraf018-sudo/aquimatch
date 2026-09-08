@@ -300,12 +300,11 @@ function pintar(d) {
   if (d.activosAhora === null) {
     $('ahora').textContent = `menos de ${d.minimoParaMostrar}`
     $('ahora').style.fontSize = '26px'
-    $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
   } else {
     $('ahora').textContent = d.activosAhora
     $('ahora').style.fontSize = ''
-    $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
   }
+  $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
 
   // Selector de rango
   $('rangos').innerHTML = d.rangosDisponibles
@@ -346,14 +345,23 @@ function pintar(d) {
   // Rangos de edad
   if (d.porRango) {
     const maximo = Math.max(...Object.values(d.porRango), 1)
+    // Los rangos que no llegan al umbral llegan en cero desde el servidor, y su
+    // gente viene sumada aparte en ocultosPorRango. Se dice explícitamente en
+    // vez de dejar los ceros a secas: un dueño que ve "45+: 0" en un local
+    // donde entra gente de 50 pensaría que el dato está roto.
     $('tarjeta-edades').innerHTML = Object.entries(d.porRango)
       .map(([rango, cantidad]) => `
         <div class="barra-fila">
           <span>${rango}</span>
           <span class="barra-pista"><span class="barra-relleno" style="width:${(cantidad / maximo) * 100}%"></span></span>
-          <span class="cantidad">${cantidad}</span>
+          <span class="cantidad">${cantidad || '—'}</span>
         </div>`)
-      .join('')
+      .join('') +
+      (d.ocultosPorRango > 0
+        ? `<div class="pie-cifra">Y ${d.ocultosPorRango} ${d.ocultosPorRango === 1 ? 'persona' : 'personas'} en rangos
+           que todavía no llegan a ${d.minimoParaMostrar}. No se muestran por separado para que nadie
+           quede identificado.</div>`
+        : '')
   } else {
     $('tarjeta-edades').innerHTML =
       `<div class="pie-cifra" style="margin-top:0">Todavía no hay suficientes datos.</div>`
@@ -376,10 +384,10 @@ function pintar(d) {
   }
 
   $('nota-privacidad').textContent =
-    `Datos de los últimos ${d.dias} días. Solo se muestran franjas con al menos ` +
-    `${d.minimoParaMostrar} personas: con menos, un rango de edad dejaría de ser una ` +
-    `estadística y pasaría a señalar a una persona concreta. Este panel nunca muestra ` +
-    `nombres, fotos ni perfiles de quienes están en tu local.`
+    `Datos de los últimos ${d.dias} días, salvo el contador de arriba, que es de ahora mismo. ` +
+    `Cada franja y cada rango de edad se muestra solo si llega a ${d.minimoParaMostrar} personas: ` +
+    `con menos, un número deja de ser una estadística y pasa a señalar a alguien concreto. ` +
+    `Este panel nunca muestra nombres, fotos ni perfiles de quienes están en tu local.`
 }
 </script>
 </body>

@@ -37,6 +37,10 @@ export const DURACION_PAUSA_MS = 20 * 60 * 1000
 // noche entera sin exigir que la persona tenga la app abierta todo el
 // tiempo (antes eran 20 min, muy poco para alguien que guarda el celular
 // mientras está en el lugar).
+//
+// OJO: este número está duplicado en functions/index.js, porque el panel del
+// dueño cuenta la gente presente con la misma regla. Si se cambia acá, hay que
+// cambiarlo allá o los dos lados mostrarán cantidades distintas.
 export const UMBRAL_INACTIVIDAD_MS = 3 * 60 * 60 * 1000
 
 // Cada cuánto se debe "avisar" que uno sigue aquí, mientras está en las
