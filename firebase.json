@@ -7,12 +7,18 @@
         "firebase.json",
         "**/.*"
       ],
+      "//redirects": "La sección de locales vive en un ancla (/#locales), no en una página propia. Un ancla se pierde con demasiada facilidad: al escribirla a mano en el teléfono, al pegarla en el campo de enlace de Instagram, o cuando alguien la dicta por teléfono. Y cuando se pierde el '#', la dirección deja de ser un ancla y pasa a ser una ruta que no existe: 404 de Firebase, que es justo lo que le pasó a Max el 2026-09-08 con el enlace de la biografía de Instagram. Estos redirecciones hacen que las formas razonables de escribirlo lleguen igual. Es más barato que enseñarle a todo el mundo a no perder un carácter.",
+      "redirects": [
+        { "source": "/locales", "destination": "/#locales", "type": 301 },
+        { "source": "/para-locales", "destination": "/#locales", "type": 301 },
+        { "source": "/local", "destination": "/#locales", "type": 301 }
+      ],
       "headers": [
         {
           "source": "**",
           "headers": [
             {
-              "comment": "Lista blanca de lo único que estas páginas pueden cargar. Se verificó que NINGUNA de las seis tiene JavaScript, así que script-src 'none' no rompe nada y cierra la puerta a que alguien logre inyectar código. 'unsafe-inline' en los estilos hace falta porque el CSS va dentro del propio archivo. Las fuentes de Google son el único origen externo permitido. frame-ancestors impide que metan estas páginas en un iframe de un sitio falso para engañar a quien las visita (clickjacking); X-Frame-Options queda por navegadores viejos.",
+              "comment": "Lista blanca de lo único que estas páginas pueden cargar. 'unsafe-inline' en los estilos hace falta porque el CSS va dentro del propio archivo. Las fuentes de Google son el único origen externo permitido. frame-ancestors impide que metan estas páginas en un iframe de un sitio falso para engañar a quien las visita (clickjacking); X-Frame-Options queda por navegadores viejos. Estas páginas no tienen JavaScript propio, así que script-src deja pasar únicamente el de Cloudflare. El 2026-09-08 se probó agregar 'self' para cargar un script que arreglara el salto a la sección de locales; el script no funcionó bien (se pasaba de largo hasta el pie de la página) y se quitó, así que la política volvió a quedar como estaba. Si alguna vez hace falta un script propio, agregar 'self' — nunca 'unsafe-inline', que es lo que convierte una inyección de HTML en ejecución de código.",
               "key": "Content-Security-Policy",
               "value": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src https://static.cloudflareinsights.com; connect-src https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
             },
@@ -39,6 +45,21 @@
               "comment": "Estas páginas son texto: no necesitan cámara, micrófono ni ubicación. Se apagan por si acaso.",
               "key": "Permissions-Policy",
               "value": "camera=(), microphone=(), geolocation=()"
+            },
+            {
+              "comment": "Firebase por defecto cachea el HTML una hora, y eso muerde: el 2026-09-08 se arregló el enlace de la sección de locales, se desplegó, y el navegador siguió sirviendo la página vieja — sin el script nuevo — durante toda la depuración. Peor todavía para Max, que puede probar un arreglo y verlo fallar sin saber por qué. 'no-cache' NO significa no guardar: el navegador guarda igual, pero pregunta antes de usarlo, así que si nada cambió la respuesta pesa cero. En un sitio que se cambia a diario, eso vale más que ahorrarse una consulta.",
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "comment": "Las imágenes y las fuentes sí se cachean largo: no cambian, y son lo pesado. Este bloque va DESPUÉS del anterior a propósito — cuando dos reglas coinciden, la última manda.",
+          "source": "**/*.@(jpg|jpeg|png|webp|gif|svg|ico|woff|woff2|mp4)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=604800"
             }
           ]
         }

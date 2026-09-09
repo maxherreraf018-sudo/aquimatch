@@ -41,7 +41,14 @@
   --ancho:1060px;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+/* Sin scroll-behavior:smooth, y no es un olvido.
+   Con el scroll suave activado, entrar directo a un ancla (aquimatch.cl/#locales,
+   que es el enlace que se reparte a los duenos de local) rompia: el navegador
+   empieza la animacion antes de que carguen las imagenes, la altura de la pagina
+   cambia a mitad de camino, y el scroll termina en cualquier parte. Comprobado el
+   2026-09-08: el ancla estaba a 4008px y la pagina quedaba en 756px, o sea en la
+   portada. Un enlace que no llega adonde promete es peor que uno que no se desliza. */
+html{scroll-behavior:auto}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
 body{
   margin:0;background:var(--fondo);color:var(--texto);
@@ -354,7 +361,9 @@ a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radiu
 </footer>
 
 
-<!-- Cloudflare Web Analytics. Es el UNICO JavaScript del sitio. No usa
+
+
+<!-- Cloudflare Web Analytics. No usa
      cookies ni identifica a nadie entre sitios, asi que no obliga a poner
      cartel de consentimiento. El token no es secreto: viaja a la vista en
      el HTML, como en cualquier sitio que use esto. -->

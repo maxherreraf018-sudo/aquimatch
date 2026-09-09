@@ -480,7 +480,28 @@
       "Bash('perfil. En los estados pendiente y sin' 'selfie no habia ninguna salida. *)",
       "Bash(cat)",
       "Bash(./gradlew installDebug)",
-      "Bash(adb shell *)"
+      "Bash(adb shell *)",
+      "Bash(rm -rf C:/Users/max_1/AppData/Local/Temp/claude/C--Users-max-1-OneDrive-Escritorio-AQUIMATCH-CLAUDE-aquimatch/f3a76bf8-9bc1-48f2-bca3-88ccca26841a/scratchpad/aab26)",
+      "Bash(mkdir -p C:/Users/max_1/AppData/Local/Temp/claude/C--Users-max-1-OneDrive-Escritorio-AQUIMATCH-CLAUDE-aquimatch/f3a76bf8-9bc1-48f2-bca3-88ccca26841a/scratchpad/aab26)",
+      "Bash(unzip -o -q app-release.aab -d C:/Users/max_1/AppData/Local/Temp/claude/C--Users-max-1-OneDrive-Escritorio-AQUIMATCH-CLAUDE-aquimatch/f3a76bf8-9bc1-48f2-bca3-88ccca26841a/scratchpad/aab26)",
+      "Bash(sort -t v -k2 -n)",
+      "Bash(nslookup -type=MX aquimatch.cl 8.8.8.8)",
+      "Bash(grep -iE \"^sharp$|^jimp$|^canvas$|^pngjs$\")",
+      "Bash(node inspeccion.mjs)",
+      "Bash(node rotulo.mjs)",
+      "Bash(rm -f inspeccion.mjs rotulo.mjs)",
+      "PowerShell(Get-Process OneDrive -ErrorAction SilentlyContinue | Select-Object -First 1 Name, Id; Write-Output \"--- cuentas configuradas ---\"; Get-ChildItem \"HKCU:\\\\SOFTWARE\\\\Microsoft\\\\OneDrive\\\\Accounts\" -ErrorAction SilentlyContinue | ForEach-Object { $p = Get-ItemProperty $_.PSPath; \"$\\($_.PSChildName\\): $\\($p.UserEmail\\) -> $\\($p.UserFolder\\)\" })",
+      "Bash(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate -show_entries format=duration,size -of default=noprint_wrappers=1 aquimatch-para-apple.mp4)",
+      "Bash(node -e \"const c=require\\('./firebase.json'\\); const h=Array.isArray\\(c.hosting\\)?c.hosting:[c.hosting]; h.forEach\\(s=>console.log\\('target:',s.target||s.site||'\\(default\\)','| public:',s.public,'| redirects:',\\(s.redirects||[]\\).length,'| rewrites:',\\(s.rewrites||[]\\).length\\)\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('firebase.json','utf8'\\)\\); console.log\\('JSON valido'\\)\")",
+      "Bash(curl -s \"https://aquimatch.cl/\")",
+      "Bash(curl -sI \"https://aquimatch.cl/\")",
+      "Bash(sed -i \"s|script-src https://static.cloudflareinsights.com;|script-src 'self' https://static.cloudflareinsights.com;|\" firebase.json)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('firebase.json','utf8'\\)\\);console.log\\('JSON valido'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
+      "Bash(curl -sI \"https://aquimatch.cl/img/logo.webp\")",
+      "Bash(curl -s -o /dev/null -w \"anclas.js ahora: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
+      "Bash(curl -s -o /dev/null -w \"anclas.js: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")"
     ]
   }
 }
