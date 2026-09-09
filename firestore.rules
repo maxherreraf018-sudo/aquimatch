@@ -257,10 +257,34 @@ service cloud.firestore {
       // el servidor escribiendo modo: "participar" por defecto, así que del
       // lado de la app no queda nada por hacer — solo esperar y agregar la
       // línea acá.
+      // Y no basta con haber estado: hay que SEGUIR estando.
+      //
+      // Antes esto solo comparaba el placeId de tu activación con el de la
+      // otra persona. Al salir de un lugar, el documento no se borra — se
+      // marca `activa: false` — así que tu activación de anoche seguía
+      // diciendo "Galpón Italia" para siempre, y con eso se podía seguir
+      // leyendo a toda la gente de ese bar desde la casa, meses después.
+      //
+      // Se exige `activa` y, sobre todo, que la activación sea RECIENTE. Y la
+      // frescura se mide con `iniciadaEn`, no con `actualizadaEn`, porque esa
+      // es la diferencia entre un candado y un adorno: `actualizadaEn` la
+      // escribe el cliente (está en la lista de campos que puede tocar), así
+      // que un cliente modificado la renovaría sola para siempre.
+      // `iniciadaEn` la pone el servidor al crear la activación, después de
+      // comprobar por GPS que estabas ahí, y el cliente NO la puede modificar.
+      //
+      // Seis horas: la app da por abandonada una activación a las 3, así que
+      // sobra para una noche larga, y a la vez acota el abuso a "seis horas
+      // después de haber estado de verdad" en vez de "para siempre".
+      //
+      // Hallazgo de la revisión del 2026-09-09. Es de reglas, así que protege
+      // también a quien siga en la 26.
       allow read: if request.auth != null && (
         request.auth.uid == uid ||
         (exists(/databases/$(database)/documents/activaciones/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.placeId == resource.data.placeId)
+          get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.placeId == resource.data.placeId &&
+          get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.activa == true &&
+          get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.iniciadaEn > request.time - duration.value(6, 'h'))
       );
       // El candado que faltaba. Antes esto era `allow write: if uid propio`, o
       // sea que alguien con conocimientos técnicos podía escribir su propia

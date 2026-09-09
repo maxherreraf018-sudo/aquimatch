@@ -1230,7 +1230,15 @@ exports.activarEnLugar = onCall(
       // consultas por desigualdad de Firestore tratan los nulos de una forma
       // que es fácil equivocarse. Con un valor explícito, la consulta es una
       // igualdad simple y no hay nada que interpretar.
-      modo: "participar",
+      //
+      // Y nace en "pendiente", NO en "participar": entre que el servidor crea
+      // la activación y la persona elige participar o explorar pasan unos
+      // segundos, y arrancar en "participar" significaría aparecerle a todo el
+      // local antes de haber decidido si querías aparecer. Con "pendiente" no
+      // te ve nadie hasta que lo digas. Si algo falla en el camino, el error
+      // te deja invisible en vez de expuesto, que es el lado correcto para
+      // equivocarse.
+      modo: "pendiente",
       pausadoHasta: null,
       pausaUsada: false,
       // Deja constancia de que esta activación pasó por la verificación del
@@ -1921,7 +1929,9 @@ exports.resumenGeneral = onCall(async (request) => {
   }
 
   const db = admin.firestore();
-  const hace = (dias) => fechaISOChile(new Date(Date.now() - dias * 24 * 60 * 60 * 1000));
+  // dias - 1 porque la comparacion es >= y el dia de hoy tambien cuenta: pedir
+  // hace(30) tomaria 31 fechas distintas, y el rotulo diria 30.
+  const hace = (dias) => fechaISOChile(new Date(Date.now() - (dias - 1) * 24 * 60 * 60 * 1000));
 
   const cuantos = async (consulta) => {
     try {
@@ -1933,7 +1943,8 @@ exports.resumenGeneral = onCall(async (request) => {
   };
 
   const [
-    usuarios, completos, verificados, conexiones, mensajes, locales, interesadosGold, reportes,
+    usuarios, completos, verificados, conexiones, mensajes, locales, interesadosGold,
+    reportesTotales, reportesRevisados,
   ] = await Promise.all([
     cuantos(db.collection("usuarios")),
     cuantos(db.collection("usuarios").where("perfilCompleto", "==", true)),
@@ -1942,7 +1953,19 @@ exports.resumenGeneral = onCall(async (request) => {
     cuantos(db.collectionGroup("mensajes")),
     cuantos(db.collection("locales")),
     cuantos(db.collection("interesGold")),
-    cuantos(db.collection("reportes").where("revisado", "==", false)),
+    // Las denuncias pendientes NO se cuentan con where("revisado","==",false).
+    //
+    // reportarUsuario() no escribe ese campo: una denuncia nueva no tiene
+    // `revisado` en absoluto, y solo aparece cuando el panel la marca como
+    // revisada. O sea que filtrar por false devolvía CERO siempre — un número
+    // diciendo "no hay nada que hacer" mientras abajo, en la misma pantalla, la
+    // lista mostraba denuncias esperando. De todos los errores posibles en un
+    // resumen, ese es el peor: no muestra basura, muestra calma falsa.
+    //
+    // Se cuentan todas y se restan las revisadas. Así entran igual las
+    // antiguas, sin campo, y las nuevas.
+    cuantos(db.collection("reportes")),
+    cuantos(db.collection("reportes").where("revisado", "==", true)),
   ]);
 
   // Los buckets de los últimos 30 días. Acá sí se leen documentos, porque hay
@@ -1992,6 +2015,13 @@ exports.resumenGeneral = onCall(async (request) => {
     },
     encuentros: { conexiones, mensajes },
     negocio: { locales, escaneosQR, interesadosGold },
-    moderacion: { reportesSinRevisar: reportes },
+    moderacion: {
+      // Si cualquiera de los dos conteos falló (devuelve null), no se inventa
+      // un cero: se devuelve null y la pantalla muestra un guion.
+      reportesSinRevisar:
+        reportesTotales === null || reportesRevisados === null
+          ? null
+          : reportesTotales - reportesRevisados,
+    },
   };
 });

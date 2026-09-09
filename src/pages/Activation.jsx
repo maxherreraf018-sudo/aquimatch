@@ -67,6 +67,7 @@ export default function Activation() {
   const [misCoords, setMisCoords] = useState(null)
   const [personasActivas, setPersonasActivas] = useState([])
   const [modoSeleccionado, setModoSeleccionado] = useState('participar')
+  const [errorModo, setErrorModo] = useState('')
   const [guardandoModo, setGuardandoModo] = useState(false)
   const [planSeleccionado, setPlanSeleccionado] = useState(null)
   const [mensajeError, setMensajeError] = useState('')
@@ -132,7 +133,10 @@ export default function Activation() {
         setLugarActivo(lugar)
         escucharPersonasEnElLugar(lugar.placeId, uid, setPersonasActivas)
 
-        if (!activacion.modo) {
+        // "pendiente" es lo que escribe el servidor al activar, antes de que
+        // la persona elija. Cuenta como "todavía no eligió", igual que la
+        // ausencia del campo en las activaciones creadas antes de este cambio.
+        if (!activacion.modo || activacion.modo === 'pendiente') {
           setModoSeleccionado('participar')
           setEstado(ESTADOS.ELEGIR_MODO)
         } else if (!activacion.plan) {
@@ -258,13 +262,25 @@ export default function Activation() {
 
   async function confirmarModo() {
     setGuardandoModo(true)
+    setErrorModo('')
     try {
       await actualizarModo(uid, modoSeleccionado)
     } catch (err) {
-      // No bloqueamos al usuario si esto falla; puede cambiarlo después saliendo y volviendo a entrar.
-    } finally {
+      // Antes este error se tragaba y la pantalla seguía de largo igual.
+      //
+      // Para quien elige "Participar" no pasaba nada grave. Para quien elige
+      // "Explorar", sí: creía haber quedado invisible y seguía apareciéndoles
+      // a todos. Es la única promesa de esta pantalla, y se rompía en
+      // silencio.
+      //
+      // Ahora se queda acá y lo dice. Vale la pena la fricción: nadie eligió
+      // "Explorar" por casualidad, y avanzar sin haberlo guardado es
+      // exactamente lo que esa persona no quiere.
+      setErrorModo('No pudimos guardar tu elección. Revisa tu conexión e intenta de nuevo.')
       setGuardandoModo(false)
+      return
     }
+    setGuardandoModo(false)
     setEstado(ESTADOS.ELEGIR_PLAN)
   }
 
@@ -486,8 +502,11 @@ export default function Activation() {
           </div>
         </div>
 
+        {errorModo && (
+          <p className="error-text" style={{ marginBottom: 10, textAlign: 'center' }}>{errorModo}</p>
+        )}
         <button className="btn btn-primary" onClick={confirmarModo} disabled={guardandoModo}>
-          Continuar
+          {guardandoModo ? 'Guardando...' : 'Continuar'}
         </button>
         <BottomNav />
       </div>

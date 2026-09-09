@@ -409,12 +409,15 @@ function ResumenGeneral() {
       {datos && (
         <>
           <Grupo titulo="Lo que importa · últimos 30 días">
-            <Cifra destacada valor={datos.actividad.horasConCoincidencia} rotulo="horas con 2 o más personas en un mismo local" />
+            <Cifra destacada valor={datos.actividad.horasConCoincidencia} rotulo="franjas de una hora con 2 o más activaciones en un mismo local" />
             <Cifra valor={datos.actividad.localesConCoincidencia} rotulo="locales donde pasó" />
           </Grupo>
           <p style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.5 }}>
-            No prueba que se hayan visto —pudieron entrar a las 21:05 y a las 21:55— pero es lo
-            más cerca que se puede estar sin guardar quién estuvo con quién.
+            Cuenta ACTIVACIONES por franja horaria, no encuentros: dos activaciones en la misma hora
+            pueden ser dos personas que nunca coincidieron —una entró a las 21:05 y se fue, la otra
+            llegó a las 21:55—. Es lo más cerca que se puede estar sin guardar quién estuvo con
+            quién, que es justo lo que prometimos no hacer. Sirve para ver la tendencia, no para
+            afirmar que alguien se conoció.
           </p>
 
           <Grupo titulo="Actividad">
