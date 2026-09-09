@@ -7,11 +7,15 @@
         "firebase.json",
         "**/.*"
       ],
-      "//redirects": "La sección de locales vive en un ancla (/#locales), no en una página propia. Un ancla se pierde con demasiada facilidad: al escribirla a mano en el teléfono, al pegarla en el campo de enlace de Instagram, o cuando alguien la dicta por teléfono. Y cuando se pierde el '#', la dirección deja de ser un ancla y pasa a ser una ruta que no existe: 404 de Firebase, que es justo lo que le pasó a Max el 2026-09-08 con el enlace de la biografía de Instagram. Estos redirecciones hacen que las formas razonables de escribirlo lleguen igual. Es más barato que enseñarle a todo el mundo a no perder un carácter.",
+      "//rewrites": "aquimatch.cl/locales sirve locales.html, una página propia. Antes era un ancla dentro de la portada (/#locales) y no funcionaba en el único lugar donde importa: Instagram convierte el '#' en '%23' al guardar el enlace, y /%23locales da 404. Redirigir /locales a /#locales tampoco sirvió: el navegador no aplica el ancla cuando llega en la cabecera de un 301. Con una página propia no hay '#' que codificar ni salto que cronometrar. Se usa rewrite y no redirect a propósito: así la dirección que se reparte se queda en /locales, sin saltar a otra.",
+      "rewrites": [
+        { "source": "/locales", "destination": "/locales.html" }
+      ],
+      "//redirects": "Las otras formas razonables de escribirlo llegan al mismo lugar. El ancla viejo (/#locales) sigue funcionando solo, porque la sección continúa existiendo en la portada — lo que se reparte de aquí en adelante es /locales.",
       "redirects": [
-        { "source": "/locales", "destination": "/#locales", "type": 301 },
-        { "source": "/para-locales", "destination": "/#locales", "type": 301 },
-        { "source": "/local", "destination": "/#locales", "type": 301 }
+        { "source": "/para-locales", "destination": "/locales", "type": 301 },
+        { "source": "/local", "destination": "/locales", "type": 301 },
+        { "source": "/panel", "destination": "/locales", "type": 301 }
       ],
       "headers": [
         {

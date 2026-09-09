@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AquíMatch para locales — panel para bares, pubs y restoranes</title>
+<meta name="description" content="Un panel web para tu local: cuánta gente hay ahora, tus mejores horas y el público que te llega. Siempre agrupado y sin nombres. Programa piloto con locales de Santiago.">
+<meta name="theme-color" content="#0A0910">
+
+<!-- Esta pagina existe porque el ancla no servia.
+     La seccion para locales vivia dentro de la portada, en /#locales, y ese es
+     el enlace que se le reparte a los duenos. No funcionaba por dos motivos
+     encadenados, comprobados el 2026-09-08:
+       - Instagram (y cualquier campo de enlace que sanitice) convierte el "#"
+         en "%23", y ahi deja de ser un ancla: /%23locales da 404.
+       - Y aunque llegara, redirigir /locales -> /#locales tampoco sirve: el
+         navegador no aplica el ancla cuando viene en la cabecera de un 301.
+     Una pagina propia no tiene ninguno de los dos problemas: no hay "#" que
+     codificar ni salto que cronometrar. Y de paso es mejor para quien la lee —
+     antes aterrizaba a 7.730 pixeles de scroll dentro de una pagina escrita
+     para otra persona.
+     El texto es identico al de la seccion original: Apple ya lo revisó. -->
+
+<link rel="icon" href="/img/logo.webp" type="image/webp">
+<link rel="apple-touch-icon" href="/img/logo.webp">
+<meta property="og:title" content="AquíMatch para locales">
+<meta property="og:description" content="Cuánta gente hay ahora en tu local, tus mejores horas y el público que te llega. Siempre agrupado y sin nombres.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CL">
+<meta property="og:url" content="https://aquimatch.cl/locales">
+<meta property="og:image" content="https://mi-app-conexion.web.app/img/match.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fondo:#0A0910; --alt:#100D1A; --sup:#16121F;
+  --linea:#272036; --linea2:#332A47;
+  --texto:#F4F1FA; --dim:#A79BC0; --tenue:#7A7091;
+  --magenta:#FF3D9A;
+  --grad:linear-gradient(120deg,#FF3D9A 0%,#9B4DFF 55%,#6C5CFF 100%);
+  --ancho:1060px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--fondo);color:var(--texto);
+  font-family:"Public Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Bricolage Grotesque","Public Sans",system-ui,sans-serif;font-weight:800;line-height:1.05;letter-spacing:-.03em;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--magenta)}
+a:focus-visible{outline:2px solid var(--magenta);outline-offset:3px;border-radius:8px}
+img{max-width:100%;display:block}
+.env{width:100%;max-width:var(--ancho);margin:0 auto;padding:0 24px}
+.eti{font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--tenue)}
+
+.barra{position:sticky;top:0;z-index:20;background:rgba(10,9,16,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--linea)}
+.barra .env{display:flex;align-items:center;justify-content:space-between;height:62px}
+.marca{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.punto{width:26px;height:26px;border-radius:8px;flex:0 0 auto;display:block}
+.volver{padding:9px 17px;font-size:14px;border-radius:999px;border:1px solid var(--linea2);color:var(--dim);text-decoration:none}
+
+.portada{position:relative;overflow:hidden;padding:82px 0 64px}
+.portada::before{content:"";position:absolute;inset:-55% 0 auto -10%;height:135%;background:radial-gradient(52% 48% at 25% 25%,rgba(255,61,154,.16),transparent 70%),radial-gradient(46% 42% at 82% 8%,rgba(108,92,255,.18),transparent 70%);pointer-events:none}
+.portada .env{position:relative}
+.portada h1{font-size:clamp(34px,5.6vw,58px);max-width:19ch;margin:18px 0 0}
+.portada .bajada{margin:22px 0 0;max-width:52ch;font-size:clamp(17px,2vw,19.5px);color:var(--dim)}
+
+.sec{padding:0 0 82px}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.tj{background:var(--sup);border:1px solid var(--linea);border-radius:16px;padding:26px}
+.tj svg{width:24px;height:24px;color:var(--magenta);margin-bottom:15px}
+.tj h3{font-size:17.5px}
+.tj p{color:var(--dim);font-size:15.5px;margin-top:7px}
+
+.honesta{background:var(--alt);border:1px solid var(--linea);border-radius:18px;padding:32px 30px;margin-top:26px}
+.honesta h3{font-size:clamp(21px,3vw,26px);margin-bottom:8px}
+.honesta p{color:var(--dim)}
+
+.cierre{margin-top:34px;max-width:62ch}
+.boton{display:inline-flex;align-items:center;gap:10px;padding:15px 26px;border-radius:999px;background:var(--grad);color:#fff;font-weight:600;text-decoration:none;font-size:16.5px;box-shadow:0 12px 34px -14px rgba(255,61,154,.75);margin-top:20px}
+.boton:hover{filter:brightness(1.08)}
+.nota{font-size:13.5px;color:var(--tenue);margin-top:14px}
+
+.pie{border-top:1px solid var(--linea);padding:34px 0 46px;color:var(--tenue);font-size:14px}
+.pie .env{display:flex;gap:22px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.pie nav{display:flex;gap:18px;flex-wrap:wrap}
+.pie a{color:var(--tenue);text-decoration:none}
+.pie a:hover{color:var(--dim)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="env">
+    <a class="marca" href="/"><img class="punto" src="/img/logo.webp" alt="" width="26" height="26">AquíMatch</a>
+    <a class="volver" href="/">Ver la app</a>
+  </div>
+</header>
+
+<section class="portada">
+  <div class="env">
+    <p class="eti">Para locales · Programa piloto</p>
+    <h1>Si tienes un bar, un pub, una discoteca o un restorán</h1>
+    <p class="bajada">También cafés y restobares. Estamos empezando un piloto con locales seleccionados de Santiago: un panel web para el negocio, aparte de la app, pensado para quien atiende.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="env">
+    <div class="tarjetas">
+      <div class="tj">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+        <h3>Cuánta gente hay ahora</h3><p>Personas con AquíMatch activo en tu local, en este momento.</p>
+      </div>
+      <div class="tj">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h3>Tus mejores horas</h3><p>Qué días y a qué horas se mueve de verdad tu local, con semanas de historia.</p>
+      </div>
+      <div class="tj">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>
+        <h3>El público que te llega</h3><p>Cuánta gente hay por rango de edad, siempre agrupada y sin nombres, para decidir con datos y no con corazonadas.</p>
+      </div>
+    </div>
+
+    <div class="honesta">
+      <h3>Nunca vas a ver quiénes son</h3>
+      <p>El panel entrega conteos, jamás identidades ni fotos. Y cuando hay muy poca gente, ni siquiera muestra el número exacto: dice "menos de 5", para que nadie pueda ser identificado mirando alrededor.</p>
+      <p style="margin-top:10px">Esa es justamente la razón por la que tus clientes usan la app dentro de tu local. Si el negocio pudiera ver quién está buscando conocer gente, nadie la abriría.</p>
+    </div>
+
+    <div class="cierre">
+      <p>No hay registro automático: el acceso se habilita a mano, después de verificar que administras el establecimiento. Por eso el piloto va con pocos locales a la vez. Si quieres entrar, escríbenos a <a href="mailto:contacto@aquimatch.cl">contacto@aquimatch.cl</a>.</p>
+      <a class="boton" href="https://aquimatch-panel.web.app">Entrar al panel de locales</a>
+      <p class="nota">Disponible para locales piloto en Santiago.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="pie">
+  <div class="env">
+    <span>AQUIMATCH SpA · Santiago, Chile</span>
+    <nav>
+      <a href="/">La app</a>
+      <a href="/terminos.html">Términos</a>
+      <a href="/privacidad.html">Privacidad</a>
+      <a href="mailto:contacto@aquimatch.cl">Contacto</a>
+    </nav>
+  </div>
+</footer>
+
+<!-- Cloudflare Web Analytics, el mismo de la portada. No usa cookies ni
+     identifica a nadie entre sitios. El token no es secreto. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;b295c546b68e4b63af509b920ad54e8b&quot;}"></script>
+</body>
+</html>
