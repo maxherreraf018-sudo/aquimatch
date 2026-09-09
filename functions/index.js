@@ -1,6 +1,7 @@
 const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { defineSecret } = require("firebase-functions/params");
 // node:crypto, no el `crypto` global. El global es WebCrypto y NO tiene
 // createHash — fallaría recién al ejecutarse, no al compilar.
@@ -9,6 +10,20 @@ const admin = require("firebase-admin");
 const { RekognitionClient, CompareFacesCommand } = require("@aws-sdk/client-rekognition");
 
 admin.initializeApp();
+
+// Techo de instancias simultáneas para TODAS las funciones.
+//
+// No es un presupuesto y no hay que confundirlo con uno: no corta el gasto,
+// limita la velocidad a la que puede crecer. Sin esto, Cloud Functions escala
+// solo hasta cientos de instancias en paralelo, así que un script dando vueltas
+// puede convertir un descuido en una factura grande en minutos. Con un techo,
+// lo peor que pasa es que la app vaya lenta un rato — y una app lenta se
+// arregla; una factura, no.
+//
+// 10 es holgado para el volumen de hoy (19 instalaciones el 2026-09-08). Si
+// algún día hay cola de verdad, se sube: es un número para revisar cuando
+// crezcamos, no para dejar puesto para siempre.
+setGlobalOptions({ maxInstances: 10 });
 
 const AWS_ACCESS_KEY_ID = defineSecret("AWS_ACCESS_KEY_ID");
 const AWS_SECRET_ACCESS_KEY = defineSecret("AWS_SECRET_ACCESS_KEY");
@@ -108,6 +123,33 @@ exports.verificarSelfie = onDocumentUpdated(
       return;
     }
     if (!selfieRuta && !selfieVerificacion) return;
+
+    // TOPE DE INTENTOS. Esta es la función más cara que tenemos: cada vuelta
+    // baja dos imágenes y paga una comparación de rostros en AWS. Y se dispara
+    // sola cada vez que cambia `selfieActualizadaEn`, que es un campo que la
+    // app escribe... o sea que lo puede escribir cualquiera con la sesión
+    // iniciada, en un bucle, sin tocar nada más.
+    //
+    // Nadie legítimo necesita 8 verificaciones en una hora: se saca la selfie,
+    // sale bien o sale mal, y a lo sumo la repite dos o tres veces. Pasado ese
+    // número se deja `error_verificacion`, que es un estado que la app ya sabe
+    // mostrar con su pantalla de reintentar — y NO se deja en "pendiente", que
+    // es la trampa contra la que avisan los comentarios de más arriba: alguien
+    // esperando para siempre una respuesta que nunca va a llegar.
+    const puedeIntentar = await dentroDelLimite(
+      admin.firestore().doc(`limites/${uid}`),
+      "verificaciones",
+      "ventanaVerificaciones",
+      MAX_VERIFICACIONES_POR_VENTANA
+    );
+    if (!puedeIntentar) {
+      console.warn(`[verificarSelfie] tope de intentos alcanzado por ${uid}`);
+      await ref.update({
+        estadoVerificacion: "error_verificacion",
+        motivoRechazo: "Demasiados intentos seguidos. Espera un rato y vuelve a intentarlo.",
+      });
+      return;
+    }
 
     try {
       const [fotoBytes, selfieBytes] = await Promise.all([
@@ -449,6 +491,11 @@ const RADIO_ACTIVACION_METROS = 120;
 const VENTANA_LIMITE_MS = 60 * 60 * 1000;
 const MAX_ACTIVACIONES_POR_VENTANA = 10;
 const MAX_BUSQUEDAS_POR_VENTANA = 30;
+// Verificaciones de selfie por persona y por hora. Es la operación más cara
+// del sistema (dos descargas más una comparación de rostros en AWS) y la única
+// que se dispara sola desde un campo que escribe el cliente. Ver el tope en
+// verificarSelfie.
+const MAX_VERIFICACIONES_POR_VENTANA = 8;
 // Cuántos lugares cercanos se le mandan a la app.
 //
 // SUBIDO DE 2 A 8 EL 2026-09-07. Max fue a comer a Buenos Muchachos, en
@@ -491,6 +538,36 @@ const ADMIN_UID = "SM1r3pWsTYU2soVHMUmOT1xzIfi2";
 // perder por unos metros un lugar que sí es válido (mismo criterio que usa el
 // cliente para buscar).
 const RADIO_CONSULTA_METROS = 200;
+
+/**
+ * Igual que contarUso, pero devuelve false en vez de lanzar.
+ *
+ * Hace falta porque contarUso lanza un HttpsError, y eso solo tiene sentido
+ * cuando hay alguien esperando una respuesta. En un disparador de Firestore no
+ * hay a quién responderle: lanzar solo haría que la función se reintentara.
+ */
+async function dentroDelLimite(ref, campoConteo, campoVentana, maximo, ventanaMs = VENTANA_LIMITE_MS) {
+  const ahoraMs = Date.now();
+  let permitido = true;
+  await admin.firestore().runTransaction(async (transaccion) => {
+    const datos = (await transaccion.get(ref)).data() || {};
+    const enVentana = datos[campoVentana] && ahoraMs - datos[campoVentana] < ventanaMs;
+    const usados = enVentana ? datos[campoConteo] || 0 : 0;
+    if (usados >= maximo) {
+      permitido = false;
+      return;
+    }
+    transaccion.set(
+      ref,
+      {
+        [campoConteo]: usados + 1,
+        [campoVentana]: enVentana ? datos[campoVentana] : ahoraMs,
+      },
+      { merge: true }
+    );
+  });
+  return permitido;
+}
 
 /**
  * Cuenta un uso dentro de una ventana de tiempo, de forma ATÓMICA.
