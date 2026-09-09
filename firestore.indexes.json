@@ -6,8 +6,14 @@
       "collectionGroup": "estadisticasLugar",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "dia", "order": "ASCENDING" }
+        {
+          "fieldPath": "placeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -15,8 +21,29 @@
       "collectionGroup": "avisos",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "creadoEnMs", "order": "DESCENDING" }
+        {
+          "fieldPath": "placeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creadoEnMs",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "//": "estadisticasDelLocal tambien suma los escaneos del QR. Misma forma de consulta que el indice de estadisticasLugar: filtra por placeId y compara por dia. Sin este indice la consulta NO devuelve vacio, LANZA — y el panel del duenno se queda en blanco con un INTERNAL, que es exactamente lo que paso el 2026-09-07.",
+      "collectionGroup": "escaneosLugar",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "placeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],

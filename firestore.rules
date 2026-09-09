@@ -497,6 +497,20 @@ service cloud.firestore {
       allow read: if esAdmin();
       allow write: if false;
     }
+    // Escaneos del código QR de cada local, por día. Van SEPARADOS de
+    // estadisticasLugar a propósito: ahí viven las activaciones, o sea gente
+    // que de verdad estuvo dentro del local, y mezclar los escaneos de un
+    // cartel con presencia real corrompería el único dato que le vendemos al
+    // dueño. Un escaneo es interés; una activación es una persona en la mesa.
+    //
+    // Los escribe la función `ir` con el Admin SDK, que no pasa por estas
+    // reglas. Cerrado a los clientes por el mismo motivo que el contador de
+    // arriba: si se pudiera escribir, cualquiera inflaría los números que
+    // después se le muestran a un dueño como si fueran reales.
+    match /escaneosLugar/{bucket} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
     // Lista de espera de la suscripción Gold: quién dijo "avísame" y con qué
     // plan se quedó mirando. No desbloquea nada ni cobra nada — es solo la
     // señal que decide si vale la pena construir el cobro.

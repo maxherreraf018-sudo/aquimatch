@@ -1,5 +1,5 @@
 const { onDocumentUpdated, onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { defineSecret } = require("firebase-functions/params");
@@ -1449,6 +1449,17 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     .where("dia", ">=", fechaISOChile(desde))
     .get();
 
+  // Escaneos del QR en el mismo período. Es lo que le permite al dueño saber
+  // si su cartel sirvió de algo, y a nosotros saber qué local trae gente de
+  // verdad. Van en su propia colección: un escaneo es interés, una activación
+  // es una persona sentada en una mesa, y confundirlos arruinaría el dato.
+  const escaneos = await db
+    .collection("escaneosLugar")
+    .where("placeId", "==", local.placeId)
+    .where("dia", ">=", fechaISOChile(desde))
+    .get();
+  const totalEscaneos = escaneos.docs.reduce((suma, d) => suma + (d.data().total || 0), 0);
+
   // Cuánta gente hay AHORA en el local.
   //
   // Antes este número salía del bucket de la hora en curso de
@@ -1551,6 +1562,11 @@ exports.estadisticasDelLocal = onCall(async (request) => {
     // gente, decir "3 personas de 45+" en un bar chico apunta a alguien.
     porRango: totalPeriodo >= MINIMO_PARA_MOSTRAR ? rangosPublicables : null,
     ocultosPorRango,
+    // Los escaneos NO llevan umbral de anonimato: es un contador de un cartel,
+    // no de personas identificables. Saber que el QR se escaneó tres veces no
+    // señala a nadie.
+    escaneos: totalEscaneos,
+    codigoQR: local.codigo || null,
     mejorFranja:
       mejor && mejor.promedio >= MINIMO_PARA_MOSTRAR
         ? {
@@ -1750,3 +1766,124 @@ exports.enviarRestablecerContrasena = onCall(
     return { ok: true };
   }
 );
+
+// ---------------------------------------------------------------------------
+// El QR de los locales: aquimatch.cl/ir/<codigo>
+//
+// Un dueño pone este código QR en sus mesas. Quien lo escanea llega acá, y de
+// acá sale hacia donde le sirva según su teléfono. De paso se cuenta el
+// escaneo, para que el dueño pueda ver en su panel cuánta gente lo usó — que
+// es lo que convierte un cartel en algo medible, y lo que le permite a él
+// saber si le sirvió tenernos.
+//
+// Es la ÚNICA función de todo el proyecto que responde a una dirección web
+// abierta, sin sesión. Tiene que ser así: quien escanea todavía no tiene la
+// app ni cuenta. Por eso no toca ningún dato de personas — solo lee la ficha
+// del local y suma uno a un contador.
+//
+// Sobre inflar el contador: alguien podría recargar la dirección mil veces y
+// subir el número de un local. Se asume a propósito. Lo único que consigue es
+// engañar al dueño de ese local sobre su propio cartel, y el costo por visita
+// es despreciable. Poner defensas de verdad (por IP, con sus lecturas
+// asociadas) costaría más que el problema que evita.
+// ---------------------------------------------------------------------------
+
+const ENLACE_PLAY = "https://play.google.com/store/apps/details?id=com.aquimatch.app";
+
+/**
+ * Página para quien escanea desde un iPhone. No puede instalar nada todavía,
+ * así que lo importante es que no se vaya con la sensación de que no funcionó:
+ * se le explica en una línea qué es y cuándo va a poder.
+ */
+function paginaParaIphone(nombreLocal) {
+  const donde = nombreLocal ? ` en ${nombreLocal}` : "";
+  return `<!DOCTYPE html>
+<html lang="es-CL"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AquíMatch</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:32px;
+  background:#0A0910;color:#F4F1FA;text-align:center;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;line-height:1.6}
+.caja{max-width:22rem}
+h1{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin:0 0 14px}
+p{color:#A79BC0;font-size:16.5px;margin:0 0 14px}
+.eti{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7A7091;margin-bottom:18px}
+a{display:inline-block;margin-top:14px;color:#FF3D9A;font-weight:600;text-decoration:none}
+</style></head>
+<body><div class="caja">
+<p class="eti">AquíMatch</p>
+<h1>Todavía no está para iPhone</h1>
+<p>AquíMatch te muestra quién más está${donde} en este momento. Por ahora funciona en Android; la versión para iPhone está en camino.</p>
+<p>Si tienes un Android a mano, escanea el código con ese teléfono.</p>
+<a href="https://aquimatch.cl">Ver de qué se trata</a>
+</div></body></html>`;
+}
+
+exports.ir = onRequest({ region: "us-central1" }, async (peticion, respuesta) => {
+  // El código va en la ruta: /ir/galpon. Se limpia a conciencia porque esto
+  // viene de una dirección pública y va a parar a una consulta.
+  const codigo = String(peticion.path || "")
+    .replace(/^\/+ir\/?/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase()
+    .slice(0, 40);
+
+  let local = null;
+  if (/^[a-z0-9-]{2,40}$/.test(codigo)) {
+    try {
+      const encontrados = await admin
+        .firestore()
+        .collection("locales")
+        .where("codigo", "==", codigo)
+        .limit(1)
+        .get();
+      if (!encontrados.empty) {
+        local = { placeId: encontrados.docs[0].id, ...encontrados.docs[0].data() };
+      }
+    } catch (error) {
+      // Que falle la consulta no puede dejar a la persona mirando un error:
+      // abajo se la manda igual a descargar la app.
+      console.error("[ir] no se pudo leer el local", error);
+    }
+  }
+
+  // El escaneo se cuenta aparte de estadisticasLugar A PROPÓSITO. Ahí viven
+  // las activaciones —gente que de verdad estuvo dentro del local—, y mezclar
+  // escaneos de un cartel con presencia real corrompería el único dato que le
+  // vendemos al dueño.
+  if (local) {
+    const dia = fechaISOChile(new Date());
+    admin
+      .firestore()
+      .doc(`escaneosLugar/${local.placeId}_${dia}`)
+      .set(
+        {
+          placeId: local.placeId,
+          dia,
+          total: admin.firestore.FieldValue.increment(1),
+        },
+        { merge: true }
+      )
+      .catch((error) => console.error("[ir] no se pudo contar el escaneo", error));
+  }
+
+  const agente = String(peticion.get("user-agent") || "");
+  const esIphone = /iPhone|iPad|iPod/i.test(agente);
+  const esAndroid = /Android/i.test(agente);
+
+  respuesta.set("Cache-Control", "no-store");
+
+  if (esIphone) {
+    respuesta.status(200).send(paginaParaIphone(local?.placeName));
+    return;
+  }
+
+  // Android y cualquier otra cosa van a Play. El "referrer" viaja hasta Play
+  // Console: así se puede ver cuántas instalaciones trajo cada local, y no
+  // solo cuántos escaneos hubo.
+  const marca = local
+    ? `utm_source%3Dlocal%26utm_medium%3Dqr%26utm_content%3D${encodeURIComponent(local.placeId)}`
+    : "utm_source%3Dlocal%26utm_medium%3Dqr";
+  respuesta.redirect(302, `${ENLACE_PLAY}&referrer=${marca}`);
+});

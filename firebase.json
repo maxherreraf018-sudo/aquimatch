@@ -9,13 +9,34 @@
       ],
       "//rewrites": "aquimatch.cl/locales sirve locales.html, una página propia. Antes era un ancla dentro de la portada (/#locales) y no funcionaba en el único lugar donde importa: Instagram convierte el '#' en '%23' al guardar el enlace, y /%23locales da 404. Redirigir /locales a /#locales tampoco sirvió: el navegador no aplica el ancla cuando llega en la cabecera de un 301. Con una página propia no hay '#' que codificar ni salto que cronometrar. Se usa rewrite y no redirect a propósito: así la dirección que se reparte se queda en /locales, sin saltar a otra.",
       "rewrites": [
-        { "source": "/locales", "destination": "/locales.html" }
+        {
+          "//": "El QR de los locales. Va a una funcion y no a una pagina estatica porque tiene que contar el escaneo y decidir a donde mandar segun el telefono. Hosting solo sabe reescribir hacia funciones de us-central1, por eso la funcion ir vive ahi.",
+          "source": "/ir/**",
+          "function": "ir",
+          "region": "us-central1"
+        },
+        {
+          "source": "/locales",
+          "destination": "/locales.html"
+        }
       ],
       "//redirects": "Las otras formas razonables de escribirlo llegan al mismo lugar. El ancla viejo (/#locales) sigue funcionando solo, porque la sección continúa existiendo en la portada — lo que se reparte de aquí en adelante es /locales.",
       "redirects": [
-        { "source": "/para-locales", "destination": "/locales", "type": 301 },
-        { "source": "/local", "destination": "/locales", "type": 301 },
-        { "source": "/panel", "destination": "/locales", "type": 301 }
+        {
+          "source": "/para-locales",
+          "destination": "/locales",
+          "type": 301
+        },
+        {
+          "source": "/local",
+          "destination": "/locales",
+          "type": 301
+        },
+        {
+          "source": "/panel",
+          "destination": "/locales",
+          "type": 301
+        }
       ],
       "headers": [
         {

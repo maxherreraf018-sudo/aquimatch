@@ -151,6 +151,23 @@
       </div>
     </div>
 
+    <!-- El QR del local. Va aquí arriba, junto a los números, y no escondido
+         al final: para un dueño es lo más accionable de todo el panel — es lo
+         único que él puede hacer hoy para que mañana haya más gente. -->
+    <div class="tarjeta" id="caja-qr" style="display:none;margin-top:14px">
+      <div class="rotulo">Tu código QR</div>
+      <p style="margin:10px 0 0;font-size:14.5px;line-height:1.55">
+        Imprímelo y ponlo en las mesas o en la barra. Quien lo escanee con un
+        Android llega directo a descargar AquíMatch; con iPhone le explicamos
+        que está en camino.
+      </p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px">
+        <code id="enlace-qr" style="font-size:15px;padding:9px 13px;border:1px solid var(--linea);border-radius:9px"></code>
+        <a id="ver-qr" href="#" target="_blank" rel="noopener" style="font-size:14px">Abrir para imprimir</a>
+      </div>
+      <div class="pie-cifra" id="pie-escaneos"></div>
+    </div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 12px">
       <h2 style="margin:0">Movimiento</h2>
       <div id="rangos" style="display:flex;gap:6px"></div>
@@ -305,6 +322,21 @@ function pintar(d) {
     $('ahora').style.fontSize = ''
   }
   $('ahora-pie').textContent = 'personas con AquíMatch activo en este momento'
+
+  // El QR del local. Solo aparece si el local tiene código asignado — se pone
+  // a mano al dar de alta la cuenta, así que un local del piloto sin código
+  // simplemente no ve esta caja en vez de ver una rota.
+  if (d.codigoQR) {
+    const enlace = `https://aquimatch.cl/ir/${d.codigoQR}`
+    $('enlace-qr').textContent = `aquimatch.cl/ir/${d.codigoQR}`
+    $('ver-qr').href = enlace
+    // Los escaneos se cuentan desde que existe el código, no desde siempre:
+    // decirle "0 escaneos" a alguien que puso el cartel ayer sería engañoso.
+    $('pie-escaneos').textContent = d.escaneos > 0
+      ? `${d.escaneos} ${d.escaneos === 1 ? 'escaneo' : 'escaneos'} en los últimos ${d.dias} días.`
+      : 'Todavía nadie lo ha escaneado. Si ya lo imprimiste, dale unos días.'
+    mostrar('caja-qr', true)
+  }
 
   // Selector de rango
   $('rangos').innerHTML = d.rangosDisponibles

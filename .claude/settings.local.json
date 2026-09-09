@@ -507,7 +507,12 @@
       "Bash(sed -n '/^async function descargarImagenComoBytes/,/^}/p' functions/index.js)",
       "Bash(sed -n '/^async function leerArchivoDelBucket/,/^}/p' functions/index.js)",
       "Bash(sed -i '889s/leerArchivoDelBucket\\(datos.selfieRuta\\)/leerSelfieDelBucket\\(uid\\)/' functions/index.js)",
-      "Bash(timeout 60 node -e \"require\\('./index.js'\\); console.log\\('carga OK'\\)\")"
+      "Bash(timeout 60 node -e \"require\\('./index.js'\\); console.log\\('carga OK'\\)\")",
+      "Bash(grep -n \"collection\\(\\\\\"locales\\\\\"\\)\\\\|doc\\(\\\\`locales\" functions/index.js)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n-> %{redirect_url}\\\\n\" -A \"Mozilla/5.0 \\(Linux; Android 14; SM-S911B\\)\" \"https://aquimatch.cl/ir/prueba\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 18_0 like Mac OS X\\)\" \"https://aquimatch.cl/ir/prueba\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} -> %{redirect_url}\\\\n\" \"https://aquimatch.cl/ir/prueba\")",
+      "Bash(node -e \"const q=require\\('qrcode'\\); console.log\\('qrcode disponible'\\)\")"
     ]
   }
 }
