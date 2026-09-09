@@ -1218,7 +1218,19 @@ exports.activarEnLugar = onCall(
       // no tiene sentido que el teléfono la vuelva a calcular por su cuenta.
       distanciaMetros: Math.round(distancia),
       activa: true,
-      modo: null,
+      // "participar" por defecto, no null.
+      //
+      // Antes nacía en null y la app lo cambiaba a "participar" o "explorar"
+      // un segundo después, al confirmar el lugar. Eso dejaba un hueco: entre
+      // la activación y la elección, el campo no decía nada.
+      //
+      // Importa porque a partir de ahora quién se ve y quién no se decide
+      // MIRANDO ESTE CAMPO, en el servidor, y no filtrando en la pantalla. Un
+      // valor nulo obligaría a preguntar "distinto de explorar", y las
+      // consultas por desigualdad de Firestore tratan los nulos de una forma
+      // que es fácil equivocarse. Con un valor explícito, la consulta es una
+      // igualdad simple y no hay nada que interpretar.
+      modo: "participar",
       pausadoHasta: null,
       pausaUsada: false,
       // Deja constancia de que esta activación pasó por la verificación del

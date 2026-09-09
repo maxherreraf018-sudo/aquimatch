@@ -244,12 +244,31 @@ export function esRecienteYActiva(persona, ahoraMs) {
  * callback recibe la lista de activaciones activas Y con actividad
  * reciente (sin contar al propio usuario) — las que quedaron "pegadas"
  * en activa: true por días sin renovarse se excluyen automáticamente.
- * Incluye a quienes están en modo 'explorar'; quién debe verse o no se
- * filtra con personasVisibles(), para no mezclar responsabilidades.
+ *
+ * QUIEN ELIGIÓ "EXPLORAR" YA NO VIENE EN LA RESPUESTA. Antes sí venía —con su
+ * uid, su nombre y su foto— y se escondía después con personasVisibles(). Eso
+ * significa que "puedes mirar sin aparecer" era cierto solo para quien usara
+ * nuestra app: cualquiera con un cliente propio los veía igual. Prometemos
+ * invisibilidad; esconderlos en la pantalla no es invisibilidad.
+ *
+ * Por eso el filtro por `modo` va en la consulta. No es una optimización: es
+ * lo que permite que la REGLA del servidor pueda exigirlo. Las reglas de
+ * Firestore no filtran, exigen — si la consulta pide documentos que la regla
+ * no permite, falla entera. Así que la consulta tiene que pedir exactamente lo
+ * que la regla va a dejar pasar.
+ *
+ * OJO CON EL ORDEN AL DESPLEGAR: esta consulta sale primero, en la app, y la
+ * regla se aprieta DESPUÉS, cuando la gente ya haya actualizado. Al revés, a
+ * todo el que siga en una versión vieja se le queda Descubrir en blanco.
  */
 export function escucharPersonasEnElLugar(placeId, uidPropio, callback) {
   const ref = collection(db, 'activaciones')
-  const q = query(ref, where('placeId', '==', placeId), where('activa', '==', true))
+  const q = query(
+    ref,
+    where('placeId', '==', placeId),
+    where('activa', '==', true),
+    where('modo', '==', 'participar')
+  )
   return onSnapshot(q, (snapshot) => {
     const ahora = Date.now()
     const personas = snapshot.docs
@@ -263,6 +282,12 @@ export function escucharPersonasEnElLugar(placeId, uidPropio, callback) {
 /**
  * Filtra quiénes deben verse en el descubrimiento y en el conteo de
  * "personas participando": nunca quienes eligieron modo 'explorar'.
+ *
+ * Desde el 2026-09-09 la consulta ya no los trae, así que esto no debería
+ * quitar a nadie. Se deja igual, por dos motivos: las activaciones creadas
+ * antes de este cambio pueden tener `modo: null` y quedar fuera de la consulta
+ * pero seguir apareciendo por otro camino, y porque una segunda barrera barata
+ * en el único lugar donde se decide quién se ve vale lo que cuesta.
  */
 export function personasVisibles(lista) {
   return lista.filter((p) => p.modo !== 'explorar')

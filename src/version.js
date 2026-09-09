@@ -17,5 +17,5 @@
 // La 24 ya se publicó en Play el 2026-09-04, así que ese número está quemado:
 // Play no acepta dos veces el mismo, aunque el paquete anterior no se haya
 // publicado. Ya costó builds perdidos antes.
-export const VERSION_NOMBRE = '1.24'
-export const VERSION_BUILD = 26
+export const VERSION_NOMBRE = '1.25'
+export const VERSION_BUILD = 27

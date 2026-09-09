@@ -45,6 +45,25 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "//": "escucharPersonasEnElLugar filtra por placeId, activa y modo. Firestore resuelve varias igualdades sin indice compuesto, pero acá el modo de fallar es que Descubrir se quede EN BLANCO — una consulta sin indice no devuelve vacio, lanza. El indice cuesta unos bytes; equivocarse cuesta la pantalla principal de la app.",
+      "collectionGroup": "activaciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "placeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "activa",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "modo",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

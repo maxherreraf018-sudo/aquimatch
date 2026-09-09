@@ -519,7 +519,9 @@
       "Bash(node guion.cjs)",
       "Bash(python C:/Users/max_1/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/415cfa4b-7fc5-4d95-a074-016588fd4073/31ccbe60-c4c4-4cff-afd9-18e0ecba09bd/skills/docx/scripts/office/soffice.py --headless --convert-to pdf Dos-minutos-en-el-local.docx)",
       "Bash(node -e \"require\\('pdfkit'\\); console.log\\('pdfkit listo'\\)\")",
-      "Bash(node guion-pdf.cjs)"
+      "Bash(node guion-pdf.cjs)",
+      "Bash(sed -i 's/versionCode 26/versionCode 27/; s/versionName \"1.24\"/versionName \"1.25\"/' android/app/build.gradle)",
+      "Bash(sed -i \"s/export const VERSION_NOMBRE = '1.24'/export const VERSION_NOMBRE = '1.25'/; s/export const VERSION_BUILD = 26/export const VERSION_BUILD = 27/\" src/version.js)"
     ]
   }
 }

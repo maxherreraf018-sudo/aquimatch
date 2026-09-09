@@ -211,13 +211,54 @@ service cloud.firestore {
       }
     }
     match /activaciones/{uid} {
-      // Se puede leer la activación de otra persona en 3 casos: es la propia,
-      // ya tienen una conexión (match) sin importar dónde esté cada quien
-      // ahora (para el punto "en línea" en Mis chats), o ambos están
-      // activos en el mismo lugar ahora mismo (para Descubrir).
+      // Solo dos casos: es la propia, o los dos están activos en el mismo
+      // lugar ahora mismo (que es lo que necesita Descubrir).
+      //
+      // ANTES había un tercero: "ya tienen una conexión". Estaba puesto para
+      // el punto de "en línea" de Mis chats... que nunca lo usó — ese punto
+      // sale de `ultimaConexion` en el documento del usuario, no de acá
+      // (obtenerEstadoConexion, en services/chatsList.js). Se comprobó una por
+      // una: las ocho lecturas de activaciones que hace la app son de la
+      // propia, más la consulta por lugar. Ninguna necesitaba esto.
+      //
+      // Y lo que sí hacía era regalar el documento entero —placeId, nombre y
+      // coordenadas del local— a cualquiera que alguna vez hubiera hecho match
+      // contigo. Sin exigir que la conexión siguiera viva y sin mirar
+      // bloqueos: bastaba con haber hecho match una vez, en cualquier momento,
+      // para saber en qué bar estás ahora. En una app cuya promesa es que solo
+      // te ve quien está en tu mismo local, eso es exactamente lo contrario.
+      //
+      // Encontrado en la auditoría del 2026-09-08 (hallazgo A3). Se cierra sin
+      // tocar la app porque nadie lo estaba usando.
+      //
+      // ⚠️ PENDIENTE — HALLAZGO A4, NO DESPLEGAR TODAVÍA.
+      //
+      // A esta regla le falta una condición más, que hoy NO se puede poner:
+      //
+      //     resource.data.modo == 'participar'
+      //
+      // Sin ella, quien elige "explorar" queda escondido solo en la pantalla:
+      // la consulta sí trae su uid, su nombre y su foto, y un cliente
+      // modificado los ve. O sea que "puedes mirar sin aparecer" es cierto
+      // únicamente para quien use nuestra app.
+      //
+      // Por qué no se puede hoy: las reglas de Firestore no filtran, EXIGEN.
+      // Si una consulta pide documentos que la regla no permite, falla entera
+      // — no devuelve menos, devuelve nada. Las versiones 26 y anteriores
+      // consultan sin filtrar por `modo`, así que apretar esto ahora les deja
+      // Descubrir en blanco a todos los que no hayan actualizado.
+      //
+      // CUÁNDO SE PUEDE: cuando la 27 (o superior) esté en la gran mayoría de
+      // los teléfonos. Se mira en Play Console > Estadísticas > distribución
+      // por versión. Es el mismo patrón con el que se cerró el candado de las
+      // activaciones el 2026-08-19: la app primero, la regla después.
+      //
+      // La 27 ya sale con la consulta filtrando (services/activation.js) y con
+      // el servidor escribiendo modo: "participar" por defecto, así que del
+      // lado de la app no queda nada por hacer — solo esperar y agregar la
+      // línea acá.
       allow read: if request.auth != null && (
         request.auth.uid == uid ||
-        tieneConexionCon(uid) ||
         (exists(/databases/$(database)/documents/activaciones/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/activaciones/$(request.auth.uid)).data.placeId == resource.data.placeId)
       );
