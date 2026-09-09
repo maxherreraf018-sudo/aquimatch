@@ -503,7 +503,11 @@
       "Bash(curl -s -o /dev/null -w \"anclas.js ahora: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
       "Bash(curl -s -o /dev/null -w \"anclas.js: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
       "Bash(curl -s \"https://aquimatch.cl/locales\")",
-      "Bash(curl -s \"https://aquimatch.cl/privacidad.html\")"
+      "Bash(curl -s \"https://aquimatch.cl/privacidad.html\")",
+      "Bash(sed -n '/^async function descargarImagenComoBytes/,/^}/p' functions/index.js)",
+      "Bash(sed -n '/^async function leerArchivoDelBucket/,/^}/p' functions/index.js)",
+      "Bash(sed -i '889s/leerArchivoDelBucket\\(datos.selfieRuta\\)/leerSelfieDelBucket\\(uid\\)/' functions/index.js)",
+      "Bash(timeout 60 node -e \"require\\('./index.js'\\); console.log\\('carga OK'\\)\")"
     ]
   }
 }

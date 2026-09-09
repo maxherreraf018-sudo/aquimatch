@@ -11,18 +11,25 @@ const { RekognitionClient, CompareFacesCommand } = require("@aws-sdk/client-reko
 
 admin.initializeApp();
 
-// Techo de instancias simultáneas para TODAS las funciones.
+// Techo de instancias, aplicado como valor por defecto a cada función.
 //
-// No es un presupuesto y no hay que confundirlo con uno: no corta el gasto,
-// limita la velocidad a la que puede crecer. Sin esto, Cloud Functions escala
-// solo hasta cientos de instancias en paralelo, así que un script dando vueltas
-// puede convertir un descuido en una factura grande en minutos. Con un techo,
-// lo peor que pasa es que la app vaya lenta un rato — y una app lenta se
-// arregla; una factura, no.
+// OJO CON LO QUE ESTO ES Y LO QUE NO. Son 10 instancias POR FUNCIÓN, no 10
+// para todo AquíMatch: con trece funciones desplegadas, el techo real son 130.
+// Y cada instancia atiende varias solicitudes a la vez (el valor por defecto
+// de concurrencia son 80), así que tampoco equivale a 130 solicitudes.
 //
-// 10 es holgado para el volumen de hoy (19 instalaciones el 2026-09-08). Si
-// algún día hay cola de verdad, se sube: es un número para revisar cuando
-// crezcamos, no para dejar puesto para siempre.
+// NO ES UN PRESUPUESTO. No corta el gasto: acota la velocidad a la que puede
+// crecer. El único techo de plata de verdad está en las cuotas y presupuestos
+// de la consola de Google y de AWS, y eso no se configura desde acá.
+//
+// Tampoco es cierto que lo peor sea ir lento: al llegar al techo, una función
+// invocable empieza a RECHAZAR solicitudes, y eso lo ve el usuario como un
+// error. Es un intercambio deliberado — preferimos que a alguien le falle una
+// pantalla antes que despertar con una factura impagable— pero es un
+// intercambio, no un almuerzo gratis.
+//
+// 10 es holgado para el volumen de hoy (19 instalaciones el 2026-09-08). Hay
+// que revisarlo cuando crezcamos, y antes de cualquier campaña.
 setGlobalOptions({ maxInstances: 10 });
 
 const AWS_ACCESS_KEY_ID = defineSecret("AWS_ACCESS_KEY_ID");
@@ -35,18 +42,84 @@ const UMBRAL_APROBACION = 30;
 
 // Descarga una imagen desde su URL pública de Firebase Storage y la
 // devuelve como bytes, que es lo que pide Rekognition.
+// Máximo que aceptamos bajar de una imagen. Storage ya limita la subida a 10
+// MB, pero ese límite protege al bucket, no a esta función: acá la URL la
+// elige el cliente, así que podría apuntar a cualquier archivo enorme del
+// mundo y hacernos gastar memoria y tiempo.
+const MAX_BYTES_IMAGEN = 12 * 1024 * 1024;
+const TIMEOUT_DESCARGA_MS = 20 * 1000;
+
+// Solo se baja de acá. Son los dos dominios con los que Firebase Storage sirve
+// archivos.
+const DOMINIOS_DE_STORAGE = [
+  "firebasestorage.googleapis.com",
+  "storage.googleapis.com",
+];
+
+/**
+ * Baja una imagen de Firebase Storage y la devuelve como bytes.
+ *
+ * Antes esto era un `fetch(url)` a secas, con la URL saliendo de
+ * `fotoPrincipal` o de una selfie heredada — dos campos que escribe el propio
+ * cliente. O sea: cualquiera con la sesión iniciada podía hacer que NUESTRO
+ * servidor pidiera la dirección que se le antojara, y bajarse el cuerpo
+ * completo sin ningún límite de tamaño ni de tiempo.
+ *
+ * No se llegó a demostrar que de ahí saliera nada grave (el servidor de
+ * metadatos de Google exige una cabecera que un fetch normal no manda), pero
+ * un servidor que pide URLs ajenas por orden de un desconocido es una pieza
+ * que sirve para cosas feas: sondear servicios internos, o usarnos de
+ * intermediarios contra un tercero. Y el costo sí es inmediato.
+ *
+ * Ahora: solo dominios de Storage, solo HTTPS, con tope de bytes y de tiempo.
+ */
 async function descargarImagenComoBytes(url) {
-  const respuesta = await fetch(url);
+  let direccion;
+  try {
+    direccion = new URL(url);
+  } catch {
+    throw new Error("La dirección de la imagen no es válida");
+  }
+  if (direccion.protocol !== "https:" || !DOMINIOS_DE_STORAGE.includes(direccion.hostname)) {
+    throw new Error(`Origen de imagen no permitido: ${direccion.hostname}`);
+  }
+
+  const cancelar = AbortSignal.timeout(TIMEOUT_DESCARGA_MS);
+  const respuesta = await fetch(direccion, { redirect: "error", signal: cancelar });
   if (!respuesta.ok) {
     throw new Error(`No se pudo descargar la imagen (${respuesta.status})`);
   }
+  // Se mira lo que declara la cabecera para cortar temprano, y después el
+  // tamaño real: la cabecera la pone el servidor de origen y puede mentir o
+  // no venir.
+  const declarado = Number(respuesta.headers.get("content-length") || 0);
+  if (declarado > MAX_BYTES_IMAGEN) {
+    throw new Error("La imagen es demasiado grande");
+  }
   const arrayBuffer = await respuesta.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_BYTES_IMAGEN) {
+    throw new Error("La imagen es demasiado grande");
+  }
   return Buffer.from(arrayBuffer);
 }
 
 // Lee un archivo del bucket con permisos de servidor, sin pasar por ninguna
 // URL pública. Es lo que permite que la selfie no tenga token de descarga.
-async function leerArchivoDelBucket(ruta) {
+/**
+ * Lee la selfie de verificación de una persona desde Storage.
+ *
+ * Recibe el uid, NO una ruta libre. Antes recibía la ruta tal como venía de
+ * `selfieRuta`, un campo de los datos privados que escribe el propio dueño —
+ * y las reglas no lo amarran a su uid. Como esta lectura la hace el Admin SDK,
+ * que se salta las reglas de Storage, alguien podía apuntar `selfieRuta` al
+ * archivo de otra cuenta y hacérnoslo procesar.
+ *
+ * La ruta se arma acá con el uid del documento que disparó la función, así que
+ * ya no hay nada que elegir: el campo del cliente solo decide SI hay selfie
+ * nueva, no CUÁL.
+ */
+async function leerSelfieDelBucket(uid) {
+  const ruta = `selfies-verificacion/${uid}/selfie.jpg`;
   const [bytes] = await admin.storage().bucket().file(ruta).download();
   return bytes;
 }
@@ -155,7 +228,7 @@ exports.verificarSelfie = onDocumentUpdated(
       const [fotoBytes, selfieBytes] = await Promise.all([
         descargarImagenComoBytes(fotoPrincipal),
         selfieRuta
-          ? leerArchivoDelBucket(selfieRuta)
+          ? leerSelfieDelBucket(uid)
           : descargarImagenComoBytes(selfieVerificacion),
       ]);
 
@@ -813,7 +886,7 @@ exports.urlSelfieModeracion = onCall(async (request) => {
   if (!datos.selfieRuta) return { url: datos.selfieVerificacion || null };
 
   try {
-    const bytes = await leerArchivoDelBucket(datos.selfieRuta);
+    const bytes = await leerSelfieDelBucket(uid);
     return { url: `data:image/jpeg;base64,${bytes.toString("base64")}` };
   } catch (error) {
     // Si el archivo ya no está (cuenta borrada a medias, por ejemplo), el

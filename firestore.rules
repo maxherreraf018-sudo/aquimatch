@@ -366,11 +366,38 @@ service cloud.firestore {
       // puerta de acoso que cerramos al exigir interés mutuo para crearla.
       // Reactivar exige otra vez los dos "me interesa", igual que la primera
       // vez (es lo que ya hace crearConexion en el cliente).
+      //
+      // Y no basta con que los dos intereses EXISTAN: tienen que ser
+      // posteriores a la separación. Los intereses no se borran nunca
+      // (`allow delete: if false` en /intereses), así que los originales
+      // siguen ahí para siempre — con la comprobación de existencia a secas,
+      // quien deshacía el match podía volver a activarlo solo, al instante, y
+      // seguir escribiendo. Es exactamente la puerta que esta misma función
+      // dice cerrar. Encontrado el 2026-09-09.
+      //
+      // La app ya hacía bien esta comparación (discover.js, contra
+      // `deshechoEn`), pero la hacía en el cliente, que es justo donde no
+      // sirve: un cliente modificado se la salta.
+      //
+      // Si no hay `deshechoEn` no se puede comparar, y en ese caso NO se
+      // reactiva. Es el lado seguro del error: son conexiones deshechas por
+      // versiones viejas de la app, y siempre queda la salida de crear una
+      // conexión nueva.
+      function interesPosteriorA(desde, hacia, placeId, momento) {
+        let ruta = /databases/$(database)/documents/intereses/$(placeId + '_' + desde + '_' + hacia);
+        return exists(ruta) &&
+          get(ruta).data.desde == desde &&
+          get(ruta).data.hacia == hacia &&
+          get(ruta).data.creadoEn > momento;
+      }
       function reactivacionLegitima() {
         return !cambiosConexion().hasAny(['deshecho']) ||
           request.resource.data.deshecho == true ||
-          (hayInteres(resource.data.usuarios[0], resource.data.usuarios[1], request.resource.data.placeId) &&
-           hayInteres(resource.data.usuarios[1], resource.data.usuarios[0], request.resource.data.placeId));
+          (resource.data.get('deshechoEn', null) != null &&
+           interesPosteriorA(resource.data.usuarios[0], resource.data.usuarios[1],
+                             request.resource.data.placeId, resource.data.deshechoEn) &&
+           interesPosteriorA(resource.data.usuarios[1], resource.data.usuarios[0],
+                             request.resource.data.placeId, resource.data.deshechoEn));
       }
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.usuarios &&
