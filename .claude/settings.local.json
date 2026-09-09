@@ -502,7 +502,8 @@
       "Bash(curl -sI \"https://aquimatch.cl/img/logo.webp\")",
       "Bash(curl -s -o /dev/null -w \"anclas.js ahora: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
       "Bash(curl -s -o /dev/null -w \"anclas.js: HTTP %{http_code}\\\\n\" \"https://aquimatch.cl/anclas.js\")",
-      "Bash(curl -s \"https://aquimatch.cl/locales\")"
+      "Bash(curl -s \"https://aquimatch.cl/locales\")",
+      "Bash(curl -s \"https://aquimatch.cl/privacidad.html\")"
     ]
   }
 }

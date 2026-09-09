@@ -140,6 +140,21 @@ service cloud.firestore {
         return !cambiosUsuario().hasAny(['fechaNacimiento']) ||
           resource.data.perfilCompleto != true;
       }
+      // El congelamiento de arriba se apoya en `perfilCompleto`... y hasta el
+      // 2026-09-09 ese campo lo podía escribir el propio cliente sin ninguna
+      // restricción. O sea que el candado tenía la llave puesta al lado:
+      // bastaba con ponerlo en false, cambiar la fecha de nacimiento y volver
+      // a ponerlo en true.
+      //
+      // No se puede meter en camposDelServidor() porque la app SÍ necesita
+      // escribirlo: false al crear la cuenta y true al terminar el registro
+      // (auth.js y CompleteProfile.jsx). Lo que nunca hace es apagarlo, así
+      // que lo que se prohíbe es exactamente eso: terminar el registro es un
+      // camino de ida.
+      function registroNoSeDesarma() {
+        return !cambiosUsuario().hasAny(['perfilCompleto']) ||
+          request.resource.data.perfilCompleto == true;
+      }
       allow create: if request.auth != null && request.auth.uid == uid &&
         !request.resource.data.keys().hasAny(camposDelServidor()) &&
         !request.resource.data.keys().hasAny(['estadoVerificacion']);
@@ -147,7 +162,8 @@ service cloud.firestore {
         request.auth != null && request.auth.uid == uid &&
         !cambiosUsuario().hasAny(camposDelServidor()) &&
         verificacionValida() &&
-        fechaNacimientoValida()
+        fechaNacimientoValida() &&
+        registroNoSeDesarma()
       );
       // Borrar la ficha es cosa de eliminarCuenta, que usa el Admin SDK.
       allow delete: if false;
@@ -376,8 +392,18 @@ service cloud.firestore {
         //
         // 2000 caracteres son de sobra para un mensaje de chat: unas 400
         // palabras.
+        // Y la conexión tiene que seguir viva. Faltaba: se comprobaba que
+        // fueras uno de los dos participantes, pero no que el match siguiera
+        // en pie, así que quien fue eliminado podía seguir escribiéndole a la
+        // otra persona desde un cliente modificado. La app deja de mostrar el
+        // chat, que no es lo mismo que impedirlo.
+        //
+        // No cuesta una lectura extra: es el mismo documento que ya se lee en
+        // la línea de arriba, y Firestore cobra una sola vez el mismo get()
+        // dentro de una evaluación.
         allow create: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/conexiones/$(conexionId)).data.usuarios &&
+          get(/databases/$(database)/documents/conexiones/$(conexionId)).data.deshecho != true &&
           request.resource.data.autorUid == request.auth.uid &&
           request.resource.data.keys().hasOnly(['autorUid', 'texto', 'creadoEn']) &&
           request.resource.data.texto is string &&
