@@ -1887,3 +1887,99 @@ exports.ir = onRequest({ region: "us-central1" }, async (peticion, respuesta) =>
     : "utm_source%3Dlocal%26utm_medium%3Dqr";
   respuesta.redirect(302, `${ENLACE_PLAY}&referrer=${marca}`);
 });
+
+// ---------------------------------------------------------------------------
+// Resumen general, solo para el administrador
+//
+// Play Console dice cuánta gente descargó. Cloudflare dice cuánta visitó la
+// web. Ninguno de los dos contesta la única pregunta que decide si AquíMatch
+// funciona: ¿alguna vez dos personas estuvieron en el mismo local a la vez?
+//
+// Sin eso, la app es una lista de contactos que nadie usa. Por eso el número
+// que va primero acá no son las descargas: son las COINCIDENCIAS.
+//
+// Se cuenta con agregaciones (count()) donde se puede, que se cobran por
+// índice leído y no por documento: contar 50.000 usuarios cuesta una fracción
+// de lo que costaría traerlos.
+// ---------------------------------------------------------------------------
+
+exports.resumenGeneral = onCall(async (request) => {
+  if (!request.auth || request.auth.uid !== ADMIN_UID) {
+    throw new HttpsError("permission-denied", "Solo para el administrador.");
+  }
+
+  const db = admin.firestore();
+  const hace = (dias) => fechaISOChile(new Date(Date.now() - dias * 24 * 60 * 60 * 1000));
+
+  const cuantos = async (consulta) => {
+    try {
+      return (await consulta.count().get()).data().count;
+    } catch (error) {
+      console.error("[resumenGeneral] falló un conteo", error);
+      return null;
+    }
+  };
+
+  const [
+    usuarios, completos, verificados, conexiones, mensajes, locales, interesadosGold, reportes,
+  ] = await Promise.all([
+    cuantos(db.collection("usuarios")),
+    cuantos(db.collection("usuarios").where("perfilCompleto", "==", true)),
+    cuantos(db.collection("usuarios").where("estadoVerificacion", "==", "aprobado")),
+    cuantos(db.collection("conexiones")),
+    cuantos(db.collectionGroup("mensajes")),
+    cuantos(db.collection("locales")),
+    cuantos(db.collection("interesGold")),
+    cuantos(db.collection("reportes").where("revisado", "==", false)),
+  ]);
+
+  // Los buckets de los últimos 30 días. Acá sí se leen documentos, porque hay
+  // que mirar el contenido de cada uno: son pocos (un local activo genera
+  // como mucho un puñado por noche).
+  const buckets = await db
+    .collection("estadisticasLugar")
+    .where("dia", ">=", hace(30))
+    .get();
+
+  let activaciones30 = 0;
+  let activaciones7 = 0;
+  const desde7 = hace(7);
+  const localesConGente = new Set();
+  // LA CIFRA QUE IMPORTA. Un bucket con 2 o más significa que esa hora, en ese
+  // local, hubo al menos dos personas activadas. No prueba que se hayan visto
+  // —pudieron entrar a las 21:05 y a las 21:55— pero es lo más cerca que
+  // podemos estar sin guardar quién estuvo con quién, que es justamente lo que
+  // prometimos no hacer.
+  let horasConCoincidencia = 0;
+  const localesConCoincidencia = new Set();
+
+  buckets.docs.forEach((documento) => {
+    const b = documento.data();
+    const total = b.total || 0;
+    activaciones30 += total;
+    if (b.dia >= desde7) activaciones7 += total;
+    if (total > 0) localesConGente.add(b.placeId);
+    if (total >= 2) {
+      horasConCoincidencia += 1;
+      localesConCoincidencia.add(b.placeId);
+    }
+  });
+
+  const escaneos = await db.collection("escaneosLugar").where("dia", ">=", hace(30)).get();
+  const escaneosQR = escaneos.docs.reduce((suma, d) => suma + (d.data().total || 0), 0);
+
+  return {
+    generadoEnMs: Date.now(),
+    gente: { usuarios, completos, verificados },
+    actividad: {
+      activaciones7,
+      activaciones30,
+      localesConGente: localesConGente.size,
+      horasConCoincidencia,
+      localesConCoincidencia: localesConCoincidencia.size,
+    },
+    encuentros: { conexiones, mensajes },
+    negocio: { locales, escaneosQR, interesadosGold },
+    moderacion: { reportesSinRevisar: reportes },
+  };
+});

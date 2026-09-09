@@ -123,3 +123,18 @@ export async function marcarReporteRevisado(reporteId) {
   const ref = doc(db, 'reportes', reporteId)
   await updateDoc(ref, { revisado: true })
 }
+
+/**
+ * Resumen general de cómo va la app. Solo responde al administrador — la
+ * comprobación de verdad está en la función, no acá.
+ *
+ * El número que importa no son las descargas (esas están en Play Console) sino
+ * `horasConCoincidencia`: cuántas veces dos personas estuvieron activadas en
+ * el mismo local a la misma hora. Es lo único que dice si la app está
+ * funcionando o si es una lista de contactos que nadie usa.
+ */
+export async function obtenerResumenGeneral() {
+  const llamar = httpsCallable(functions, 'resumenGeneral')
+  const { data } = await llamar()
+  return data
+}

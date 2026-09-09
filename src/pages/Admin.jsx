@@ -7,6 +7,7 @@ import {
   escucharReportes,
   marcarReporteRevisado,
   escucharInteresGold,
+  obtenerResumenGeneral,
 } from '../services/admin'
 import { obtenerUsuario } from '../firebase/auth'
 import { IconVolver, IconMasTarde, IconVerificado } from '../components/Icons'
@@ -90,6 +91,8 @@ export default function Admin() {
         </button>
         <h1 style={{ fontSize: 20 }}>Panel de moderación</h1>
       </div>
+
+      <ResumenGeneral />
 
       {/* Resultado del experimento de precio de Gold. Está acá porque es el
           único panel que existe, y un dato que nadie mira no sirve de nada. */}
@@ -325,6 +328,131 @@ export default function Admin() {
                 {r.motivo}
               </div>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Cómo va AquíMatch, en una pantalla.
+ *
+ * El orden no es casual. Primero van las COINCIDENCIAS —cuántas veces dos
+ * personas estuvieron activadas en el mismo local a la misma hora— porque es
+ * el único número que dice si esto funciona. Las descargas dicen cuánta gente
+ * probó; las coincidencias dicen cuántas veces pasó algo.
+ *
+ * Se carga a pedido y no al abrir el panel: son varias consultas, y el panel
+ * se abre sobre todo para moderar selfies, no para mirar números.
+ */
+function ResumenGeneral() {
+  const [datos, setDatos] = useState(null)
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState('')
+
+  async function cargar() {
+    setCargando(true)
+    setError('')
+    try {
+      setDatos(await obtenerResumenGeneral())
+    } catch (err) {
+      setError(`No se pudo cargar. (${err?.code || err?.message || 'error desconocido'})`)
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  const Cifra = ({ valor, rotulo, destacada }) => (
+    <div style={{ minWidth: 96 }}>
+      <div style={{
+        fontSize: destacada ? 32 : 24,
+        fontWeight: 700,
+        lineHeight: 1.1,
+        color: destacada ? 'var(--magenta)' : 'var(--text)',
+      }}>
+        {valor === null || valor === undefined ? '—' : valor}
+      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 3, lineHeight: 1.35 }}>{rotulo}</div>
+    </div>
+  )
+
+  const Grupo = ({ titulo, children }) => (
+    <div style={{ marginTop: 16 }}>
+      <div style={{
+        fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase',
+        color: 'var(--text-faint)', marginBottom: 8,
+      }}>{titulo}</div>
+      <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>{children}</div>
+    </div>
+  )
+
+  return (
+    <div style={{
+      padding: 16, borderRadius: 14, border: '1px solid var(--border)',
+      background: 'var(--surface)', marginBottom: 14,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Cómo va AquíMatch</h2>
+        <button
+          className="btn btn-secondary"
+          style={{ padding: '7px 14px', fontSize: 13 }}
+          onClick={cargar}
+          disabled={cargando}
+        >
+          {cargando ? 'Cargando...' : datos ? 'Actualizar' : 'Ver resumen'}
+        </button>
+      </div>
+
+      {error && <p className="error-text" style={{ marginTop: 10 }}>{error}</p>}
+
+      {datos && (
+        <>
+          <Grupo titulo="Lo que importa · últimos 30 días">
+            <Cifra destacada valor={datos.actividad.horasConCoincidencia} rotulo="horas con 2 o más personas en un mismo local" />
+            <Cifra valor={datos.actividad.localesConCoincidencia} rotulo="locales donde pasó" />
+          </Grupo>
+          <p style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.5 }}>
+            No prueba que se hayan visto —pudieron entrar a las 21:05 y a las 21:55— pero es lo
+            más cerca que se puede estar sin guardar quién estuvo con quién.
+          </p>
+
+          <Grupo titulo="Actividad">
+            <Cifra valor={datos.actividad.activaciones7} rotulo="activaciones, 7 días" />
+            <Cifra valor={datos.actividad.activaciones30} rotulo="activaciones, 30 días" />
+            <Cifra valor={datos.actividad.localesConGente} rotulo="locales con algo de gente" />
+          </Grupo>
+
+          <Grupo titulo="Gente">
+            <Cifra valor={datos.gente.usuarios} rotulo="cuentas creadas" />
+            <Cifra valor={datos.gente.completos} rotulo="perfil completo" />
+            <Cifra valor={datos.gente.verificados} rotulo="verificados" />
+          </Grupo>
+
+          <Grupo titulo="Encuentros">
+            <Cifra valor={datos.encuentros.conexiones} rotulo="matches" />
+            <Cifra valor={datos.encuentros.mensajes} rotulo="mensajes enviados" />
+          </Grupo>
+
+          <Grupo titulo="Negocio">
+            <Cifra valor={datos.negocio.locales} rotulo="cuentas de local" />
+            <Cifra valor={datos.negocio.escaneosQR} rotulo="escaneos de QR, 30 días" />
+            <Cifra valor={datos.negocio.interesadosGold} rotulo="esperando Gold" />
+            <Cifra valor={datos.moderacion.reportesSinRevisar} rotulo="denuncias sin revisar" />
+          </Grupo>
+
+          {/* Las descargas y las visitas viven fuera: traerlas exigiría una
+              integración con dos APIs para un dato que se ve en dos clics. */}
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)', fontSize: 12.5, lineHeight: 1.7 }}>
+            <div style={{ color: 'var(--text-faint)', marginBottom: 4 }}>Lo que no está acá:</div>
+            <a href="https://play.google.com/console/u/0/developers/4760947851554604068/app/4972345382168986247/statistics"
+               target="_blank" rel="noopener noreferrer" style={{ color: 'var(--magenta)' }}>
+              Descargas e instalaciones — Play Console
+            </a>
+            <br />
+            <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--magenta)' }}>
+              Visitas de aquimatch.cl — Cloudflare
+            </a>
           </div>
         </>
       )}
