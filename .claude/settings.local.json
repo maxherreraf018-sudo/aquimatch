@@ -512,7 +512,14 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n-> %{redirect_url}\\\\n\" -A \"Mozilla/5.0 \\(Linux; Android 14; SM-S911B\\)\" \"https://aquimatch.cl/ir/prueba\")",
       "Bash(curl -s -A \"Mozilla/5.0 \\(iPhone; CPU iPhone OS 18_0 like Mac OS X\\)\" \"https://aquimatch.cl/ir/prueba\")",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} -> %{redirect_url}\\\\n\" \"https://aquimatch.cl/ir/prueba\")",
-      "Bash(node -e \"const q=require\\('qrcode'\\); console.log\\('qrcode disponible'\\)\")"
+      "Bash(node -e \"const q=require\\('qrcode'\\); console.log\\('qrcode disponible'\\)\")",
+      "Bash(node -e \"require\\('docx'\\); console.log\\('docx disponible'\\)\")",
+      "Bash(node -e \"require\\('docx'\\); console.log\\('docx OK en el directorio de la skill'\\)\")",
+      "Bash(node -e \"const d=require\\('docx'\\); console.log\\('docx listo, version disponible'\\)\")",
+      "Bash(node guion.cjs)",
+      "Bash(python C:/Users/max_1/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/415cfa4b-7fc5-4d95-a074-016588fd4073/31ccbe60-c4c4-4cff-afd9-18e0ecba09bd/skills/docx/scripts/office/soffice.py --headless --convert-to pdf Dos-minutos-en-el-local.docx)",
+      "Bash(node -e \"require\\('pdfkit'\\); console.log\\('pdfkit listo'\\)\")",
+      "Bash(node guion-pdf.cjs)"
     ]
   }
 }

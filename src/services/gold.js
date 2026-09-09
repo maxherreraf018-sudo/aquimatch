@@ -19,7 +19,16 @@ import { registrarEvento } from '../firebase/analytics'
 // ---------------------------------------------------------------------------
 
 export const PRECIO_MENSUAL = 4990
-export const PRECIO_ANUAL = 39990
+// El anual subió de 39.990 a 49.990 el 2026-09-09. A 39.990 el descuento era
+// del 33%, y ese es un regalo demasiado grande para un producto del que
+// todavía no sabemos si alguien renueva: un anual muy barato amarra el precio
+// justo en los meses en que más falta aprender. A 49.990 el descuento queda
+// cerca del 17% —unos dos meses gratis, que es lo habitual— y sigue teniendo
+// sentido para quien de verdad quiere quedarse el año.
+//
+// El mensual NO se toca. Ahí la comparación es contra apps con comunidad ya
+// hecha, y ser más barato es lo único con lo que se compensa no tenerla.
+export const PRECIO_ANUAL = 49990
 
 // Se calcula en vez de escribirlo a mano: si mañana cambia un precio, la
 // etiqueta de "ahorra X%" no puede quedar mintiendo.
