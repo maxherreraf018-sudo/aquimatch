@@ -523,7 +523,9 @@
       "Bash(sed -i 's/versionCode 26/versionCode 27/; s/versionName \"1.24\"/versionName \"1.25\"/' android/app/build.gradle)",
       "Bash(sed -i \"s/export const VERSION_NOMBRE = '1.24'/export const VERSION_NOMBRE = '1.25'/; s/export const VERSION_BUILD = 26/export const VERSION_BUILD = 27/\" src/version.js)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('scripts:', JSON.stringify\\(p.scripts\\)\\); console.log\\('tiene devDeps:', !!p.devDependencies\\)\")",
-      "Bash(sed -n '/^async function enderezar/,/^  const url/p' src/services/fotos.js)"
+      "Bash(sed -n '/^async function enderezar/,/^  const url/p' src/services/fotos.js)",
+      "Bash(git log *)",
+      "Bash(git commit -q -m ' *)"
     ]
   }
 }

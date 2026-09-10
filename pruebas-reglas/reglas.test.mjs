@@ -256,6 +256,31 @@ describe('Activaciones: solo ves el local donde estás, mientras estés', () => 
     await activar(ANA)
     await assertFails(updateDoc(doc(como(ANA), 'activaciones', ANA), { placeId: 'lugar-otro' }))
   })
+
+  // Salir tiene que ser una puerta de una sola dirección. Si el cliente pudiera
+  // volver a encender `activa`, salir del local no revocaría nada: bastaría con
+  // encenderla de nuevo para seguir leyendo a la gente de ahí, sin volver a
+  // pasar por la comprobación de GPS.
+  test('salir del local sí se puede', async () => {
+    await activar(ANA)
+    await assertSucceeds(updateDoc(doc(como(ANA), 'activaciones', ANA), { activa: false }))
+  })
+
+  test('pero volver a entrar solo NO: hay que pasar de nuevo por el servidor', async () => {
+    await activar(ANA, { activa: false })
+    await assertFails(updateDoc(doc(como(ANA), 'activaciones', ANA), { activa: true }))
+  })
+
+  test('y habiendo salido, ya no se lee a la gente del local', async () => {
+    await activar(ANA, { activa: false })
+    await activar(BETO)
+    await assertFails(getDoc(doc(como(ANA), 'activaciones', BETO)))
+  })
+
+  test('el latido normal sigue funcionando sin tocar activa', async () => {
+    await activar(ANA)
+    await assertSucceeds(updateDoc(doc(como(ANA), 'activaciones', ANA), { actualizadaEn: new Date() }))
+  })
 })
 
 describe('Lo que el cliente no puede tocar', () => {

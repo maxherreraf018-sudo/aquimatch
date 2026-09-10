@@ -66,6 +66,18 @@ export const UMBRAL_INACTIVIDAD_MS = 3 * 60 * 60 * 1000
 // en un bar donde la señal suele ser mala.
 export const INTERVALO_LATIDO_MS = 20 * 60 * 1000
 
+// A partir de esta edad de la activación, el latido deja de ser solo un latido:
+// además de decir "sigo acá", vuelve a comprobar por GPS que es verdad, y con
+// eso renueva el permiso de lectura.
+//
+// El número está atado a la ventana de seis horas de firestore.rules (la regla
+// de lectura de /activaciones exige que `iniciadaEn` tenga menos de 6 horas).
+// A las 4 horas quedan 2 de margen, o sea 6 latidos: si uno falla porque el bar
+// no tiene señal, hay cinco intentos más antes de la pared. Si se cambia el 6
+// de las reglas, hay que mover este número también, y siempre con margen para
+// varios reintentos — no al ras.
+export const EDAD_PARA_RENOVAR_MS = 4 * 60 * 60 * 1000
+
 /**
  * Activa la participación del usuario en un lugar.
  * Usamos el uid como ID del documento: una activación activa por usuario.
@@ -129,6 +141,47 @@ export async function renovarActividad(uid) {
   } catch (err) {
     // Si falla (por ejemplo, la activación ya no existe), no hacemos nada
     // más — no vale la pena interrumpir al usuario por esto.
+    return
+  }
+  await renovarPresenciaSiHaceFalta(uid, ref)
+}
+
+/**
+ * La segunda mitad del latido: cada tanto no basta con avisar que seguimos
+ * acá, hay que DEMOSTRARLO.
+ *
+ * La regla de lectura de /activaciones caduca a las seis horas de `iniciadaEn`,
+ * que la escribe el servidor. Sin esto, alguien que llegó al bar a las nueve
+ * dejaba de ver a la gente del bar a las tres de la mañana, estando sentado
+ * ahí. No fallaba con un mensaje: la consulta empezaba a rebotar y Descubrir se
+ * quedaba en blanco, que es la peor forma de romperse.
+ *
+ * Se lee el documento propio en cada latido (uno cada 20 minutos) para saber la
+ * edad de la activación. Se podría guardar en memoria y ahorrarse la lectura,
+ * pero se perdería al reiniciar la app — y entonces quien cierra y abre la app
+ * durante la noche nunca renovaría, que es justo el caso que hay que cubrir.
+ * Una lectura del propio documento cada 20 minutos no se compara con lo que ya
+ * cuesta el latido en sí: cuando uno late, TODOS los del local lo leen.
+ */
+async function renovarPresenciaSiHaceFalta(uid, ref) {
+  try {
+    const { getDoc } = await import('firebase/firestore')
+    const snap = await getDoc(ref)
+    const activacion = snap.data()
+    if (!activacion?.activa || !activacion.iniciadaEn) return
+    const edad = Date.now() - activacion.iniciadaEn.toMillis()
+    if (edad < EDAD_PARA_RENOVAR_MS) return
+
+    const { obtenerPosicion } = await import('./ubicacion')
+    const { lat, lng } = await obtenerPosicion()
+    const llamar = httpsCallable(functions, 'renovarPresencia')
+    await llamar({ lat, lng })
+  } catch (err) {
+    // Si la renovación falla no se interrumpe a nadie ni se le apaga la
+    // activación. Puede ser que el GPS no responda dentro del bar, o que no
+    // haya señal — y sacar a alguien del lugar por eso sería peor que el
+    // problema. Quedan varios latidos más antes de que se cierre la ventana, y
+    // si de verdad se fue, de eso se encarga la vigilancia por GPS.
   }
 }
 

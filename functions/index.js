@@ -1277,6 +1277,96 @@ exports.activarEnLugar = onCall(
   }
 );
 
+// Cuántas renovaciones de presencia se aceptan por ventana. La app pide una
+// cada 20 minutos como mucho, y solo pasadas 4 horas en el mismo lugar, así
+// que 6 sobra para la noche más larga. El freno igual hace falta: cada
+// renovación cambia el documento de la activación, y ese documento lo están
+// escuchando TODAS las personas del mismo local — una renovación en bucle se
+// cobraría como una lectura por cada una de ellas.
+const MAX_RENOVACIONES_POR_VENTANA = 6;
+
+/**
+ * Renueva la presencia de alguien que sigue en el mismo lugar, volviendo a
+ * comprobar por GPS que está ahí.
+ *
+ * POR QUÉ EXISTE: la regla de lectura de /activaciones exige que tu propia
+ * activación se haya iniciado hace menos de seis horas. La frescura se mide con
+ * `iniciadaEn` y no con `actualizadaEn` porque `actualizadaEn` la escribe el
+ * cliente, así que como candado no vale nada. Pero `iniciadaEn` no la renovaba
+ * NADIE: a las seis horas, alguien que seguía sentado en el bar dejaba de poder
+ * ver a la gente del bar. Un sábado de 21:00 a 03:00 es exactamente seis horas.
+ *
+ * Se arregla renovando, no ensanchando la ventana. La diferencia importa: seis
+ * horas más de permiso serían seis horas más para alguien que ya se fue;
+ * volver a medir el GPS convierte "estuvo acá" en "sigue acá", que es lo que la
+ * app promete.
+ *
+ * NO se reusa activarEnLugar para esto: esa función hace un .set() completo,
+ * o sea que devolvería el modo a "pendiente" (mandando a la persona de vuelta a
+ * la pantalla de elegir, a mitad de la noche) y le devolvería la pausa ya
+ * usada. Acá se tocan dos campos y nada más.
+ *
+ * NO gasta consulta a Google Places. Las coordenadas del local ya están
+ * guardadas en la activación, y las puso el servidor: el cliente no puede
+ * tocar `lat` ni `lng` (no están en la lista de campos que puede escribir). Así
+ * que la medición se hace contra un dato que la persona no controla, que es la
+ * única forma en que medir sirve de algo.
+ */
+exports.renovarPresencia = onCall({ timeoutSeconds: 20 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  }
+  const uid = request.auth.uid;
+  const { lat, lng } = request.data || {};
+
+  if (typeof lat !== "number" || typeof lng !== "number") {
+    throw new HttpsError("invalid-argument", "Faltan datos de ubicación.");
+  }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new HttpsError("invalid-argument", "Coordenadas fuera de rango.");
+  }
+
+  await contarUso(
+    admin.firestore().doc(`limites/${uid}`),
+    "renovaciones",
+    "ventanaRenovacionesIniciadaEn",
+    MAX_RENOVACIONES_POR_VENTANA,
+    "Demasiadas renovaciones seguidas. Espera un rato."
+  );
+
+  const ref = admin.firestore().doc(`activaciones/${uid}`);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new HttpsError("failed-precondition", "No estás activo en ningún lugar.");
+  }
+  const activacion = snap.data();
+
+  // Renovar es para quien SIGUE adentro, no para volver a entrar. Si ya salió
+  // —a mano o porque el GPS lo detectó lejos— tiene que activarse de nuevo por
+  // la puerta de siempre, que además comprueba el perfil, la edad y la
+  // suspensión. Si esto aceptara activaciones apagadas, sería la misma puerta
+  // trasera que acabamos de cerrar en las reglas, pero del lado del servidor.
+  if (activacion.activa !== true) {
+    throw new HttpsError("failed-precondition", "Ya no estás activo en ese lugar.");
+  }
+  if (typeof activacion.lat !== "number" || typeof activacion.lng !== "number") {
+    throw new HttpsError("failed-precondition", "Esa activación no tiene ubicación verificada.");
+  }
+
+  const distancia = distanciaMetros(lat, lng, activacion.lat, activacion.lng);
+  if (!(distancia <= RADIO_ACTIVACION_METROS)) {
+    throw new HttpsError("permission-denied", "Ya no estás en ese lugar.");
+  }
+
+  await ref.update({
+    iniciadaEn: admin.firestore.FieldValue.serverTimestamp(),
+    actualizadaEn: admin.firestore.FieldValue.serverTimestamp(),
+    distanciaMetros: Math.round(distancia),
+  });
+
+  return { renovada: true, distanciaMetros: Math.round(distancia) };
+});
+
 // ---------------------------------------------------------------------------
 // Panel para dueños de locales
 //

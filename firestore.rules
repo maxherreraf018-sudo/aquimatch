@@ -307,11 +307,31 @@ service cloud.firestore {
       // función. Una versión anterior a eso escribía directo y se quedaría sin
       // poder activarse en ningún lado.
       allow create: if false;
+      //
+      // Y `activa` solo puede APAGARSE desde la app, nunca volver a encenderse.
+      //
+      // Sin esta línea, salir del lugar no revocaba nada: la app escribe
+      // `activa: false` al salir, pero `activa` está en la lista de campos que
+      // el cliente puede tocar, así que un cliente modificado la volvía a poner
+      // en true y recuperaba la lectura del local durante todo lo que quedara
+      // de la ventana de seis horas — sin volver a comprobar dónde está.
+      // Salir dejaba de ser un candado y pasaba a ser un botón de cortesía.
+      //
+      // La app nunca escribe `activa: true`: eso lo hace SOLO activarEnLugar,
+      // con el Admin SDK, después de medir los 120 metros. Se revisó todo el
+      // historial del proyecto para confirmarlo — el último lugar donde el
+      // cliente lo escribía se quitó en "Verificar en el servidor que estás
+      // realmente en el lugar", que es la versión 21, en Play desde el 14 de
+      // agosto. O sea que esto no rompe ninguna versión que haya en la calle.
+      //
+      // Hallazgo de la revisión del 2026-09-09. Es de reglas: protege también a
+      // quien siga en la 26.
       allow update: if request.auth != null && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'actualizadaEn', 'activa', 'modo', 'plan',
           'preferenciaGenero', 'pausadoHasta', 'pausaUsada'
-        ]);
+        ]) &&
+        (request.resource.data.activa == false || resource.data.activa == true);
       // Borrar solo lo hace eliminarCuenta, con el Admin SDK.
       allow delete: if false;
     }
