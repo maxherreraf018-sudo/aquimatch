@@ -125,6 +125,11 @@ export default function Discover() {
   const [procesandoPausa, setProcesandoPausa] = useState(false)
   const [mostrarConfirmarPausa, setMostrarConfirmarPausa] = useState(false)
   const [error, setError] = useState('')
+  // La consulta del lugar fue rechazada y no se pudo recuperar. Distinto de
+  // `error`: eso es "falló lo que acabas de tocar"; esto es "no sabemos qué hay
+  // en el lugar". Mientras esté en true, la pantalla no puede afirmar nada
+  // sobre quién está acá, porque no lo sabe.
+  const [errorConsulta, setErrorConsulta] = useState(false)
   const [ahora, setAhora] = useState(() => Date.now())
 
   const estoyExplorando = miActivacion?.modo === 'explorar'
@@ -200,8 +205,14 @@ export default function Discover() {
           // Se apaga el "cargando" pase lo que pase. Antes, si la consulta era
           // rechazada, nadie apagaba el spinner y la pantalla se quedaba en
           // "Buscando personas cerca de ti..." hasta que la persona se rindiera.
+          //
+          // Va en su propio estado y no en `error`, que es para lo que sale
+          // cuando falla una acción (dar "me interesa", pausar). Esos avisos se
+          // dibujan dentro de la tarjeta de una persona, y acá justamente no
+          // hay ninguna persona que mostrar: puesto ahí, este aviso no lo veía
+          // nadie.
           setCargando(false)
-          setError('No pudimos confirmar que sigas en el lugar. Vuelve a entrar para seguir viendo quién está aquí.')
+          setErrorConsulta(true)
         }
       )
     }
@@ -391,9 +402,14 @@ export default function Discover() {
     >
       {/* Contador de personas + ícono discreto de seguridad */}
       <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-        <span className="pill-badge" style={{ padding: '6px 12px', fontSize: 12.5 }}>
-          👥 {disponibles.length} persona{disponibles.length === 1 ? '' : 's'} por descubrir
-        </span>
+        {/* Sin consulta no hay número. "0 personas por descubrir" cuando en
+            realidad no pudimos preguntar es peor que no decir nada: se lee como
+            un bar vacío, y quien lo lee se va. */}
+        {!errorConsulta && (
+          <span className="pill-badge" style={{ padding: '6px 12px', fontSize: 12.5 }}>
+            👥 {disponibles.length} persona{disponibles.length === 1 ? '' : 's'} por descubrir
+          </span>
+        )}
         {estoyExplorando && <span className="pill-badge" style={{ padding: '6px 12px', fontSize: 12.5 }}>👁️ Estás explorando</span>}
         {!estoyExplorando && (
           <button
@@ -484,7 +500,9 @@ export default function Discover() {
         </div>
       )}
 
-      {!actual ? (
+      {errorConsulta ? (
+        <NoPudimosConsultar />
+      ) : !actual ? (
         <PantallaVacia nadieEnElLugar={personas.length === 0} activacion={miActivacion} />
       ) : (
         <>
@@ -759,6 +777,31 @@ export default function Discover() {
  * hace distinta a la app: el local donde estás, confirmado, y el cero dicho
  * de frente. Es información que solo puede dar algo que verificó dónde estás.
  */
+/**
+ * Cuando la consulta del lugar fue rechazada y no se pudo recuperar.
+ *
+ * Es una pantalla aparte y no un cartelito arriba de PantallaVacia a propósito:
+ * PantallaVacia AFIRMA cosas —"ya viste a todas las personas que están aquí",
+ * "estás en Galpón Italia, no hay nadie más"— y en este estado no sabemos
+ * ninguna de las dos. Un aviso de error encima de una afirmación falsa sigue
+ * dejando la afirmación falsa en pantalla.
+ *
+ * No lleva botón de reintentar: la app ya reintentó sola (renovó y se volvió a
+ * suscribir) antes de llegar acá. Lo que falta es volver a entrar al lugar, que
+ * es lo único que vuelve a comprobar por GPS dónde está la persona.
+ */
+function NoPudimosConsultar() {
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+      <div style={{ fontSize: 36, marginBottom: 16 }}>📍</div>
+      <h1 style={{ marginBottom: 10 }}>No pudimos confirmar que sigas aquí</h1>
+      <p style={{ marginBottom: 24 }}>
+        Por eso no podemos mostrarte quién está en el lugar. Vuelve a entrar para seguir viendo.
+      </p>
+    </div>
+  )
+}
+
 function PantallaVacia({ nadieEnElLugar, activacion }) {
   if (!nadieEnElLugar) {
     return (
