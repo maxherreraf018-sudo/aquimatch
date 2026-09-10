@@ -526,7 +526,10 @@
       "Bash(sed -n '/^async function enderezar/,/^  const url/p' src/services/fotos.js)",
       "Bash(git log *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(node -e \"require\\('./index.js'\\); console.log\\('functions cargan OK'\\)\")"
+      "Bash(node -e \"require\\('./index.js'\\); console.log\\('functions cargan OK'\\)\")",
+      "Bash(grep -iE \"^sharp$|^puppeteer|^playwright|^resvg|canvas\")",
+      "Bash(node \"C:/Users/max_1/AppData/Local/Temp/claude/C--Users-max-1-OneDrive-Escritorio-AQUIMATCH-CLAUDE-aquimatch/f3a76bf8-9bc1-48f2-bca3-88ccca26841a/scratchpad/generar-rrss.mjs\")",
+      "Bash(node herramientas/generar-laminas-rrss.mjs)"
     ]
   }
 }
