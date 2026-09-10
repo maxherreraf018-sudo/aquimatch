@@ -117,7 +117,20 @@ function dibujarDerecha(imagen, orientacion, anchoMaximo) {
   lienzo.width = deCanto ? alto : ancho
   lienzo.height = deCanto ? ancho : alto
 
-  const pincel = lienzo.getContext('2d')
+  // `willReadFrequently: true` no es un detalle: es el arreglo.
+  //
+  // Medido en el S23 el 2026-09-09: preparar una foto tardaba 1.307 ms, y de
+  // esos, 1.291 estaban acá — en dibujar y comprimir. Decodificar la imagen
+  // costaba 10 ms. (Dos intentos anteriores fueron a optimizar la
+  // decodificación, que era lo que parecía caro y no lo era.)
+  //
+  // El motivo: por defecto el navegador guarda el lienzo en memoria de la
+  // tarjeta gráfica, que es lo correcto para algo que se dibuja en pantalla.
+  // Pero nosotros no lo mostramos: lo leemos entero para sacar el JPEG, y
+  // traer esos píxeles de vuelta desde la gráfica es lentísimo en un teléfono.
+  // Con esta bandera el lienzo vive en memoria normal desde el principio y no
+  // hay nada que traer de vuelta.
+  const pincel = lienzo.getContext('2d', { willReadFrequently: true })
   switch (orientacion) {
     case 2: pincel.transform(-1, 0, 0, 1, ancho, 0); break
     case 3: pincel.transform(-1, 0, 0, -1, ancho, alto); break
