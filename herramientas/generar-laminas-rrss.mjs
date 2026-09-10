@@ -97,26 +97,60 @@ function lamina({ kicker = null, titulo = [], sub = [], pie = null, tamTitulo = 
 </svg>`
 }
 
+// NADA DE LO QUE SE ESCRIBA ACÁ PUEDE SER UNA PROMESA QUE EL CÓDIGO NO CUMPLA.
+//
+// La primera versión de estas láminas decía "no guardamos dónde estuviste,
+// nosotros no lo tenemos". Es falso, y se comprobó abriendo el código: los
+// documentos de /intereses y /pases se llaman `placeId_desde_hacia` y llevan
+// fecha, /conexiones guarda placeId y fecha, y /activaciones conserva placeId,
+// placeName e iniciadaEn después de que la persona se va. Lo que sí vive solo
+// en el teléfono es la lista de "mis lugares" (ver src/services/misLugares.js),
+// que es una comodidad, no todo el registro.
+//
+// La diferencia entre esas dos frases es la diferencia entre una promesa de
+// privacidad y una declaración falsa. Con la Ley 21.719 encima y la apelación
+// de Apple abierta, publicar la segunda sería el error más caro posible.
+//
+// Regla para las próximas: si una lámina afirma algo sobre lo que hace o no
+// hace el sistema, hay que poder abrir el archivo que lo cumple ANTES de
+// generarla. Si no se puede, la frase no va.
 const laminas = [
   // ---- Publicación 2: cómo funciona ----
-  ['p2-1-la-viste', { titulo: [{ texto: 'La viste' }, { texto: 'en la barra.' }, { texto: 'No pasó nada.', acento: true }], sub: ['Otra vez.'], pie: 'desliza →' }],
+  //
+  // El gancho ya no es "la viste en la barra". No por suavizar: esa frase le
+  // habla en masculino a un hombre ("la"), y las mujeres son el lado escaso de
+  // esta app. Un gancho que le habla a la mitad del público cuesta más que lo
+  // que rinde.
+  ['p2-1-se-miraron', { titulo: [{ texto: 'Se miraron' }, { texto: 'dos veces. Y cada' }, { texto: 'uno se fue por', acento: true }, { texto: 'su lado.', acento: true }], sub: ['Pasa todos los viernes.'], pie: 'desliza →', tamTitulo: 68 }],
   ['p2-2-activas', { kicker: 'paso 1', titulo: [{ texto: 'Llegas al bar' }, { texto: 'y activas' }, { texto: 'AquíMatch.', acento: true }], sub: ['El GPS confirma que estás ahí.', 'Sin eso, no entras.'], pie: 'desliza →' }],
-  ['p2-3-quien-se-ve', { kicker: 'paso 2', titulo: [{ texto: 'No ves a todo' }, { texto: 'el bar. Ves a' }, { texto: 'quienes también' }, { texto: 'quieren conocer', acento: true }, { texto: 'a alguien.', acento: true }], sub: ['Solo apareces si tú lo decides.'], pie: 'desliza →', tamTitulo: 68 }],
+  ['p2-3-quien-se-ve', { kicker: 'paso 2', titulo: [{ texto: 'No ves a todo' }, { texto: 'el bar. Ves a' }, { texto: 'quienes también' }, { texto: 'quieren conocer', acento: true }, { texto: 'a alguien.', acento: true }], sub: ['Nadie aparece por estar en el bar.', 'Hay que activarse a propósito.'], pie: 'desliza →', tamTitulo: 68 }],
   ['p2-4-el-chat', { kicker: 'paso 3', titulo: [{ texto: 'Si a los dos' }, { texto: 'les interesa,' }, { texto: 'se abre el chat.', acento: true }], sub: ['Si no, nadie se entera de nada.'], pie: 'desliza →' }],
-  ['p2-5-desapareces', { kicker: 'paso 4', titulo: [{ texto: 'Sales del local' }, { texto: 'y desapareces.', acento: true }], sub: ['No guardamos dónde estuviste.', 'Ese historial vive solo en tu teléfono.'], pie: 'ya en android' }],
+  // "dejas de aparecer" y no "desapareces": si alguien cierra la app sin tocar
+  // "salir" y se va, la activación se apaga sola recién al pasar el umbral de
+  // inactividad. Prometer que es instantáneo sería prometer algo que depende
+  // del GPS y de la señal del bar.
+  ['p2-5-dejas-de-aparecer', { kicker: 'paso 4', titulo: [{ texto: 'Sales del local' }, { texto: 'y dejas de' }, { texto: 'aparecer.', acento: true }], sub: ['Al tocar "salir" es inmediato. Y si te vas', 'sin cerrar la app, se apaga sola al rato.'], pie: 'desliza →' }],
+  // La lámina que faltaba, y la más honesta de la serie: sin gente en el mismo
+  // local la app no tiene nada que mostrar. Decirlo antes evita que una
+  // pantalla vacía se lea como una app rota.
+  ['p2-6-recien-partimos', { titulo: [{ texto: 'Recién' }, { texto: 'partimos.', acento: true }], sub: ['Si activas y todavía no hay nadie, invita a', 'tus amigos a activarse en el mismo local.', 'Así es como parte esto.'], pie: 'ya en android' }],
 
-  // ---- Publicación 3: lo que no hacemos ----
-  ['p3-1-nunca', { titulo: [{ texto: 'Hay cosas que' }, { texto: 'no vamos a' }, { texto: 'hacer nunca.', acento: true }], sub: ['Aunque den plata.'], pie: 'desliza →' }],
-  ['p3-2-historial', { kicker: 'uno', titulo: [{ texto: 'No guardamos' }, { texto: 'dónde estuviste.', acento: true }], sub: ['Tu historial de lugares vive solo en tu', 'teléfono. Nosotros no lo tenemos.'], pie: 'desliza →' }],
-  ['p3-3-seguridad', { kicker: 'dos', titulo: [{ texto: 'No cobramos por' }, { texto: 'bloquear ni', acento: true }, { texto: 'denunciar.', acento: true }], sub: ['La seguridad no es una función premium.'], pie: 'desliza →' }],
-  ['p3-4-cerca', { kicker: 'tres', titulo: [{ texto: 'No te mostramos' }, { texto: 'gente que no' }, { texto: 'está aquí.', acento: true }], sub: ['Nada de perfiles a cinco kilómetros.', 'Solo quienes están donde tú estás, ahora.'], pie: 'ya en android' }],
+  // ---- Publicación 3: EN PAUSA ----
+  //
+  // Era la de privacidad. Se saca entera hasta poder verificar, frase por
+  // frase, qué se guarda y qué no. Ver el comentario de arriba.
 
   // ---- Publicación 4: para dueños de locales ----
   ['p4-1-tu-local', { titulo: [{ texto: 'Tu local ya' }, { texto: 'tiene la gente.' }, { texto: 'Le falta que', acento: true }, { texto: 'se hablen.', acento: true }], sub: [], pie: 'para dueños de locales', tamTitulo: 72 }],
   ['p4-2-cuarenta', { titulo: [{ texto: 'Un viernes hay' }, { texto: '40 personas', acento: true }, { texto: 'en tu bar.' }], sub: ['Varias vinieron a conocer a alguien.', 'Casi ninguna se va a atrever.'], pie: 'desliza →' }],
-  ['p4-3-la-excusa', { titulo: [{ texto: 'AquíMatch les' }, { texto: 'da la excusa.', acento: true }], sub: ['Se activan estando en tu local.', 'Se ven entre ellos. Se hablan.', 'Y se quedan más rato.'], pie: 'desliza →' }],
-  ['p4-4-el-panel', { titulo: [{ texto: 'Y tú ves' }, { texto: 'cómo va.', acento: true }], sub: ['Cuánta gente hay ahora, a qué hora llegan,', 'qué edades. Todo anónimo: nunca sabes', 'quién es quién, y así tiene que ser.'], pie: 'desliza →' }],
-  ['p4-5-piloto', { titulo: [{ texto: 'Piloto gratis' }, { texto: '60 días.', acento: true }], sub: ['Sin instalar nada. Sin compromiso.', 'aquimatch.cl/locales'], pie: 'aquimatch spa · santiago' }],
+  // Se cayó "y se quedan más rato": es una hipótesis del negocio, no un
+  // resultado medido. Prometérsela a un dueño en la primera publicación es
+  // exactamente lo que después no vamos a poder sostener.
+  ['p4-3-la-excusa', { titulo: [{ texto: 'AquíMatch les' }, { texto: 'da la excusa.', acento: true }], sub: ['Se activan estando en tu local.', 'Se ven entre ellos. Se hablan.'], pie: 'desliza →' }],
+  // "Cuánta gente hay ahora" decía otra cosa de la que el panel muestra: no
+  // cuenta a los clientes del bar, cuenta a quienes usan AquíMatch ahí.
+  ['p4-4-el-panel', { titulo: [{ texto: 'Y tú ves' }, { texto: 'cómo va.', acento: true }], sub: ['Cuántos usuarios de AquíMatch se activan en', 'tu local, a qué hora y en qué rangos de edad.', 'Solo cifras: nunca perfiles ni nombres.'], pie: 'desliza →' }],
+  ['p4-5-piloto', { titulo: [{ texto: 'Piloto gratis' }, { texto: '60 días.', acento: true }], sub: ['Todavía no sabemos cuánto rinde. Por eso', 'es gratis: queremos medirlo contigo.', 'aquimatch.cl/locales'], pie: 'aquimatch spa · santiago' }],
 ]
 
 await mkdir(SALIDA, { recursive: true })
