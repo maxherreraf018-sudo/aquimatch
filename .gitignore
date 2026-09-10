@@ -27,3 +27,9 @@ android/keystore.properties
 # Logs
 firebase-debug.log
 npm-debug.log
+
+# Salidas del emulador de Firestore y de las pruebas de reglas.
+outputs/
+tmp/
+firestore-debug.log
+ui-debug.log

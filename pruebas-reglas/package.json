@@ -1,0 +1,13 @@
+{
+  "name": "aquimatch-pruebas-reglas",
+  "private": true,
+  "type": "module",
+  "//": "Carpeta aparte, con sus propias dependencias, A PROPOSITO. La libreria de pruebas de reglas exige firebase 12 y la app usa la 11: subirle la version a la app por una herramienta de pruebas es justo el tipo de cambio que rompe algo sin ningun motivo. Las pruebas solo hablan con el emulador, asi que su version del SDK no tiene por que coincidir con la de la app.",
+  "scripts": {
+    "probar": "firebase emulators:exec --only firestore --project demo-aquimatch \"node --test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.0.0"
+  }
+}

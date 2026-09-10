@@ -158,5 +158,15 @@
         "*.local"
       ]
     }
-  ]
+  ],
+  "emulators": {
+    "//": "Solo Firestore, y solo para correr las pruebas de reglas de pruebas-reglas/. No se usa para desarrollar: la app apunta al proyecto de verdad.",
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
 }
