@@ -8,6 +8,7 @@ import {
   cancelarPausa,
   personasVisibles,
   renovarActividad,
+  renovarPresenciaSiHaceFalta,
   desactivarParticipacion,
   INTERVALO_LATIDO_MS,
 } from '../services/activation'
@@ -178,10 +179,31 @@ export default function Discover() {
       setMisLikes(new Set(misLikesLista))
       setMisPases(misPasesMapa)
 
-      detener = escucharPersonasEnElLugar(activacion.placeId, uid, (lista) => {
-        setPersonas(lista)
-        setCargando(false)
-      })
+      // Se renueva ANTES de consultar, no solo en el latido. El primer latido
+      // llega a los 20 minutos: si la ventana de permiso ya venía vencida al
+      // abrir Descubrir, esos 20 minutos se pasaban mirando una pantalla vacía
+      // con una consulta que ya había sido rechazada.
+      //
+      // Solo hace algo si la activación es vieja; para una recién empezada
+      // vuelve enseguida y sin pedir GPS.
+      await renovarPresenciaSiHaceFalta(uid)
+      if (cancelado) return
+
+      detener = escucharPersonasEnElLugar(
+        activacion.placeId,
+        uid,
+        (lista) => {
+          setPersonas(lista)
+          setCargando(false)
+        },
+        () => {
+          // Se apaga el "cargando" pase lo que pase. Antes, si la consulta era
+          // rechazada, nadie apagaba el spinner y la pantalla se quedaba en
+          // "Buscando personas cerca de ti..." hasta que la persona se rindiera.
+          setCargando(false)
+          setError('No pudimos confirmar que sigas en el lugar. Vuelve a entrar para seguir viendo quién está aquí.')
+        }
+      )
     }
 
     iniciar()

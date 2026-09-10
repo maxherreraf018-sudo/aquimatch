@@ -1285,6 +1285,30 @@ exports.activarEnLugar = onCall(
 // cobraría como una lectura por cada una de ellas.
 const MAX_RENOVACIONES_POR_VENTANA = 6;
 
+// Hasta dónde te podés mover sin que se considere que te fuiste.
+//
+// OJO: estos tres números están duplicados de src/services/activation.js
+// (RADIO_SALIDA_*). Si se cambian allá hay que cambiarlos acá, o la app y el
+// servidor van a discrepar sobre si seguís adentro — y la forma en que
+// discrepan es fea: la app te da por presente y el servidor te niega la
+// renovación, así que a las seis horas te quedás ciego sin que nada te avise.
+//
+// Y son los radios de PERMANENCIA, no el de activación. Para entrar hay que
+// estar en la puerta (120 metros); para seguir adentro alcanza con no haberse
+// ido, que en una universidad significa 800 metros porque el campus entero es
+// el lugar. Exigir los 120 para renovar era pedirle a alguien que lleva cuatro
+// horas en la facultad que camine hasta el punto exacto donde se activó.
+const RADIO_PERMANENCIA_METROS = 200;
+const RADIO_PERMANENCIA_LUGAR_GRANDE_METROS = 800;
+const RADIO_PERMANENCIA_ESTADIO_METROS = 500;
+
+function radioPermanenciaSegunTipos(tipos) {
+  const lista = Array.isArray(tipos) ? tipos : [];
+  if (lista.includes("university")) return RADIO_PERMANENCIA_LUGAR_GRANDE_METROS;
+  if (lista.includes("stadium")) return RADIO_PERMANENCIA_ESTADIO_METROS;
+  return RADIO_PERMANENCIA_METROS;
+}
+
 /**
  * Renueva la presencia de alguien que sigue en el mismo lugar, volviendo a
  * comprobar por GPS que está ahí.
@@ -1353,8 +1377,46 @@ exports.renovarPresencia = onCall({ timeoutSeconds: 20 }, async (request) => {
     throw new HttpsError("failed-precondition", "Esa activación no tiene ubicación verificada.");
   }
 
+  // La cuenta tiene que seguir siendo apta AHORA, no cuando entró.
+  //
+  // Renovar es prolongar una activación, así que le toca el mismo examen que
+  // para empezarla. Sin esto, alguien denunciado y suspendido a las once seguía
+  // renovándose hasta el cierre: visible en el local, mirando a la gente de la
+  // sala. La suspensión es justamente la herramienta para sacar a alguien de
+  // una sala donde está molestando, y una puerta que se renueva sola la
+  // convertía en un trámite sin efecto hasta la noche siguiente.
+  //
+  // Y no basta con negar la renovación: se apaga la activación. Negar la
+  // dejaría viva y visible seis horas más; apagarla lo saca del local ahora.
+  //
+  // La edad no se revisa acá a propósito. Es lo único de la lista que no puede
+  // empeorar entre la activación y la renovación: nadie cumple menos años con
+  // el correr de la noche. Revisarla costaría una lectura más de los datos
+  // privados por cada renovación, para no poder cambiar nunca de respuesta.
+  const perfilSnap = await admin.firestore().doc(`usuarios/${uid}`).get();
+  const perfil = perfilSnap.exists ? perfilSnap.data() : null;
+  const sigueSiendoApto =
+    perfil !== null &&
+    perfil.suspendido !== true &&
+    perfil.estadoVerificacion === "aprobado" &&
+    perfil.perfilCompleto === true;
+  if (!sigueSiendoApto) {
+    await ref.update({ activa: false, actualizadaEn: admin.firestore.FieldValue.serverTimestamp() });
+    throw new HttpsError("permission-denied", "Tu cuenta ya no puede participar.");
+  }
+
+  // El radio de PERMANENCIA, no el de activación. Ver el comentario de
+  // radioPermanenciaSegunTipos: la app te da por presente hasta 800 metros en
+  // una universidad, y si el servidor exigiera 120 para renovar, los dos lados
+  // dirían cosas distintas sobre la misma persona.
+  //
+  // Los `tipos` los escribió el servidor con lo que dijo Google Places, y el
+  // cliente no los puede tocar (no están en la lista de campos que puede
+  // escribir): si pudiera, cualquiera se declararía "university" y se compraría
+  // 800 metros de margen.
+  const radio = radioPermanenciaSegunTipos(activacion.tipos);
   const distancia = distanciaMetros(lat, lng, activacion.lat, activacion.lng);
-  if (!(distancia <= RADIO_ACTIVACION_METROS)) {
+  if (!(distancia <= radio)) {
     throw new HttpsError("permission-denied", "Ya no estás en ese lugar.");
   }
 

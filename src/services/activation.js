@@ -143,7 +143,7 @@ export async function renovarActividad(uid) {
     // más — no vale la pena interrumpir al usuario por esto.
     return
   }
-  await renovarPresenciaSiHaceFalta(uid, ref)
+  await renovarPresenciaSiHaceFalta(uid)
 }
 
 /**
@@ -163,25 +163,31 @@ export async function renovarActividad(uid) {
  * Una lectura del propio documento cada 20 minutos no se compara con lo que ya
  * cuesta el latido en sí: cuando uno late, TODOS los del local lo leen.
  */
-async function renovarPresenciaSiHaceFalta(uid, ref) {
+export async function renovarPresenciaSiHaceFalta(uid, { forzar = false } = {}) {
+  const ref = doc(db, 'activaciones', uid)
   try {
-    const { getDoc } = await import('firebase/firestore')
-    const snap = await getDoc(ref)
-    const activacion = snap.data()
-    if (!activacion?.activa || !activacion.iniciadaEn) return
-    const edad = Date.now() - activacion.iniciadaEn.toMillis()
-    if (edad < EDAD_PARA_RENOVAR_MS) return
+    if (!forzar) {
+      const { getDoc } = await import('firebase/firestore')
+      const snap = await getDoc(ref)
+      const activacion = snap.data()
+      if (!activacion?.activa || !activacion.iniciadaEn) return false
+      const edad = Date.now() - activacion.iniciadaEn.toMillis()
+      if (edad < EDAD_PARA_RENOVAR_MS) return false
+    }
 
     const { obtenerPosicion } = await import('./ubicacion')
     const { lat, lng } = await obtenerPosicion()
     const llamar = httpsCallable(functions, 'renovarPresencia')
     await llamar({ lat, lng })
+    return true
   } catch (err) {
     // Si la renovación falla no se interrumpe a nadie ni se le apaga la
-    // activación. Puede ser que el GPS no responda dentro del bar, o que no
-    // haya señal — y sacar a alguien del lugar por eso sería peor que el
+    // activación desde acá. Puede ser que el GPS no responda dentro del bar, o
+    // que no haya señal — y sacar a alguien del lugar por eso sería peor que el
     // problema. Quedan varios latidos más antes de que se cierre la ventana, y
-    // si de verdad se fue, de eso se encarga la vigilancia por GPS.
+    // si de verdad se fue, de eso se encarga la vigilancia por GPS. Si la
+    // cuenta dejó de ser apta, el servidor ya apagó la activación por su lado.
+    return false
   }
 }
 
@@ -314,7 +320,7 @@ export function esRecienteYActiva(persona, ahoraMs) {
  * regla se aprieta DESPUÉS, cuando la gente ya haya actualizado. Al revés, a
  * todo el que siga en una versión vieja se le queda Descubrir en blanco.
  */
-export function escucharPersonasEnElLugar(placeId, uidPropio, callback) {
+export function escucharPersonasEnElLugar(placeId, uidPropio, callback, alFallar) {
   const ref = collection(db, 'activaciones')
   const q = query(
     ref,
@@ -322,14 +328,57 @@ export function escucharPersonasEnElLugar(placeId, uidPropio, callback) {
     where('activa', '==', true),
     where('modo', '==', 'participar')
   )
-  return onSnapshot(q, (snapshot) => {
-    const ahora = Date.now()
-    const personas = snapshot.docs
-      .map((d) => d.data())
-      .filter((persona) => persona.uid !== uidPropio)
-      .filter((persona) => esRecienteYActiva(persona, ahora))
-    callback(personas)
-  })
+
+  // Una suscripción de Firestore que se cae NO se levanta sola, y hasta ahora
+  // esta ni siquiera tenía a quién avisarle: onSnapshot iba sin segundo
+  // argumento, así que un rechazo de las reglas se perdía en silencio.
+  // Descubrir se quedaba con el spinner girando para siempre —nunca llegaba el
+  // primer resultado, que es lo único que apagaba "cargando"— y desde afuera
+  // parecía que el bar estaba vacío y con mala señal.
+  //
+  // Cuándo pasa: la ventana de seis horas se cerró antes de que alcanzara a
+  // renovarse (varios latidos seguidos sin GPS, o la app cerrada durante la
+  // parte de la noche en que tocaba renovar). Renovar después no bastaba: la
+  // suscripción ya estaba muerta.
+  //
+  // Por eso el rescate: se renueva a la fuerza y se vuelve a suscribir. Una
+  // sola vez. Si el segundo intento también falla, se avisa y no se insiste —
+  // reintentar en bucle contra una regla que dice que no es una forma cara de
+  // no arreglar nada.
+  let detener = () => {}
+  let cancelado = false
+  let yaSeIntentoRescatar = false
+
+  function suscribir() {
+    detener = onSnapshot(
+      q,
+      (snapshot) => {
+        const ahora = Date.now()
+        const personas = snapshot.docs
+          .map((d) => d.data())
+          .filter((persona) => persona.uid !== uidPropio)
+          .filter((persona) => esRecienteYActiva(persona, ahora))
+        callback(personas)
+      },
+      async (error) => {
+        if (cancelado || yaSeIntentoRescatar) {
+          if (!cancelado) alFallar?.(error)
+          return
+        }
+        yaSeIntentoRescatar = true
+        const renovada = await renovarPresenciaSiHaceFalta(uidPropio, { forzar: true })
+        if (cancelado) return
+        if (renovada) suscribir()
+        else alFallar?.(error)
+      }
+    )
+  }
+
+  suscribir()
+  return () => {
+    cancelado = true
+    detener()
+  }
 }
 
 /**
