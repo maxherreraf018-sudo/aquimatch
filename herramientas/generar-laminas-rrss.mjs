@@ -122,18 +122,27 @@ const laminas = [
   // esta app. Un gancho que le habla a la mitad del público cuesta más que lo
   // que rinde.
   ['p2-1-se-miraron', { titulo: [{ texto: 'Se miraron' }, { texto: 'dos veces. Y cada' }, { texto: 'uno se fue por', acento: true }, { texto: 'su lado.', acento: true }], sub: ['Pasa todos los viernes.'], pie: 'desliza →', tamTitulo: 68 }],
-  ['p2-2-activas', { kicker: 'paso 1', titulo: [{ texto: 'Llegas al bar' }, { texto: 'y activas' }, { texto: 'AquíMatch.', acento: true }], sub: ['El GPS confirma que estás ahí.', 'Sin eso, no entras.'], pie: 'desliza →' }],
+  // "Verificamos tu ubicación cerca del local", no "el GPS confirma que estás
+  // ahí": activarEnLugar mide 120 metros contra las coordenadas del local, o
+  // sea que comprueba cercanía. Alguien en la vereda o en el departamento de
+  // arriba también pasa. La frase vieja prometía más de lo que se mide.
+  ['p2-2-activas', { kicker: 'paso 1', titulo: [{ texto: 'Llegas al bar' }, { texto: 'y activas' }, { texto: 'AquíMatch.', acento: true }], sub: ['Verificamos tu ubicación cerca del local.'], pie: 'desliza →' }],
   ['p2-3-quien-se-ve', { kicker: 'paso 2', titulo: [{ texto: 'No ves a todo' }, { texto: 'el bar. Ves a' }, { texto: 'quienes también' }, { texto: 'quieren conocer', acento: true }, { texto: 'a alguien.', acento: true }], sub: ['Nadie aparece por estar en el bar.', 'Hay que activarse a propósito.'], pie: 'desliza →', tamTitulo: 68 }],
-  ['p2-4-el-chat', { kicker: 'paso 3', titulo: [{ texto: 'Si a los dos' }, { texto: 'les interesa,' }, { texto: 'se abre el chat.', acento: true }], sub: ['Si no, nadie se entera de nada.'], pie: 'desliza →' }],
-  // "dejas de aparecer" y no "desapareces": si alguien cierra la app sin tocar
-  // "salir" y se va, la activación se apaga sola recién al pasar el umbral de
-  // inactividad. Prometer que es instantáneo sería prometer algo que depende
-  // del GPS y de la señal del bar.
-  ['p2-5-dejas-de-aparecer', { kicker: 'paso 4', titulo: [{ texto: 'Sales del local' }, { texto: 'y dejas de' }, { texto: 'aparecer.', acento: true }], sub: ['Al tocar "salir" es inmediato. Y si te vas', 'sin cerrar la app, se apaga sola al rato.'], pie: 'desliza →' }],
-  // La lámina que faltaba, y la más honesta de la serie: sin gente en el mismo
-  // local la app no tiene nada que mostrar. Decirlo antes evita que una
-  // pantalla vacía se lea como una app rota.
-  ['p2-6-recien-partimos', { titulo: [{ texto: 'Recién' }, { texto: 'partimos.', acento: true }], sub: ['Si activas y todavía no hay nadie, invita a', 'tus amigos a activarse en el mismo local.', 'Así es como parte esto.'], pie: 'ya en android' }],
+  // Sin subtítulo. Decía "si no, nadie se entera de nada", y es falso: la
+  // regla de lectura de /intereses deja que quien RECIBE un "me interesa" lo
+  // lea aunque no lo haya correspondido, así que con un cliente modificado se
+  // puede saber. Hasta cerrar eso, la lámina dice solo lo que sí se cumple:
+  // sin interés de los dos no hay chat.
+  ['p2-4-el-chat', { kicker: 'paso 3', titulo: [{ texto: 'Si a los dos' }, { texto: 'les interesa,' }, { texto: 'se abre el chat.', acento: true }], sub: [], pie: 'desliza →' }],
+  // "Salir desactiva tu participación", sin prometer que sea inmediato: la
+  // escritura depende de que la solicitud llegue. Y si alguien se va sin tocar
+  // "Salir", la activación se apaga cuando la app detecta que se alejó (solo
+  // con la app abierta) o al pasar el umbral de inactividad.
+  ['p2-5-tocas-salir', { kicker: 'paso 4', titulo: [{ texto: 'Te vas y' }, { texto: 'tocas Salir.', acento: true }], sub: ['Eso desactiva tu participación. Si se te', 'olvida, se desactiva sola cuando la app', 'nota que te alejaste, o tras unas horas.'], pie: 'desliza →' }],
+  // La lámina que faltaba: sin gente en el mismo local la app no tiene nada que
+  // mostrar. Decirlo antes evita que una pantalla vacía se lea como una app
+  // rota. Y cierra con la acción concreta: descargar e invitar.
+  ['p2-6-recien-partimos', { titulo: [{ texto: 'Recién' }, { texto: 'partimos.', acento: true }], sub: ['Descárgala en Android desde el link de', 'la bio, y si todavía no hay nadie, invita', 'a tus amigos a activarse en el mismo local.'], pie: 'solo mayores de 18 · ya en android' }],
 
   // ---- Publicación 3: EN PAUSA ----
   //
@@ -146,11 +155,13 @@ const laminas = [
   // Se cayó "y se quedan más rato": es una hipótesis del negocio, no un
   // resultado medido. Prometérsela a un dueño en la primera publicación es
   // exactamente lo que después no vamos a poder sostener.
-  ['p4-3-la-excusa', { titulo: [{ texto: 'AquíMatch les' }, { texto: 'da la excusa.', acento: true }], sub: ['Se activan estando en tu local.', 'Se ven entre ellos. Se hablan.'], pie: 'desliza →' }],
+  ['p4-3-la-excusa', { titulo: [{ texto: 'AquíMatch les' }, { texto: 'da la excusa.', acento: true }], sub: ['Quienes usan la app en tu local pueden', 'verse entre ellos y, si hay interés de', 'los dos, conversar.'], pie: 'desliza →' }],
   // "Cuánta gente hay ahora" decía otra cosa de la que el panel muestra: no
   // cuenta a los clientes del bar, cuenta a quienes usan AquíMatch ahí.
   ['p4-4-el-panel', { titulo: [{ texto: 'Y tú ves' }, { texto: 'cómo va.', acento: true }], sub: ['Cuántos usuarios de AquíMatch se activan en', 'tu local, a qué hora y en qué rangos de edad.', 'Solo cifras: nunca perfiles ni nombres.'], pie: 'desliza →' }],
-  ['p4-5-piloto', { titulo: [{ texto: 'Piloto gratis' }, { texto: '60 días.', acento: true }], sub: ['Todavía no sabemos cuánto rinde. Por eso', 'es gratis: queremos medirlo contigo.', 'aquimatch.cl/locales'], pie: 'aquimatch spa · santiago' }],
+  // Honesto sin centrarse en la duda: se invita a probar y evaluar juntos, y no
+  // se promete ningún resultado de ventas.
+  ['p4-5-piloto', { titulo: [{ texto: 'Piloto gratis' }, { texto: '60 días.', acento: true }], sub: ['Pruébalo en tu local y evaluamos juntos', 'cómo participa tu gente. Sin compromiso.', 'aquimatch.cl/locales'], pie: 'aquimatch spa · santiago' }],
 ]
 
 await mkdir(SALIDA, { recursive: true })
